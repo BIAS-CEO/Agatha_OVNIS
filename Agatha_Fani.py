@@ -2,7 +2,7 @@
 # ARCHIVO PRINCIPAL: Agatha_Fani.py
 # SISTEMA: Motor de Analisis Conductual Predictivo
 # MODULO: AGATHA FANI (Fenomenos Anomalos No Identificados)
-# VERSION: Opcon Ready v1.0
+# VERSION: Opcon Ready v2.0
 # OPERADOR: DIR-74
 # ====================================================================
 
@@ -169,7 +169,7 @@ button[data-baseweb="tab"][aria-selected="true"] {
     background-color: transparent !important;
 }
 
-.stSelectbox label, .stMultiselect label, .stSlider label {
+.stSelectbox label, .stMultiselect label, .stSlider label, .stRadio label {
     color: #64748b !important;
     font-family: 'Montserrat', sans-serif !important;
     font-size: 0.7rem !important;
@@ -199,40 +199,26 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # --- SISTEMA DE GESTION DE CREDENCIALES MULTIMODAL ---
-import os
-
 def obtener_credencial(nombre_var, nombre_secrets=None):
-    """
-    Extrae credencial por prioridad: st.secrets > env var > None
-    nombre_var: nombre en variables de entorno (ej: MAPBOX_API_KEY)
-    nombre_secrets: nombre en st.secrets (si difiere, por defecto igual a nombre_var)
-    """
     nombre_secrets = nombre_secrets or nombre_var
-    
-    # Prioridad 1: Streamlit Secrets (produccion)
     try:
         if hasattr(st, "secrets") and nombre_secrets in st.secrets:
             return st.secrets[nombre_secrets]
     except Exception:
         pass
-    
-    # Prioridad 2: Variables de entorno del sistema
     valor = os.environ.get(nombre_var)
     if valor:
         return valor
-    
-    # Prioridad 3: Variaciones comunes de nomenclatura
     alternativas = [
-        nombre_var.replace("_", ""),           # MAPBOXAPIKEY
-        nombre_var.upper(),                   # MAPBOX_API_KEY
-        nombre_var.lower(),                   # mapbox_api_key
-        nombre_var.replace("_", "-"),          # MAPBOX-API-KEY
+        nombre_var.replace("_", ""),
+        nombre_var.upper(),
+        nombre_var.lower(),
+        nombre_var.replace("_", "-"),
     ]
     for alt in alternativas:
         valor = os.environ.get(alt)
         if valor:
             return valor
-    
     return None
 
 # --- CARGA DE CREDENCIALES TACTICAS ---
@@ -241,39 +227,46 @@ openai_token = obtener_credencial("OPENAI_API_KEY")
 openweather_token = obtener_credencial("OPENWEATHER_API_KEY")
 google_maps_token = obtener_credencial("GOOGLE_MAPS_KEY")
 
-# --- DIAGNOSTICO DE CONECTIVIDAD (Debug interno) ---
-if st.sidebar.toggle("Diagnostico de Sistemas", value=False):
-    st.sidebar.markdown("**Estado de APIs:**")
-    apis = {
-        "Mapbox": mapbox_token,
-        "OpenAI": openai_token,
-        "OpenWeather": openweather_token,
-        "Google Maps": google_maps_token
-    }
-    for nombre, token in apis.items():
-        estado = "ACTIVA" if token else "OFFLINE"
-        color = "#00ff80" if token else "#ff4444"
-        st.sidebar.markdown(f"<span style='color:{color}; font-family:Share Tech Mono'>{nombre}: {estado}</span>", unsafe_allow_html=True)
-        
-# --- CENTROIDES GEOESPACIALES (Fallback tactico) ---
+# --- CENTROIDES GEOESPACIALES (Dispersion reducida para evitar mar) ---
 CENTROIDES_TACTICOS = {
-    "MARRUECOS": {"lat": 31.7917, "lon": -7.0926, "dispersion": 8.0},
-    "MOROCCO": {"lat": 31.7917, "lon": -7.0926, "dispersion": 8.0},
-    "ESPANA": {"lat": 40.4637, "lon": -3.7492, "dispersion": 6.0},
-    "SPAIN": {"lat": 40.4637, "lon": -3.7492, "dispersion": 6.0},
-    "EEUU": {"lat": 37.0902, "lon": -95.7129, "dispersion": 15.0},
-    "USA": {"lat": 37.0902, "lon": -95.7129, "dispersion": 15.0},
-    "ESTADOS UNIDOS": {"lat": 37.0902, "lon": -95.7129, "dispersion": 15.0},
-    "UNITED STATES": {"lat": 37.0902, "lon": -95.7129, "dispersion": 15.0},
-    "FRANCIA": {"lat": 46.2276, "lon": 2.2137, "dispersion": 5.0},
-    "FRANCE": {"lat": 46.2276, "lon": 2.2137, "dispersion": 5.0},
-    "REINO UNIDO": {"lat": 55.3781, "lon": -3.4360, "dispersion": 6.0},
-    "UK": {"lat": 55.3781, "lon": -3.4360, "dispersion": 6.0},
-    "UNITED KINGDOM": {"lat": 55.3781, "lon": -3.4360, "dispersion": 6.0},
-    "DEFAULT": {"lat": 20.0, "lon": 0.0, "dispersion": 30.0}
+    "MARRUECOS": {"lat": 31.7917, "lon": -7.0926, "dispersion": 2.0},
+    "MOROCCO": {"lat": 31.7917, "lon": -7.0926, "dispersion": 2.0},
+    "ESPANA": {"lat": 40.4637, "lon": -3.7492, "dispersion": 1.5},
+    "SPAIN": {"lat": 40.4637, "lon": -3.7492, "dispersion": 1.5},
+    "EEUU": {"lat": 39.0902, "lon": -98.7129, "dispersion": 5.0},
+    "USA": {"lat": 39.0902, "lon": -98.7129, "dispersion": 5.0},
+    "ESTADOS UNIDOS": {"lat": 39.0902, "lon": -98.7129, "dispersion": 5.0},
+    "UNITED STATES": {"lat": 39.0902, "lon": -98.7129, "dispersion": 5.0},
+    "FRANCIA": {"lat": 46.2276, "lon": 2.2137, "dispersion": 1.8},
+    "FRANCE": {"lat": 46.2276, "lon": 2.2137, "dispersion": 1.8},
+    "REINO UNIDO": {"lat": 55.3781, "lon": -3.4360, "dispersion": 2.0},
+    "UK": {"lat": 55.3781, "lon": -3.4360, "dispersion": 2.0},
+    "UNITED KINGDOM": {"lat": 55.3781, "lon": -3.4360, "dispersion": 2.0},
+    "DEFAULT": {"lat": 20.0, "lon": 0.0, "dispersion": 8.0}
 }
 
-# --- BUSQUEDA DE ARCHIVOS (Tolerancia a fallos) ---
+# --- VALIDACION DE COORDENADAS (Evitar oceano) ---
+def es_coordenada_valida(lat, lon, pais):
+    pais = str(pais).upper()
+    if any(x in pais for x in ["ATLANTIC", "PACIFIC", "OCEAN", "MAR", "SEA"]):
+        return True
+    
+    # Atlantico Norte central
+    if 20 < lat < 45 and -45 < lon < -20:
+        return False
+    # Atlantico Sur central
+    if -20 < lat < 10 and -35 < lon < -10:
+        return False
+    # Pacifico central
+    if -10 < lat < 30 and -160 < lon < -100:
+        return False
+    # Indico central
+    if -30 < lat < 5 and 60 < lon < 95:
+        return False
+    
+    return True
+
+# --- BUSQUEDA DE ARCHIVOS ---
 def encontrar_archivo(nombre):
     rutas_posibles = [
         nombre,
@@ -301,7 +294,6 @@ def cargar_nodos():
         return pd.DataFrame()
     
     try:
-        # Intentar carga estandar
         df = pd.read_csv(ruta, on_bad_lines='skip', engine='python', encoding='utf-8')
     except Exception:
         try:
@@ -310,7 +302,7 @@ def cargar_nodos():
             st.error(f"Error de lectura CSV: {e}")
             return pd.DataFrame()
     
-    # Normalizacion de cabeceras (eliminar guiones bajos visuales)
+    # Normalizacion de cabeceras
     df.columns = [str(c).strip().replace('_', ' ').title() for c in df.columns]
     
     # Mapeo estandarizado
@@ -353,52 +345,56 @@ def cargar_nodos():
     df['Ciudad'] = df['Ciudad'].fillna("Zona Operativa").astype(str)
     df['Ano'] = pd.to_numeric(df['Ano'], errors='coerce').fillna(2024).astype(int)
     
-        # Generacion de coordenadas (Geocodificacion tactica mejorada)
+    # Generacion de coordenadas con validacion de oceano
     if 'Latitud' not in df.columns or 'Longitud' not in df.columns or df['Latitud'].isna().all():
         lats, lons = [], []
         
         for idx, row in df.iterrows():
             pais = str(row.get('Pais', '')).strip().upper()
             ciudad = str(row.get('Ciudad', '')).strip()
-            
-            # Determinar centroide base
             centroide = CENTROIDES_TACTICOS.get(pais, CENTROIDES_TACTICOS["DEFAULT"])
             
-            # Generador independiente por fila (seed basado en índice + hash ciudad)
-            seed = (idx + hash(ciudad) % 10000) % (2**32 - 1)
-            rng = np.random.default_rng(seed)
+            # Intentos multiples para evitar oceano
+            lat, lon = centroide["lat"], centroide["lon"]
+            for intento in range(15):
+                seed = (idx + hash(ciudad) % 10000 + intento) % (2**32 - 1)
+                rng = np.random.default_rng(seed)
+                
+                offset_lat = rng.normal(0, centroide["dispersion"] * 0.2)
+                offset_lon = rng.normal(0, centroide["dispersion"] * 0.3)
+                
+                lat_temp = centroide["lat"] + offset_lat
+                lon_temp = centroide["lon"] + offset_lon
+                
+                if es_coordenada_valida(lat_temp, lon_temp, pais):
+                    lat, lon = lat_temp, lon_temp
+                    break
             
-            # Dispersión gaussiana más natural (no cuadrada)
-            offset_lat = rng.normal(0, centroide["dispersion"] * 0.3)
-            offset_lon = rng.normal(0, centroide["dispersion"] * 0.5)
-            
-            lats.append(centroide["lat"] + offset_lat)
-            lons.append(centroide["lon"] + offset_lon)
+            lats.append(lat)
+            lons.append(lon)
         
         df['Latitud'] = lats
         df['Longitud'] = lons
 
-    # Paleta Neon categorizada por forma (TUPLAS, no listas - para hashability)
+    # Paleta Neon con TUPLAS (hashables) en lugar de listas
     def asignar_color_neon(forma):
         f = str(forma).lower()
         if any(x in f for x in ["triangulo", "triangular", "delta", "tri"]):
-            return (0, 255, 128, 230)      # Verde neon
+            return (0, 255, 128, 230)
         elif any(x in f for x in ["esfera", "orb", "circular", "redondo", "disco"]):
-            return (255, 0, 128, 230)      # Rosa/Magenta neon
+            return (255, 0, 128, 230)
         elif any(x in f for x in ["cigarro", "cilindro", "tubo", "cigar"]):
-            return (255, 128, 0, 230)      # Naranja neon
+            return (255, 128, 0, 230)
         elif any(x in f for x in ["luz", "cambiante", "pulsante", "flash"]):
-            return (255, 255, 0, 230)      # Amarillo neon
+            return (255, 255, 0, 230)
         elif any(x in f for x in ["diamante", "rombo", "cuadrado"]):
-            return (128, 0, 255, 230)      # Violeta neon
+            return (128, 0, 255, 230)
         elif any(x in f for x in ["rectangulo", "plataforma"]):
-            return (0, 128, 255, 230)      # Azul neon
+            return (0, 128, 255, 230)
         else:
-            return (0, 255, 255, 230)      # Cyan neon (default)
+            return (0, 255, 255, 230)
     
     df['Color Rgba'] = df['Forma'].apply(asignar_color_neon)
-    
-    # Identificador unico
     df['Id Caso'] = range(1, len(df) + 1)
     
     return df
@@ -423,10 +419,8 @@ def cargar_relaciones(df_nodos):
         except:
             return pd.DataFrame()
     
-    # Normalizar columnas
     df_rel.columns = [str(c).strip().replace('_', ' ').title() for c in df_rel.columns]
     
-    # Identificar columnas de origen y destino
     col_src = [c for c in df_rel.columns if "Source" in c or "Origen" in c or "Src" in c]
     col_tgt = [c for c in df_rel.columns if "Target" in c or "Destino" in c or "Tgt" in c]
     
@@ -434,7 +428,7 @@ def cargar_relaciones(df_nodos):
         return pd.DataFrame()
     
     edges = []
-    max_edges = min(500, len(df_rel))  # Limitar para rendimiento
+    max_edges = min(500, len(df_rel))
     
     for _, row in df_rel.head(max_edges).iterrows():
         try:
@@ -452,33 +446,14 @@ def cargar_relaciones(df_nodos):
                 'Origen Lat': float(nodo_a['Latitud']),
                 'Destino Lon': float(nodo_b['Longitud']), 
                 'Destino Lat': float(nodo_b['Latitud']),
-                'Color Origen': nodo_a.get('Color Rgb', [0, 255, 255, 200]),
-                'Color Destino': [255, 255, 255, 200],
+                'Color Origen': nodo_a.get('Color Rgba', (0, 255, 255, 200)),
+                'Color Destino': (255, 255, 255, 200),
                 'Peso': float(row.get('Weight', 1)) if 'Weight' in df_rel.columns else 1.0
             })
         except Exception:
             continue
             
     return pd.DataFrame(edges)
-
-def obtener_condiciones_meteo(lat, lon, api_key):
-    """Integracion tactica OpenWeather para correlacion fenomenos-atmosfera"""
-    if not api_key:
-        return None
-    try:
-        url = f"https://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&appid={api_key}&units=metric"
-        respuesta = requests.get(url, timeout=5).json()
-        return {
-            "temp": respuesta.get("main", {}).get("temp"),
-            "presion": respuesta.get("main", {}).get("pressure"),
-            "humedad": respuesta.get("main", {}).get("humidity"),
-            "visibilidad": respuesta.get("visibility", 10000)/1000,  # km
-            "nubes": respuesta.get("clouds", {}).get("all", 0),
-            "viento_vel": respuesta.get("wind", {}).get("speed"),
-            "viento_dir": respuesta.get("wind", {}).get("deg")
-        }
-    except Exception:
-        return None
 
 # --- CARGA DE DATOS ---
 df_maestro = cargar_nodos()
@@ -490,9 +465,8 @@ def render_tabla_tactica(df, max_filas=200):
         st.warning("Sin datos para visualizar")
         return
     
-    # Seleccionar columnas visibles (excluir tecnicas)
-    columnas_excluir = ['Color Rgb', 'Latitud', 'Longitud', 'Id Caso']
-    columnas_validas = [c for c in df.columns if c not in columnas_excluir][:8]  # Max 8 columnas
+    columnas_excluir = ['Color Rgba', 'Latitud', 'Longitud', 'Id Caso']
+    columnas_validas = [c for c in df.columns if c not in columnas_excluir][:8]
     
     html = '<div class="contenedor-tabla"><table class="rejilla-tactica"><thead><tr>'
     for col in columnas_validas:
@@ -528,26 +502,57 @@ regiones = {
 
 filtro_region = st.sidebar.selectbox("Ambito Geopolitico", list(regiones.keys()))
 
-# Filtros de datos
+# FILTRO DE FRANJAS TEMPORALES (NUEVO)
+st.sidebar.markdown("---")
+st.sidebar.markdown("### Control Temporal")
+
+# Franjas predefinidas
+franjas_temporales = {
+    "Personalizado": None,
+    "Pre-1940 (Era Moderna Temprana)": (1900, 1940),
+    "1940-1960 (Era de los Discos)": (1940, 1960),
+    "1960-1980 (Guerra Fria)": (1960, 1980),
+    "1980-2000 (Era Digital)": (1980, 2000),
+    "2000-2024 (Siglo XXI)": (2000, 2024),
+    "Todo el Registro": None
+}
+
+franja_seleccionada = st.sidebar.selectbox("Franja Historica", list(franjas_temporales.keys()))
+
+# Determinar rango de años
+if not df_maestro.empty:
+    min_year_global = int(df_maestro['Ano'].min())
+    max_year_global = int(df_maestro['Ano'].max())
+else:
+    min_year_global, max_year_global = 1900, 2024
+
+# Aplicar franja o permitir seleccion manual
+if franja_seleccionada == "Todo el Registro":
+    rango_anos = (min_year_global, max_year_global)
+elif franja_seleccionada == "Personalizado":
+    rango_anos = st.sidebar.slider(
+        "Ventana Temporal Personalizada", 
+        min_year_global, 
+        max_year_global, 
+        (min_year_global, max_year_global)
+    )
+else:
+    rango_anos = franjas_temporales[franja_seleccionada]
+    st.sidebar.markdown(f"<span style='color:#64748b; font-size:0.7rem;'>Periodo: {rango_anos[0]}-{rango_anos[1]}</span>", unsafe_allow_html=True)
+
+# Filtros de forma
 if not df_maestro.empty:
     formas_disp = sorted(df_maestro['Forma'].unique())
     filtro_forma = st.sidebar.multiselect("Tipologia Estructural", formas_disp, default=formas_disp[:5] if len(formas_disp) > 5 else formas_disp)
     
-    min_year = int(df_maestro['Ano'].min())
-    max_year = int(df_maestro['Ano'].max())
-    if min_year >= max_year:
-        min_year, max_year = max_year - 50, max_year
-    
-    rango_anos = st.sidebar.slider("Ventana Temporal", min_year, max_year, (min_year, max_year))
-    
-    # Aplicar filtros
+    # Aplicar todos los filtros
     df_filtrado = df_maestro[
         (df_maestro['Forma'].isin(filtro_forma)) & 
         (df_maestro['Ano'].between(rango_anos[0], rango_anos[1]))
     ].copy()
 else:
     df_filtrado = pd.DataFrame()
-    rango_anos = (1900, 2024)
+    filtro_forma = []
 
 # Controles de visualizacion
 st.sidebar.markdown("---")
@@ -565,14 +570,10 @@ col_m1, col_m2, col_m3, col_m4 = st.columns(4)
 total_casos = len(df_filtrado)
 if not df_filtrado.empty:
     forma_predom = df_filtrado['Forma'].mode().iloc[0] if not df_filtrado['Forma'].mode().empty else "N/A"
-    anos_cobertura = f"{df_filtrado['Ano'].min()}-{df_filtrado['Ano'].max()}"
-    
-    # Calcular zonas criticas (hotspots mediante clustering simple)
     coords = df_filtrado[['Latitud', 'Longitud']].round(1)
     zonas_criticas = len(coords.drop_duplicates())
 else:
     forma_predom = "N/A"
-    anos_cobertura = "N/A"
     zonas_criticas = 0
 
 col_m1.metric("Registros Activos", f"{total_casos:,}")
@@ -591,7 +592,37 @@ tab_visor, tab_datos, tab_analisis = st.tabs([
 
 # --- TAB 1: VISOR GEoespacial ---
 with tab_visor:
-    if df_filtrado.empty:
+    # Filtro de franja temporal encima del mapa (NUEVO)
+    if not df_maestro.empty:
+        col_filtro1, col_filtro2, col_filtro3 = st.columns([2, 2, 2])
+        
+        with col_filtro1:
+            franja_rapida = st.selectbox(
+                "Franja Temporal Rapida",
+                ["Todas", "1930-1950", "1950-1970", "1970-1990", "1990-2010", "2010-2024"],
+                index=0
+            )
+        
+        with col_filtro2:
+            if franja_rapida != "Todas":
+                años = franja_rapida.split("-")
+                st.markdown(f"<div style='margin-top:28px; color:#00d4ff; font-family:Share Tech Mono;'>Periodo: {años[0]} - {años[1]}</div>", unsafe_allow_html=True)
+        
+        with col_filtro3:
+            st.markdown("<div style='margin-top:28px;'></div>", unsafe_allow_html=True)
+            if st.button("Resetear Filtros", type="secondary"):
+                st.rerun()
+        
+        # Aplicar filtro rapido si se selecciono
+        if franja_rapida != "Todas":
+            años = franja_rapida.split("-")
+            df_mapa = df_filtrado[df_filtrado['Ano'].between(int(años[0]), int(años[1]))].copy()
+        else:
+            df_mapa = df_filtrado.copy()
+    else:
+        df_mapa = df_filtrado.copy()
+
+    if df_mapa.empty:
         st.error("No hay datos geoespaciales disponibles para el filtro seleccionado")
     else:
         config_region = regiones[filtro_region]
@@ -608,11 +639,11 @@ with tab_visor:
         
         capas = []
         
-        # Capa 1: Mapa de calor (densidad)
+        # Capa 1: Mapa de calor
         if mostrar_calor:
             capas.append(pdk.Layer(
                 "HeatmapLayer",
-                data=df_filtrado,
+                data=df_mapa,
                 get_position=["Longitud", "Latitud"],
                 opacity=0.7,
                 get_weight=1,
@@ -628,13 +659,13 @@ with tab_visor:
                 ]
             ))
         
-        # Capa 2: Puntos de contacto (Scatterplot)
+        # Capa 2: Puntos de contacto
         if mostrar_puntos:
             capas.append(pdk.Layer(
                 "ScatterplotLayer",
-                data=df_filtrado,
+                data=df_mapa,
                 get_position=["Longitud", "Latitud"],
-                get_fill_color="Color Rgb",
+                get_fill_color="Color Rgba",
                 get_radius=60000,
                 radius_min_pixels=5,
                 radius_max_pixels=50,
@@ -646,7 +677,7 @@ with tab_visor:
                 auto_highlight=True
             ))
         
-        # Capa 3: Arcos de trayectoria (Grafos)
+        # Capa 3: Arcos de trayectoria
         if mostrar_arcos and not df_grafos.empty:
             capas.append(pdk.Layer(
                 "ArcLayer",
@@ -670,7 +701,7 @@ with tab_visor:
             estilo_mapa = "carto-darkmatter"
             api_keys = None
         
-        # Tooltip HTML puro (inyeccion de variables sanitizada)
+        # Tooltip HTML puro
         tooltip_html = """
         <div style="background: rgba(10,10,10,0.95); padding: 12px; border-radius: 0px; 
         border: 1px solid #00d4ff; font-family: 'Share Tech Mono', monospace; min-width: 200px;">
@@ -713,8 +744,7 @@ with tab_datos:
     if df_filtrado.empty:
         st.warning("No hay registros que coincidan con los criterios de filtrado")
     else:
-        # Selector de columnas a mostrar
-        cols_disponibles = [c for c in df_filtrado.columns if c not in ['Color Rgb', 'Latitud', 'Longitud']]
+        cols_disponibles = [c for c in df_filtrado.columns if c not in ['Color Rgba', 'Latitud', 'Longitud']]
         cols_default = [c for c in ['Id Caso', 'Ano', 'Pais', 'Ciudad', 'Forma', 'Resumen'] if c in cols_disponibles]
         
         cols_seleccionadas = st.multiselect(
@@ -769,7 +799,7 @@ with tab_analisis:
             </div>
             """, unsafe_allow_html=True)
             
-            if st.button("Ejecutar Analisis Forense", type="primary", use_container_width=True):
+            if st.button("Ejecutar Analisis Forense", type="primary"):
                 with st.spinner("Procesando mediante red neuronal..."):
                     
                     resultado_nlp = {
@@ -804,7 +834,6 @@ with tab_analisis:
                             
                             contenido = respuesta.choices[0].message.content.strip()
                             
-                            # Limpiar posible markdown
                             if contenido.startswith("```json"):
                                 contenido = contenido[7:]
                             if contenido.endswith("```"):
@@ -843,8 +872,8 @@ with tab_analisis:
                     
                     indice_val = resultado_nlp.get("indice", 0)
                     
-                    # Renderizar resultado
-                    st.markdown(f"""
+                    # Renderizar resultado - CORREGIDO: unsafe_allow_html=True
+                    resultado_html = f"""
                     <div style="background-color: #0a0a0a; border: 1px solid #333; 
                     border-left: 4px solid {color_borde}; padding: 20px; margin-top: 20px;">
                         
@@ -871,13 +900,16 @@ with tab_analisis:
                         </div>
                         
                     </div>
-                    """, unsafe_allow_html=True)
+                    """
+                    
+                    # CORRECCION CRITICA: st.markdown con unsafe_allow_html=True
+                    st.markdown(resultado_html, unsafe_allow_html=True)
     
     with col_stats:
         st.markdown("#### Distribucion de Incidencias")
         
         if not df_filtrado.empty:
-            # Grafico de barras horizontal (formas)
+            # Grafico de barras horizontal
             conteo_formas = df_filtrado['Forma'].value_counts().head(10).reset_index()
             conteo_formas.columns = ['Estructura', 'Total']
             
