@@ -2,7 +2,7 @@
 # ARCHIVO PRINCIPAL: Agatha_Fani.py
 # SISTEMA: Motor de Analisis Conductual Predictivo
 # MODULO: AGATHA FANI (Fenomenos Anomalos No Identificados)
-# VERSION: Opcon Ready v2.0
+# VERSION: Opcon Ready v2.1
 # OPERADOR: DIR-74
 # ====================================================================
 
@@ -16,8 +16,12 @@ import os
 import json
 import time
 import hashlib
+import requests  # Para DeepSeek API
 from datetime import datetime
-from openai import OpenAI
+from dotenv import load_dotenv  # Opcional, para archivo .env
+
+# Cargar variables de entorno desde .env si existe (opcional)
+load_dotenv()
 
 # --- CONFIGURACION DE PAGINA ---
 st.set_page_config(
@@ -200,6 +204,12 @@ st.markdown(f"""
 
 # --- SISTEMA DE GESTION DE CREDENCIALES MULTIMODAL ---
 def obtener_credencial(nombre_var, nombre_secrets=None):
+    """
+    Obtiene credenciales desde:
+    1. st.secrets (prioridad)
+    2. Variables de entorno
+    3. Alternativas (sin guiones bajos, mayúsculas, etc.)
+    """
     nombre_secrets = nombre_secrets or nombre_var
     try:
         if hasattr(st, "secrets") and nombre_secrets in st.secrets:
@@ -223,7 +233,7 @@ def obtener_credencial(nombre_var, nombre_secrets=None):
 
 # --- CARGA DE CREDENCIALES TACTICAS ---
 mapbox_token = obtener_credencial("MAPBOX_API_KEY")
-openai_token = obtener_credencial("OPENAI_API_KEY")
+deepseek_token = obtener_credencial("DEEPSEEK_API_KEY")  # Reemplaza OPENAI_API_KEY
 openweather_token = obtener_credencial("OPENWEATHER_API_KEY")
 google_maps_token = obtener_credencial("GOOGLE_MAPS_KEY")
 
@@ -248,6 +258,7 @@ CENTROIDES_TACTICOS = {
 # --- VALIDACION DE COORDENADAS (Evitar oceano) ---
 def es_coordenada_valida(lat, lon, pais):
     pais = str(pais).upper()
+    # Permitir coordenadas que explicitamente mencionan oceanos
     if any(x in pais for x in ["ATLANTIC", "PACIFIC", "OCEAN", "MAR", "SEA"]):
         return True
     
@@ -502,7 +513,7 @@ regiones = {
 
 filtro_region = st.sidebar.selectbox("Ambito Geopolitico", list(regiones.keys()))
 
-# FILTRO DE FRANJAS TEMPORALES (NUEVO)
+# FILTRO DE FRANJAS TEMPORALES
 st.sidebar.markdown("---")
 st.sidebar.markdown("### Control Temporal")
 
@@ -545,7 +556,7 @@ if not df_maestro.empty:
     formas_disp = sorted(df_maestro['Forma'].unique())
     filtro_forma = st.sidebar.multiselect("Tipologia Estructural", formas_disp, default=formas_disp[:5] if len(formas_disp) > 5 else formas_disp)
     
-    # Aplicar todos los filtros
+    # Aplicar filtros al dataframe principal (luego se aplicará filtro rápido en el tab)
     df_filtrado = df_maestro[
         (df_maestro['Forma'].isin(filtro_forma)) & 
         (df_maestro['Ano'].between(rango_anos[0], rango_anos[1]))
@@ -590,30 +601,41 @@ tab_visor, tab_datos, tab_analisis = st.tabs([
     "Procesador NLP Forense"
 ])
 
-# --- TAB 1: VISOR GEoespacial ---
+# --- TAB 1: VISOR GEOESPACIAL ---
 with tab_visor:
-    # Filtro de franja temporal encima del mapa (NUEVO)
+    # Filtro de franja temporal encima del mapa
     if not df_maestro.empty:
         col_filtro1, col_filtro2, col_filtro3 = st.columns([2, 2, 2])
         
         with col_filtro1:
+            # Usar session_state para recordar el filtro rápido
+            if "franja_rapida" not in st.session_state:
+                st.session_state.franja_rapida = "Todas"
             franja_rapida = st.selectbox(
                 "Franja Temporal Rapida",
                 ["Todas", "1930-1950", "1950-1970", "1970-1990", "1990-2010", "2010-2024"],
-                index=0
+                index=["Todas", "1930-1950", "1950-1970", "1970-1990", "1990-2010", "2010-2024"].index(st.session_state.franja_rapida),
+                key="franja_rapida_selector"
             )
+            st.session_state.franja_rapida = franja_rapida
         
         with col_filtro2:
             if franja_rapida != "Todas":
                 años = franja_rapida.split("-")
                 st.markdown(f"<div style='margin-top:28px; color:#00d4ff; font-family:Share Tech Mono;'>Periodo: {años[0]} - {años[1]}</div>", unsafe_allow_html=True)
+            else:
+                st.markdown("<div style='margin-top:28px;'></div>", unsafe_allow_html=True)
         
         with col_filtro3:
             st.markdown("<div style='margin-top:28px;'></div>", unsafe_allow_html=True)
             if st.button("Resetear Filtros", type="secondary"):
+                # Reiniciar filtros a valores por defecto
+                st.session_state.franja_rapida = "Todas"
+                # También podemos resetear los filtros del sidebar si se desea, pero es más complejo.
+                # Por simplicidad, recargamos la app.
                 st.rerun()
         
-        # Aplicar filtro rapido si se selecciono
+        # Aplicar filtro rápido si se seleccionó (combinado con filtros del sidebar)
         if franja_rapida != "Todas":
             años = franja_rapida.split("-")
             df_mapa = df_filtrado[df_filtrado['Ano'].between(int(años[0]), int(años[1]))].copy()
@@ -701,7 +723,9 @@ with tab_visor:
             estilo_mapa = "carto-darkmatter"
             api_keys = None
         
-        # Tooltip HTML puro
+        # Tooltip HTML puro (con truncado de resumen)
+        df_mapa['Resumen_corto'] = df_mapa['Resumen'].apply(lambda x: x[:120] + "..." if len(x) > 120 else x)
+        
         tooltip_html = """
         <div style="background: rgba(10,10,10,0.95); padding: 12px; border-radius: 0px; 
         border: 1px solid #00d4ff; font-family: 'Share Tech Mono', monospace; min-width: 200px;">
@@ -717,7 +741,7 @@ with tab_visor:
             </div>
             <div style="color: #94a3b8; font-size: 0.75rem; margin-top: 8px; font-style: italic; 
             max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                {Resumen}
+                {Resumen_corto}
             </div>
         </div>
         """
@@ -759,7 +783,7 @@ with tab_datos:
         else:
             st.info("Seleccione campos para visualizar")
 
-# --- TAB 3: Procesador NLP Forense ---
+# --- TAB 3: Procesador NLP Forense (DeepSeek) ---
 with tab_analisis:
     col_nlp, col_stats = st.columns([1, 1])
     
@@ -800,7 +824,7 @@ with tab_analisis:
             """, unsafe_allow_html=True)
             
             if st.button("Ejecutar Analisis Forense", type="primary"):
-                with st.spinner("Procesando mediante red neuronal..."):
+                with st.spinner("Procesando mediante red neuronal DeepSeek..."):
                     
                     resultado_nlp = {
                         "comportamiento": "No procesado",
@@ -809,9 +833,13 @@ with tab_analisis:
                         "indice": 0
                     }
                     
-                    if openai_token and texto_resumen.strip():
+                    # Usar DeepSeek API en lugar de OpenAI
+                    if deepseek_token and texto_resumen.strip():
                         try:
-                            cliente = OpenAI(api_key=openai_token)
+                            headers = {
+                                "Authorization": f"Bearer {deepseek_token}",
+                                "Content-Type": "application/json"
+                            }
                             
                             prompt_sistema = """Eres un analista de inteligencia militar especializado en fenomenos aereos no identificados.
                             Analiza el texto proporcionado y genera un informe tactico estructurado en JSON con estos campos exactos:
@@ -822,18 +850,29 @@ with tab_analisis:
                             
                             Responde SOLO con el JSON, sin markdown ni texto adicional."""
                             
-                            respuesta = cliente.chat.completions.create(
-                                model="gpt-4o-mini",
-                                messages=[
+                            payload = {
+                                "model": "deepseek-chat",
+                                "messages": [
                                     {"role": "system", "content": prompt_sistema},
                                     {"role": "user", "content": texto_resumen[:1000]}
                                 ],
-                                temperature=0.1,
-                                max_tokens=300
+                                "temperature": 0.1,
+                                "max_tokens": 300,
+                                "response_format": {"type": "json_object"}
+                            }
+                            
+                            respuesta = requests.post(
+                                "https://api.deepseek.com/v1/chat/completions",
+                                headers=headers,
+                                json=payload,
+                                timeout=30
                             )
                             
-                            contenido = respuesta.choices[0].message.content.strip()
+                            respuesta.raise_for_status()
+                            datos = respuesta.json()
+                            contenido = datos["choices"][0]["message"]["content"]
                             
+                            # Limpiar posibles backticks
                             if contenido.startswith("```json"):
                                 contenido = contenido[7:]
                             if contenido.endswith("```"):
@@ -872,7 +911,7 @@ with tab_analisis:
                     
                     indice_val = resultado_nlp.get("indice", 0)
                     
-                    # Renderizar resultado - CORREGIDO: unsafe_allow_html=True
+                    # Renderizar resultado
                     resultado_html = f"""
                     <div style="background-color: #0a0a0a; border: 1px solid #333; 
                     border-left: 4px solid {color_borde}; padding: 20px; margin-top: 20px;">
@@ -902,7 +941,6 @@ with tab_analisis:
                     </div>
                     """
                     
-                    # CORRECCION CRITICA: st.markdown con unsafe_allow_html=True
                     st.markdown(resultado_html, unsafe_allow_html=True)
     
     with col_stats:
@@ -931,7 +969,7 @@ with tab_analisis:
                 xaxis=dict(title="", gridcolor="#1a1a1a", tickfont=dict(size=9)),
                 showlegend=False
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, use_container_width="stretch")
             
             # Timeline de incidentes
             st.markdown("#### Linea Temporal")
@@ -955,7 +993,7 @@ with tab_analisis:
                 showlegend=False
             )
             fig2.update_traces(fillcolor="rgba(0, 212, 255, 0.2)", line=dict(color="#00d4ff", width=2))
-            st.plotly_chart(fig2, use_container_width=True)
+            st.plotly_chart(fig2, use_container_width="stretch")
 
 # --- FOOTER TACTICO ---
 st.markdown("---")
