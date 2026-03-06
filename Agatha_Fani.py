@@ -88,7 +88,7 @@ def encontrar_archivo(nombre):
 def cargar_nodos():
     ruta = encontrar_archivo("agatha_ufo_nodes_full.csv")
     if not ruta:
-        ruta = encontrar_archivo("agatha_ufo_nodes.csv") # Nombre alternativo
+        ruta = encontrar_archivo("agatha_ufo_nodes.csv") 
         
     if ruta:
         try:
@@ -96,10 +96,8 @@ def cargar_nodos():
         except Exception:
             df = pd.read_csv(ruta, sep=';', on_bad_lines='skip', engine='python')
             
-        # Limpieza de cabeceras (Eliminar guiones bajos)
         df.columns = [str(c).strip().replace('_', ' ').title() for c in df.columns]
         
-        # Mapeo forzoso de columnas clave
         mapeo = {"City": "Ciudad", "Country": "Pais", "Shape": "Forma", "Summary": "Resumen", "Year": "Ano"}
         for col_orig, col_dest in mapeo.items():
             if col_orig in df.columns: df.rename(columns={col_orig: col_dest}, inplace=True)
@@ -114,13 +112,11 @@ def cargar_nodos():
         df['Forma'] = df['Forma'].fillna("Desconocido").astype(str)
         df['Resumen'] = df['Resumen'].fillna("").astype(str)
 
-        # Inyeccion logica de Coordenadas si no existen
         if 'Latitud' not in df.columns or 'Longitud' not in df.columns:
             lats, lons = [], []
             for _, row in df.iterrows():
                 pais = str(row.get('Pais', '')).upper()
                 ciudad = str(row.get('Ciudad', ''))
-                # Hash simple para que la misma ciudad caiga en el mismo punto siempre
                 offset_lat = (hash(ciudad) % 100) / 100.0
                 offset_lon = (hash(ciudad[::-1]) % 100) / 100.0
                 
@@ -130,7 +126,7 @@ def cargar_nodos():
                 elif "ESP" in pais or "SPAIN" in pais:
                     lats.append(36.0 + (7.0 * offset_lat))
                     lons.append(-9.0 + (12.0 * offset_lon))
-                else: # Default Norteamerica
+                else: 
                     lats.append(30.0 + (18.0 * offset_lat))
                     lons.append(-125.0 + (55.0 * offset_lon))
             df['Latitud'] = lats
@@ -283,41 +279,56 @@ with tab_analisis:
     
     with col_a1:
         st.markdown("#### Procesador de Atestados Reales (NLP)")
-        st.markdown("<p style='color: #94a3b8; font-size:0.9rem;'>Seleccione un caso real de la base de datos para su analisis tactico.</p>", unsafe_allow_html=True)
+        st.markdown("<p style='color: #94a3b8; font-size:0.9rem;'>Seleccione un caso real de la base de datos para su analisis y clasificacion tactica.</p>", unsafe_allow_html=True)
         
         if not df_filtrado.empty and 'Resumen' in df_filtrado.columns:
-            # Crear lista legible para el selector
             df_filtrado['Filtro Visual'] = df_filtrado['Ciudad'].astype(str) + " - " + df_filtrado['Forma'].astype(str) + " (" + df_filtrado['Ano'].astype(str) + ")"
             caso_seleccionado = st.selectbox("Expediente de Inteligencia:", df_filtrado['Filtro Visual'].unique())
             
-            # Extraer el resumen real del CSV
             texto_real = df_filtrado[df_filtrado['Filtro Visual'] == caso_seleccionado]['Resumen'].iloc[0]
-            
-            st.text_area("Cuerpo del Informe:", value=texto_real, height=130, disabled=True)
+            st.text_area("Cuerpo del Informe Original:", value=texto_real, height=130, disabled=True)
             
             if st.button("Ejecutar Analisis Forense", type="primary", width="stretch"):
-                with st.spinner("Procesando datos estructurales..."):
+                with st.spinner("Procesando datos estructurales y generando hipotesis..."):
                     if openai_token:
                         try:
                             cliente_ai = OpenAI(api_key=openai_token)
-                            sys_prompt = "Extrae del texto: 1. COMPORTAMIENTO (Breve) 2. NIVEL DE AMENAZA (Critico o Estandar). Separa con barra vertical (|)."
-                            resp = cliente_ai.chat.completions.create(model="gpt-4o-mini", messages=[{"role": "system", "content": sys_prompt}, {"role": "user", "content": texto_real}], temperature=0.1)
+                            sys_prompt = """Actua como analista de inteligencia militar. Analiza el siguiente texto y extrae la informacion en tres bloques separados unicamente por una barra vertical (|):
+                            1. COMPORTAMIENTO (Breve descripcion de la forma y la cinematica del objeto).
+                            2. CREDIBILIDAD (Responde exclusivamente con la palabra ALTA, MEDIA o BAJA segun el perfil del testigo y la coherencia de los datos).
+                            3. HIPOTESIS (Redacta una explicacion analitica, tecnica y detallada sobre el posible origen, causa del fenomeno o implicaciones tecnologicas).
+                            Formato estricto: Comportamiento|Credibilidad|Hipotesis"""
+                            
+                            resp = cliente_ai.chat.completions.create(model="gpt-4o-mini", messages=[{"role": "system", "content": sys_prompt}, {"role": "user", "content": texto_real}], temperature=0.2)
                             datos = resp.choices[0].message.content.split("|")
+                            
                             comportamiento = datos[0].strip() if len(datos) > 0 else "No Concluyente"
-                            amenaza = datos[1].strip() if len(datos) > 1 else "Estandar"
+                            credibilidad = datos[1].strip().upper() if len(datos) > 1 else "MEDIA"
+                            hipotesis = datos[2].strip() if len(datos) > 2 else "Requiere mayor analisis para establecer una conclusion factible."
                         except:
-                            comportamiento, amenaza = "Fallo de API", "Desconocido"
+                            comportamiento = "Fallo de conexion con API"
+                            credibilidad = "DESCONOCIDA"
+                            hipotesis = "Error en el procesamiento de la red neuronal. Verifique las credenciales de comunicacion."
                     else:
-                        time.sleep(1) # Simulacion
-                        comportamiento = "Movimiento anomalo detectado"
-                        amenaza = "ELEVADO"
+                        time.sleep(1.5)
+                        comportamiento = "Vuelo estatico con supresion de firma termica y acustica."
+                        credibilidad = "ALTA"
+                        hipotesis = "Las variables cinematicas descritas sugieren la presencia de una plataforma aerea avanzada de origen no identificado. La carencia de medios de propulsion convencionales indica una tecnologia disruptiva, requiriendo evaluacion prioritaria de defensa."
 
-                    color_am = "#f43f5e" if "Critic" in amenaza or "Elevad" in amenaza else "#3b82f6"
+                    # Asignacion de color segun la credibilidad
+                    if "ALTA" in credibilidad:
+                        color_cred = "#f43f5e" # Rojo
+                    elif "MEDIA" in credibilidad:
+                        color_cred = "#38bdf8" # Azul
+                    else:
+                        color_cred = "#94a3b8" # Gris
 
                     st.markdown(f"""
                     <div style="background-color: #1e293b; border: 1px solid #334155; border-left: 4px solid #10b981; padding: 15px; border-radius: 4px; font-family: 'Titillium Web', sans-serif;">
                         <p style="margin: 8px 0; color: #e2e8f0; font-size: 1rem;"><b>PATRON COMPORTAMENTAL:</b> <span style="color: #38bdf8; font-family: 'Share Tech Mono', monospace; font-size: 1.05rem;">{comportamiento}</span></p>
-                        <p style="margin: 8px 0; color: #e2e8f0; font-size: 1rem;"><b>NIVEL AMENAZA:</b> <span style="color: {color_am}; font-family: 'Share Tech Mono', monospace; font-size: 1.05rem; font-weight: bold;">{amenaza}</span></p>
+                        <p style="margin: 8px 0; color: #e2e8f0; font-size: 1rem;"><b>INDICE DE CREDIBILIDAD:</b> <span style="color: {color_cred}; font-family: 'Share Tech Mono', monospace; font-size: 1.05rem; font-weight: bold;">{credibilidad}</span></p>
+                        <p style="margin: 12px 0 4px 0; color: #e2e8f0; font-size: 1rem; font-weight: bold; border-bottom: 1px solid #334155; padding-bottom: 5px;">HIPOTESIS OPERATIVA:</p>
+                        <p style="margin: 0; color: #cbd5e1; font-size: 0.95rem; line-height: 1.5; text-align: justify;">{hipotesis}</p>
                     </div>
                     """, unsafe_allow_html=True)
         else:
