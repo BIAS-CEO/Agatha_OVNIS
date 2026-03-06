@@ -1,7 +1,7 @@
 # ====================================================================
 # ARCHIVO PRINCIPAL: Agatha_Fani.py
 # SISTEMA: Motor de Analisis Conductual Predictivo
-# MODULO: Inteligencia FANI (Carga Real de CSV y Casos)
+# MODULO: Inteligencia FANI (Visor Global Neon y CSV Real)
 # ====================================================================
 
 import streamlit as st
@@ -22,7 +22,6 @@ try:
     import os
     import time
     from datetime import datetime
-    from sklearn.ensemble import IsolationForest
     from openai import OpenAI
 except ImportError as e:
     st.error(f"ALERTA DE SISTEMA: Falta instalar la dependencia -> {e}")
@@ -68,9 +67,6 @@ st.markdown(f"""
     <div style="position: fixed; top: 15px; right: 20px; background: #1e293b; border: 1px solid #475569; color: #cbd5e1; padding: 6px 15px; font-family: 'Share Tech Mono', monospace; font-size: 0.85rem; z-index: 999999; pointer-events: none; border-radius: 2px;">
         OPERADOR: {OPERADOR_ID} | PERMISO: {ROL_ACCESO}
     </div>
-    <div style="position: fixed; bottom: 50px; right: 30px; color: rgba(255, 255, 255, 0.04); font-family: 'Share Tech Mono', monospace; font-size: 1.5rem; z-index: 999999; pointer-events: none; transform: rotate(-10deg); user-select: none;">
-        AGATHA INTEL - TRAZA FORENSE: {MARCA_TIEMPO}
-    </div>
 """, unsafe_allow_html=True)
 
 # --- GESTION DE SECRETOS ---
@@ -103,7 +99,7 @@ def cargar_nodos():
             if col_orig in df.columns: df.rename(columns={col_orig: col_dest}, inplace=True)
             elif col_orig.title() in df.columns: df.rename(columns={col_orig.title(): col_dest}, inplace=True)
 
-        if 'Resumen' not in df.columns: df['Resumen'] = "Reporte clasificado o no disponible."
+        if 'Resumen' not in df.columns: df['Resumen'] = "Reporte clasificado."
         if 'Forma' not in df.columns: df['Forma'] = "Desconocido"
         if 'Pais' not in df.columns: df['Pais'] = "EEUU"
         if 'Ciudad' not in df.columns: df['Ciudad'] = "Zona Operativa"
@@ -111,6 +107,7 @@ def cargar_nodos():
 
         df['Forma'] = df['Forma'].fillna("Desconocido").astype(str)
         df['Resumen'] = df['Resumen'].fillna("").astype(str)
+        df['Ano'] = pd.to_numeric(df['Ano'], errors='coerce').fillna(2024).astype(int)
 
         if 'Latitud' not in df.columns or 'Longitud' not in df.columns:
             lats, lons = [], []
@@ -132,18 +129,19 @@ def cargar_nodos():
             df['Latitud'] = lats
             df['Longitud'] = lons
 
+        # Paleta Neon segun especificacion
         def asignar_color(forma):
             f = str(forma).lower()
-            if "tri" in f: return [225, 29, 72, 200]
-            elif "orb" in f or "esfera" in f or "disk" in f: return [234, 179, 8, 200]
-            elif "cigar" in f or "cilindro" in f: return [34, 197, 94, 200]
-            elif "octa" in f or "pyramid" in f: return [56, 189, 248, 200]
-            else: return [148, 163, 184, 150]
+            if "tri" in f: return [0, 255, 0, 255]       # Verde alien
+            elif "orb" in f or "esfera" in f: return [255, 0, 255, 255] # Magenta
+            elif "cigar" in f or "cilindro" in f: return [255, 100, 0, 255] # Naranja
+            elif "cambiante" in f or "luz" in f: return [255, 255, 0, 255] # Amarillo
+            else: return [0, 255, 255, 255]              # Cyan brillante
         
         df['Color Rgb'] = df['Forma'].apply(asignar_color)
         return df
     else:
-        st.error("Archivo agatha_ufo_nodes_full.csv no encontrado en la raiz ni en data/")
+        st.error("Archivo CSV de nodos no encontrado.")
         return pd.DataFrame()
 
 @st.cache_data(show_spinner=False)
@@ -173,7 +171,7 @@ def cargar_relaciones(df_nodos):
                     edges.append({
                         'Origen Lon': nodo_a['Longitud'], 'Origen Lat': nodo_a['Latitud'],
                         'Destino Lon': nodo_b['Longitud'], 'Destino Lat': nodo_b['Latitud'],
-                        'Color': nodo_a.get('Color Rgb', [148, 163, 184, 150])
+                        'Color': nodo_a.get('Color Rgb', [0, 255, 255, 200])
                     })
                 except: continue
         return pd.DataFrame(edges)
@@ -200,94 +198,113 @@ def render_tabla_tactica(df):
 
 # --- TERMINAL DE OPERACIONES (SIDEBAR) ---
 st.sidebar.markdown("### Centro de Comando AGATHA")
-filtro_region = st.sidebar.selectbox("Filtro Geopolitico:", ["Global", "Marruecos y España", "Norteamerica"])
+filtro_region = st.sidebar.selectbox("Filtro Geopolitico:", ["Vista Orbital", "Marruecos y España", "Norteamerica"])
 
 if not df_maestro.empty:
     formas_disp = df_maestro['Forma'].unique()
-    filtro_forma = st.sidebar.multiselect("Clasificacion de Nave:", formas_disp, default=formas_disp[:4] if len(formas_disp)>4 else formas_disp)
-    df_filtrado = df_maestro[df_maestro['Forma'].isin(filtro_forma)].copy()
+    filtro_forma = st.sidebar.multiselect("Filtro Estructural:", formas_disp, default=formas_disp)
+    
+    min_year, max_year = int(df_maestro['Ano'].min()), int(df_maestro['Ano'].max())
+    if min_year == max_year: min_year = max_year - 1
+    rango_anos = st.sidebar.slider("Ventana Temporal", min_year, max_year, (min_year, max_year))
+    
+    df_filtrado = df_maestro[(df_maestro['Forma'].isin(filtro_forma)) & (df_maestro['Ano'].between(rango_anos[0], rango_anos[1]))].copy()
 else:
     df_filtrado = pd.DataFrame()
 
-mostrar_lineas = st.sidebar.toggle("Habilitar Grafos de Trayectoria", value=True)
-mostrar_calor = st.sidebar.toggle("Habilitar Conglomeracion (Heatmap)")
+mostrar_lineas = st.sidebar.toggle("Trazar Grafos de Comportamiento", value=True)
+mostrar_calor = st.sidebar.toggle("Detectar Zonas de Alta Densidad", value=True)
 
 # --- ENCABEZADO ---
 st.markdown("<h1>Motor de Analisis Conductual Predictivo</h1>", unsafe_allow_html=True)
-st.markdown("<h3 style='margin-top:-15px; color:#94a3b8;'>Modulo de Inteligencia FANI (Red Multimodal)</h3>", unsafe_allow_html=True)
+st.markdown("<h3 style='margin-top:-15px; color:#94a3b8;'>Modulo FANI: Mapeo Multimodal Avanzado</h3>", unsafe_allow_html=True)
 st.markdown("---")
 
 # --- METRICAS ESTRATEGICAS ---
 total_casos = len(df_filtrado)
+zonas_calientes = len(df_filtrado[df_filtrado.groupby(['Latitud', 'Longitud'])['Latitud'].transform('count') > 2]) if not df_filtrado.empty else 0
+forma_comun = df_filtrado['Forma'].mode()[0] if not df_filtrado.empty else "N/A"
+
 col_m1, col_m2, col_m3, col_m4 = st.columns(4)
-col_m1.metric("Volumen de Detecciones", f"{total_casos:,}")
-col_m2.metric("Nivel de Amenaza Global", "Elevado", "Validacion Radar", delta_color="inverse")
-col_m3.metric("Firma Fenomenologica", "Activa")
-col_m4.metric("Nodos de Grafo", f"{len(df_grafos) if mostrar_lineas else 0:,}")
+col_m1.metric("Registros en Radar", f"{total_casos:,}")
+col_m2.metric("Estructura Predominante", forma_comun)
+col_m3.metric("Nodos Criticos (Hotspots)", f"{zonas_calientes:,}", "Conglomeracion", delta_color="inverse")
+col_m4.metric("Conexiones de Grafo", f"{len(df_grafos) if mostrar_lineas else 0:,}")
 
 # --- ARQUITECTURA DE PESTAÑAS ---
-tab_visor, tab_datos, tab_analisis = st.tabs(["Visor Geoespacial Multimodal", "Registros de Inteligencia", "Analisis Forense de Casos (NLP)"])
+tab_visor, tab_datos, tab_analisis = st.tabs(["Visor de Telemetria Orbital", "Registros Forenses", "Procesador NLP y Analisis"])
 
 with tab_visor:
-    st.markdown("#### Proyeccion de Nodos y Rutas de Vigilancia")
-    
     if not df_filtrado.empty:
         if filtro_region == "Marruecos y España":
             cam_lat, cam_lon, zoom_level = 34.0, -4.0, 4.5
         elif filtro_region == "Norteamerica":
             cam_lat, cam_lon, zoom_level = 39.8, -98.5, 3.5
-        else:
-            cam_lat, cam_lon, zoom_level = 30.0, -40.0, 2.0
+        else: # Vista Orbital
+            cam_lat, cam_lon, zoom_level = 20.0, 0.0, 1.5
             
-        view_state = pdk.ViewState(latitude=cam_lat, longitude=cam_lon, zoom=zoom_level, pitch=45, bearing=0)
+        view_state = pdk.ViewState(latitude=cam_lat, longitude=cam_lon, zoom=zoom_level, pitch=45, bearing=0, min_zoom=1, max_zoom=15)
         capas = []
-        
+
+        if mostrar_calor:
+            capas.append(pdk.Layer(
+                "HeatmapLayer", data=df_filtrado, get_position=["Longitud", "Latitud"],
+                opacity=0.6, get_weight=1, radius_pixels=50,
+                color_range=[[0, 0, 255, 100], [0, 255, 255, 150], [255, 255, 0, 200], [255, 0, 0, 255]]
+            ))
+
         capas.append(pdk.Layer(
             "ScatterplotLayer", data=df_filtrado, get_position=["Longitud", "Latitud"],
-            get_radius=30000, get_fill_color="Color Rgb", pickable=True, auto_highlight=True
+            get_fill_color="Color Rgb", get_radius=50000, radius_min_pixels=4, radius_max_pixels=40,
+            opacity=0.8, stroked=True, get_line_color=[255, 255, 255], get_line_width=2,
+            pickable=True, auto_highlight=True
         ))
 
         if mostrar_lineas and not df_grafos.empty:
             capas.append(pdk.Layer(
                 "ArcLayer", data=df_grafos, get_source_position=["Origen Lon", "Origen Lat"],
                 get_target_position=["Destino Lon", "Destino Lat"], get_source_color="Color",
-                get_target_color="Color", get_width=3, pickable=True
+                get_target_color="Color", get_width=3, opacity=0.6, pickable=True
             ))
 
-        if mostrar_calor:
-            capas.append(pdk.Layer(
-                "HeatmapLayer", data=df_filtrado, get_position=["Longitud", "Latitud"],
-                opacity=0.6, get_weight=1
-            ))
-
-        estilo_mapa_3d = "mapbox://styles/mapbox/dark-v11" if mapbox_token else "carto-darkmatter"
+        estilo_mapa_3d = "mapbox://styles/mapbox/dark-v10" if mapbox_token else "carto-darkmatter"
         dic_api = {"mapbox": mapbox_token} if mapbox_token else None
 
-        st.pydeck_chart(pdk.Deck(api_keys=dic_api, map_style=estilo_mapa_3d, initial_view_state=view_state, layers=capas, tooltip={"text": "Ciudad: {Ciudad}\nForma: {Forma}\nAño: {Ano}"}))
+        tooltip_html = """
+        <div style="background: rgba(10,15,25,0.9); padding: 12px; border-radius: 2px; border: 1px solid #0ff; font-family: 'Share Tech Mono', monospace;">
+        <b style="color: #0ff; font-size: 1.1em; text-transform: uppercase;">OBJETO: {Forma}</b><br/>
+        <span style="color: #fff;">UBICACION: {Ciudad}, {Pais}</span><br/>
+        <span style="color: #aaa;">REGISTRO TEMPORAL: {Ano}</span><br/>
+        </div>
+        """
+
+        st.pydeck_chart(pdk.Deck(
+            api_keys=dic_api, map_style=estilo_mapa_3d, initial_view_state=view_state, 
+            layers=capas, tooltip={"html": tooltip_html, "style": {"backgroundColor": "transparent", "color": "white"}}
+        ), height=650)
     else:
-        st.warning("El mapa requiere la carga correcta de datos.")
+        st.warning("No hay datos geolocalizados para mostrar.")
 
 with tab_datos:
     st.markdown("#### Archivos de Inteligencia Extraidos")
     if not df_filtrado.empty:
         cols_mostrar = [c for c in df_filtrado.columns if c in ['Ciudad', 'Pais', 'Forma', 'Ano', 'Resumen']]
-        df_display = df_filtrado[cols_mostrar].head(100).copy() if cols_mostrar else df_filtrado.head(100).copy()
+        df_display = df_filtrado[cols_mostrar].head(150).copy() if cols_mostrar else df_filtrado.head(150).copy()
         render_tabla_tactica(df_display)
 
 with tab_analisis:
     col_a1, col_a2 = st.columns([1, 1])
     
     with col_a1:
-        st.markdown("#### Procesador de Atestados Reales (NLP)")
-        st.markdown("<p style='color: #94a3b8; font-size:0.9rem;'>Seleccione un caso real de la base de datos para su analisis y clasificacion tactica.</p>", unsafe_allow_html=True)
+        st.markdown("#### Escaner de Atestados y NLP")
+        st.markdown("<p style='color: #94a3b8; font-size:0.9rem;'>Seleccione un expediente de la base de datos para ejecutar el protocolo de analisis tactico.</p>", unsafe_allow_html=True)
         
         if not df_filtrado.empty and 'Resumen' in df_filtrado.columns:
             df_filtrado['Filtro Visual'] = df_filtrado['Ciudad'].astype(str) + " - " + df_filtrado['Forma'].astype(str) + " (" + df_filtrado['Ano'].astype(str) + ")"
-            caso_seleccionado = st.selectbox("Expediente de Inteligencia:", df_filtrado['Filtro Visual'].unique())
+            caso_seleccionado = st.selectbox("Expediente Operativo:", df_filtrado['Filtro Visual'].unique())
             
             texto_real = df_filtrado[df_filtrado['Filtro Visual'] == caso_seleccionado]['Resumen'].iloc[0]
             
-            # Bloque de lectura estatico en lugar de text_area editable
             st.markdown(f"""
             <div style="background-color: #0f1115; border: 1px solid #475569; padding: 12px; border-radius: 2px; margin-bottom: 15px;">
                 <span style="color: #94a3b8; font-family: 'Montserrat', sans-serif; font-size: 0.8rem; font-weight: 600; text-transform: uppercase;">Cuerpo del Informe Original:</span>
@@ -295,39 +312,34 @@ with tab_analisis:
             </div>
             """, unsafe_allow_html=True)
             
-            if st.button("Ejecutar Analisis Forense", type="primary", width="stretch"):
-                with st.spinner("Procesando datos estructurales y generando hipotesis..."):
+            if st.button("Procesar Expediente Forense", type="primary", width="stretch"):
+                with st.spinner("Conectando red neuronal y procesando hipotesis..."):
                     if openai_token:
                         try:
                             cliente_ai = OpenAI(api_key=openai_token)
-                            sys_prompt = """Actua como analista de inteligencia militar. Analiza el siguiente texto y extrae la informacion en tres bloques separados unicamente por una barra vertical (|):
-                            1. COMPORTAMIENTO (Breve descripcion de la forma y la cinematica del objeto).
-                            2. CREDIBILIDAD (Responde exclusivamente con la palabra ALTA, MEDIA o BAJA segun el perfil del testigo y la coherencia de los datos).
-                            3. HIPOTESIS (Redacta una explicacion analitica, tecnica y detallada sobre el posible origen, causa del fenomeno o implicaciones tecnologicas).
-                            Formato estricto: Comportamiento|Credibilidad|Hipotesis"""
+                            sys_prompt = """Actua como analista de inteligencia militar. Analiza el texto y extrae:
+                            1. COMPORTAMIENTO (Forma y cinematica).
+                            2. CREDIBILIDAD (ALTA, MEDIA o BAJA).
+                            3. HIPOTESIS (Explicacion analitica y tecnica sobre el origen o anomalia).
+                            Formato: Comportamiento|Credibilidad|Hipotesis"""
                             
                             resp = cliente_ai.chat.completions.create(model="gpt-4o-mini", messages=[{"role": "system", "content": sys_prompt}, {"role": "user", "content": texto_real}], temperature=0.2)
                             datos = resp.choices[0].message.content.split("|")
                             
                             comportamiento = datos[0].strip() if len(datos) > 0 else "No Concluyente"
                             credibilidad = datos[1].strip().upper() if len(datos) > 1 else "MEDIA"
-                            hipotesis = datos[2].strip() if len(datos) > 2 else "Requiere mayor analisis para establecer una conclusion factible."
+                            hipotesis = datos[2].strip() if len(datos) > 2 else "Requiere evaluacion de sensores adicionales."
                         except:
-                            comportamiento = "Fallo de conexion con API"
+                            comportamiento = "Fallo de API"
                             credibilidad = "DESCONOCIDA"
-                            hipotesis = "Error en el procesamiento de la red neuronal. Verifique las credenciales de comunicacion."
+                            hipotesis = "Error en la pasarela de conexion con el motor cognitivo."
                     else:
                         time.sleep(1.5)
-                        comportamiento = "Vuelo estatico con supresion de firma termica y acustica."
+                        comportamiento = "Trayectoria no balistica con aceleracion instantanea."
                         credibilidad = "ALTA"
-                        hipotesis = "Las variables cinematicas descritas sugieren la presencia de una plataforma aerea avanzada de origen no identificado. La carencia de medios de propulsion convencionales indica una tecnologia disruptiva, requiriendo evaluacion prioritaria de defensa."
+                        hipotesis = "Las firmas captadas sugieren propulsion disruptiva no convencional. Elevada probabilidad de plataforma tecnologica no catalogada en el inventario actual."
 
-                    if "ALTA" in credibilidad:
-                        color_cred = "#f43f5e" 
-                    elif "MEDIA" in credibilidad:
-                        color_cred = "#38bdf8" 
-                    else:
-                        color_cred = "#94a3b8" 
+                    color_cred = "#f43f5e" if "ALTA" in credibilidad else "#38bdf8" if "MEDIA" in credibilidad else "#94a3b8"
 
                     st.markdown(f"""
                     <div style="background-color: #1e293b; border: 1px solid #334155; border-left: 4px solid #10b981; padding: 15px; border-radius: 4px; font-family: 'Titillium Web', sans-serif;">
@@ -338,16 +350,15 @@ with tab_analisis:
                     </div>
                     """, unsafe_allow_html=True)
         else:
-            st.warning("No hay casos cargados para analizar.")
+            st.warning("Base de datos no sincronizada.")
 
     with col_a2:
-        st.markdown("#### Matriz de Incidencia Estructural")
+        st.markdown("#### Volumen de Incidencia por Tipologia")
         if not df_filtrado.empty and 'Forma' in df_filtrado.columns:
             conteo = df_filtrado['Forma'].value_counts().reset_index()
-            conteo.columns = ['Forma Estructural', 'Volumen']
+            conteo.columns = ['Estructura', 'Total']
             
-            fig = px.bar(conteo, x='Volumen', y='Forma Estructural', orientation='h', template="plotly_dark")
+            fig = px.bar(conteo, x='Total', y='Estructura', orientation='h', template="plotly_dark")
             fig.update_traces(marker_color='#3b82f6')
             fig.update_layout(height=300, margin=dict(l=0, r=0, t=10, b=0), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
-            fig.add_annotation(text=f"AGATHA INTEL - {OPERADOR_ID}", xref="paper", yref="paper", x=0.5, y=0.5, showarrow=False, font=dict(size=12, color="rgba(255, 255, 255, 0.1)"), textangle=-10)
             st.plotly_chart(fig, use_container_width=True)
