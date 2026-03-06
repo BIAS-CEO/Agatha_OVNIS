@@ -1,0 +1,20 @@
+Edge_ID,Source_ID,Target_ID,Source_City,Target_City,Relationship_Type,Weight,Shape
+0,2,5,Houma,Lakewood,Shared Strategic Context (Military/Aviation),0.3,Unknown
+1,2,8,Houma,Huntington,Shared Strategic Context (Military/Aviation),0.3,Unknown
+2,2,11,Houma,Lakeview,Shared Strategic Context (Military/Aviation),0.3,Unknown
+3,2,14,Houma,Reef Station,Shared Strategic Context (Military/Aviation),0.3,Unknown
+4,5,8,Lakewood,Huntington,Shared Strategic Context (Military/Aviation),0.3,Triangle
+5,5,11,Lakewood,Lakeview,Shared Strategic Context (Military/Aviation),0.3,Triangle
+6,5,14,Lakewood,Reef Station,Shared Strategic Context (Military/Aviation),0.3,Triangle
+7,7,11,Antwerp,Lakeview,Similar Physical Anomalies,0.3,Unknown
+8,7,12,Antwerp,Spearfish,Similar Physical Anomalies,0.3,Unknown
+9,7,13,Antwerp,Salem,Similar Physical Anomalies,0.3,Unknown
+10,7,14,Antwerp,Reef Station,Similar Physical Anomalies,0.3,Unknown
+11,8,11,Huntington,Lakeview,Shared Strategic Context (Military/Aviation),0.3,Orb/Disk
+12,8,14,Huntington,Reef Station,Shared Strategic Context (Military/Aviation),0.3,Orb/Disk
+13,11,12,Lakeview,Spearfish,Similar Physical Anomalies,0.3,Unknown
+14,11,13,Lakeview,Salem,Similar Physical Anomalies,0.3,Unknown
+15,11,14,Lakeview,Reef Station,Shared Strategic Context (Military/Aviation); Similar Physical Anomalies,0.6,Unknown
+16,12,13,Spearfish,Salem,Similar Physical Anomalies,0.3,Chevron
+17,12,14,Spearfish,Reef Station,Similar Physical Anomalies,0.3,Chevron
+18,13,14,Salem,Reef Station,Similar Physical Anomalies,0.3,Triangle
