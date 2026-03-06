@@ -254,6 +254,7 @@ if st.sidebar.toggle("Diagnostico de Sistemas", value=False):
         estado = "ACTIVA" if token else "OFFLINE"
         color = "#00ff80" if token else "#ff4444"
         st.sidebar.markdown(f"<span style='color:{color}; font-family:Share Tech Mono'>{nombre}: {estado}</span>", unsafe_allow_html=True)
+        
 # --- CENTROIDES GEOESPACIALES (Fallback tactico) ---
 CENTROIDES_TACTICOS = {
     "MARRUECOS": {"lat": 31.7917, "lon": -7.0926, "dispersion": 8.0},
