@@ -363,11 +363,16 @@ def cargar_nodos():
             # Determinar centroide base
             centroide = CENTROIDES_TACTICOS.get(pais, CENTROIDES_TACTICOS["DEFAULT"])
             
-            # Generar offset pseudoaleatorio basado en ciudad para consistencia
-            # Generar seed controlado dentro de rango 32-bit
-            hash_hex = hashlib.md5(ciudad.encode()).hexdigest()
-            seed = int(hash_hex[:8], 16)  # Tomar solo primeros 8 chars (32 bits)
-            np.random.seed(seed)
+                        # Generar offset pseudoaleatorio basado en ciudad para consistencia
+            # Acotar seed a rango válido para numpy (0 a 2^32-1)
+            hash_int = int(hashlib.md5(ciudad.encode()).hexdigest(), 16)
+            seed = hash_int % (2**32 - 1)  # Máximo valor permitido por numpy
+            
+            # Usar generador moderno (PCG64) en lugar de legacy MT19937
+            rng = np.random.default_rng(seed)
+            
+            offset_lat = (rng.random() - 0.5) * centroide["dispersion"]
+            offset_lon = (rng.random() - 0.5) * centroide["dispersion"] * 1.5
             
             offset_lat = (np.random.random() - 0.5) * centroide["dispersion"]
             offset_lon = (np.random.random() - 0.5) * centroide["dispersion"] * 1.5
