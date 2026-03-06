@@ -286,7 +286,14 @@ with tab_analisis:
             caso_seleccionado = st.selectbox("Expediente de Inteligencia:", df_filtrado['Filtro Visual'].unique())
             
             texto_real = df_filtrado[df_filtrado['Filtro Visual'] == caso_seleccionado]['Resumen'].iloc[0]
-            st.text_area("Cuerpo del Informe Original:", value=texto_real, height=130, disabled=True)
+            
+            # Bloque de lectura estatico en lugar de text_area editable
+            st.markdown(f"""
+            <div style="background-color: #0f1115; border: 1px solid #475569; padding: 12px; border-radius: 2px; margin-bottom: 15px;">
+                <span style="color: #94a3b8; font-family: 'Montserrat', sans-serif; font-size: 0.8rem; font-weight: 600; text-transform: uppercase;">Cuerpo del Informe Original:</span>
+                <p style="color: #cbd5e1; font-family: 'Titillium Web', sans-serif; font-size: 0.95rem; margin-top: 5px; margin-bottom: 0;">{texto_real}</p>
+            </div>
+            """, unsafe_allow_html=True)
             
             if st.button("Ejecutar Analisis Forense", type="primary", width="stretch"):
                 with st.spinner("Procesando datos estructurales y generando hipotesis..."):
@@ -315,13 +322,12 @@ with tab_analisis:
                         credibilidad = "ALTA"
                         hipotesis = "Las variables cinematicas descritas sugieren la presencia de una plataforma aerea avanzada de origen no identificado. La carencia de medios de propulsion convencionales indica una tecnologia disruptiva, requiriendo evaluacion prioritaria de defensa."
 
-                    # Asignacion de color segun la credibilidad
                     if "ALTA" in credibilidad:
-                        color_cred = "#f43f5e" # Rojo
+                        color_cred = "#f43f5e" 
                     elif "MEDIA" in credibilidad:
-                        color_cred = "#38bdf8" # Azul
+                        color_cred = "#38bdf8" 
                     else:
-                        color_cred = "#94a3b8" # Gris
+                        color_cred = "#94a3b8" 
 
                     st.markdown(f"""
                     <div style="background-color: #1e293b; border: 1px solid #334155; border-left: 4px solid #10b981; padding: 15px; border-radius: 4px; font-family: 'Titillium Web', sans-serif;">
