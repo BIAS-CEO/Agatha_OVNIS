@@ -2,7 +2,7 @@
 # ARCHIVO PRINCIPAL: Agatha_Fani.py
 # SISTEMA: Motor de Analisis Conductual Predictivo
 # MODULO: AGATHA FANI (Fenomenos Anomalos No Identificados)
-# VERSION: Opcon Ready v4.1 (Correccion sintaxis)
+# VERSION: Opcon Ready v4.2 (Carga rapida + geocodificacion bajo demanda)
 # OPERADOR: DIR-74
 # ====================================================================
 
@@ -244,65 +244,9 @@ def encontrar_archivo(nombre):
             return ruta
     return None
 
-# --- GEOCODIFICACION CON CACHE ---
-@st.cache_data(show_spinner="Geocodificando ubicaciones (puede tomar varios minutos)...")
-def geocodificar_ciudades(df, col_ciudad, col_estado, col_pais):
-    if df.empty:
-        return df
-
-    cache_file = "geocode_cache.csv"
-    if os.path.exists(cache_file):
-        cache_df = pd.read_csv(cache_file)
-        cache = dict(zip(cache_df['query'], zip(cache_df['lat'], cache_df['lon'])))
-    else:
-        cache = {}
-
-    geolocator = Nominatim(user_agent="agatha_fani")
-    geocode = RateLimiter(geolocator.geocode, min_delay_seconds=1)
-
-    lats, lons = [], []
-    nuevas_consultas = []
-
-    for _, row in df.iterrows():
-        ciudad = str(row[col_ciudad]).strip()
-        estado = str(row[col_estado]).strip() if col_estado else ""
-        pais = str(row[col_pais]).strip() if col_pais else ""
-        query = f"{ciudad}, {estado}, {pais}" if estado else f"{ciudad}, {pais}"
-        query = query.strip(", ")
-
-        if query in cache:
-            lat, lon = cache[query]
-        else:
-            try:
-                location = geocode(query)
-                if location:
-                    lat, lon = location.latitude, location.longitude
-                else:
-                    lat, lon = obtener_coordenadas_pais(pais)
-                cache[query] = (lat, lon)
-                nuevas_consultas.append({'query': query, 'lat': lat, 'lon': lon})
-            except Exception:
-                lat, lon = obtener_coordenadas_pais(pais)
-                cache[query] = (lat, lon)
-
-        lats.append(lat)
-        lons.append(lon)
-
-    df['lat'] = lats
-    df['lon'] = lons
-
-    if nuevas_consultas:
-        nuevas_df = pd.DataFrame(nuevas_consultas)
-        if os.path.exists(cache_file):
-            antiguas = pd.read_csv(cache_file)
-            todas = pd.concat([antiguas, nuevas_df]).drop_duplicates(subset=['query'])
-        else:
-            todas = nuevas_df
-        todas.to_csv(cache_file, index=False)
-
-    return df
-
+# --- COORDENADAS APROXIMADAS (rápidas) ---
 def obtener_coordenadas_pais(pais):
+    """Devuelve coordenadas aproximadas de un país (centroide + ruido)."""
     centroides = {
         "EEUU": (39.8283, -98.5795),
         "USA": (39.8283, -98.5795),
@@ -333,13 +277,87 @@ def obtener_coordenadas_pais(pais):
     else:
         lat, lon = 20.0, 0.0
     rng = np.random.default_rng(hash(p) % 2**32)
-    lat += rng.normal(0, 1.0)
-    lon += rng.normal(0, 1.0)
+    lat += rng.normal(0, 1.5)
+    lon += rng.normal(0, 1.5)
     return lat, lon
 
+def asignar_coordenadas_aproximadas(df):
+    """Asigna lat/lon basadas en el país (rápido)."""
+    lats, lons = [], []
+    for _, row in df.iterrows():
+        pais = str(row['PAIS']).upper().strip()
+        lat, lon = obtener_coordenadas_pais(pais)
+        lats.append(lat)
+        lons.append(lon)
+    df['lat'] = lats
+    df['lon'] = lons
+    return df
+
+# --- GEOCODIFICACION REAL (bajo demanda) ---
+def geocodificar_seleccion(df_filtrado, df_maestro):
+    """Geocodifica realmente las ciudades de los registros filtrados y actualiza df_maestro."""
+    if df_filtrado.empty:
+        st.warning("No hay registros para geocodificar.")
+        return df_maestro
+
+    ids_a_geocodificar = df_filtrado['ID'].tolist()
+
+    # Cargar caché existente
+    cache_file = "geocode_cache.csv"
+    if os.path.exists(cache_file):
+        cache_df = pd.read_csv(cache_file)
+        cache = dict(zip(cache_df['query'], zip(cache_df['lat'], cache_df['lon'])))
+    else:
+        cache = {}
+
+    geolocator = Nominatim(user_agent="agatha_fani")
+    geocode = RateLimiter(geolocator.geocode, min_delay_seconds=1)
+
+    nuevas_consultas = []
+    with st.spinner(f"Geocodificando {len(ids_a_geocodificar)} ubicaciones..."):
+        for idx, row in df_filtrado.iterrows():
+            ciudad = str(row['CIUDAD']).strip()
+            estado = str(row['ESTADO']).strip() if 'ESTADO' in row else ""
+            pais = str(row['PAIS']).strip()
+            query = f"{ciudad}, {estado}, {pais}" if estado else f"{ciudad}, {pais}"
+            query = query.strip(", ")
+
+            if query in cache:
+                lat, lon = cache[query]
+            else:
+                try:
+                    location = geocode(query)
+                    if location:
+                        lat, lon = location.latitude, location.longitude
+                    else:
+                        lat, lon = obtener_coordenadas_pais(pais)  # fallback
+                    cache[query] = (lat, lon)
+                    nuevas_consultas.append({'query': query, 'lat': lat, 'lon': lon})
+                except Exception:
+                    lat, lon = obtener_coordenadas_pais(pais)
+                    cache[query] = (lat, lon)
+
+            # Actualizar el DataFrame maestro
+            df_maestro.loc[df_maestro['ID'] == row['ID'], 'lat'] = lat
+            df_maestro.loc[df_maestro['ID'] == row['ID'], 'lon'] = lon
+
+    # Guardar nuevas consultas en caché
+    if nuevas_consultas:
+        nuevas_df = pd.DataFrame(nuevas_consultas)
+        if os.path.exists(cache_file):
+            antiguas = pd.read_csv(cache_file)
+            todas = pd.concat([antiguas, nuevas_df]).drop_duplicates(subset=['query'])
+        else:
+            todas = nuevas_df
+        todas.to_csv(cache_file, index=False)
+
+    st.success(f"Geocodificación completada para {len(ids_a_geocodificar)} registros.")
+    return df_maestro
+
 # --- MOTORES DE INGESTA DE DATOS ---
-@st.cache_data(show_spinner="Sincronizando base de datos táctica...")
+@st.cache_data(show_spinner="Cargando metadatos...")
 def cargar_nodos():
+    """Carga el archivo maestro y asigna coordenadas aproximadas (rápido)."""
     ruta = encontrar_archivo("agatha_ufo_nodes_full.csv")
     if not ruta:
         ruta = encontrar_archivo("agatha_ufo_nodes.csv")
@@ -353,6 +371,7 @@ def cargar_nodos():
         st.error(f"Error al leer nodos: {e}")
         return pd.DataFrame()
 
+    # Normalizar nombres de columnas
     df.columns = [str(c).strip().replace('.', '').replace(' ', '_').upper() for c in df.columns]
 
     if 'NUM' in df.columns:
@@ -388,6 +407,7 @@ def cargar_nodos():
     df['DIA'] = pd.to_numeric(df['DIA'], errors='coerce').fillna(1).astype(int)
     df['MES'] = pd.to_numeric(df['MES'], errors='coerce').fillna(1).astype(int)
 
+    # Fecha y día de la semana
     try:
         df['FECHA'] = pd.to_datetime(df['AÑO'].astype(str) + '-' + 
                                       df['MES'].astype(str) + '-' + 
@@ -397,11 +417,10 @@ def cargar_nodos():
     df['DIA_SEMANA'] = df['FECHA'].dt.day_name()
     df['DECADA'] = (df['AÑO'] // 10) * 10
 
-    if 'LAT' not in df.columns or 'LON' not in df.columns:
-        df = geocodificar_ciudades(df, 'CIUDAD', 'ESTADO', 'PAIS')
-    else:
-        df.rename(columns={'LAT': 'lat', 'LON': 'lon'}, inplace=True)
+    # Asignar coordenadas aproximadas (rápido)
+    df = asignar_coordenadas_aproximadas(df)
 
+    # Paleta neón
     def asignar_color_neon(forma):
         f = forma.lower()
         if any(x in f for x in ["triangulo", "triangular", "delta"]):
@@ -521,8 +540,11 @@ def render_tabla_tactica(df, max_filas=200):
     html += '</tbody></table></div>'
     st.markdown(html, unsafe_allow_html=True)
 
-# --- CARGA DE DATOS ---
-df_maestro = cargar_nodos()
+# --- CARGA DE DATOS CON PERSISTENCIA EN SESIÓN ---
+if 'df_maestro' not in st.session_state:
+    st.session_state.df_maestro = cargar_nodos()
+df_maestro = st.session_state.df_maestro
+
 df_grafos = cargar_relaciones(df_maestro)
 
 # --- SIDEBAR: TERMINAL DE OPERACIONES ---
@@ -563,6 +585,15 @@ if not df_maestro.empty:
 else:
     df_filtrado = pd.DataFrame()
     decadas_sel = paises_sel = formas_sel = dias_sel = []
+
+# --- BOTÓN DE GEOCODIFICACIÓN REAL (BAJO DEMANDA) ---
+st.sidebar.markdown("---")
+if st.sidebar.button("🌍 Mejorar precisión (geocodificar real)", type="secondary"):
+    if not df_filtrado.empty:
+        st.session_state.df_maestro = geocodificar_seleccion(df_filtrado, st.session_state.df_maestro)
+        st.rerun()
+    else:
+        st.sidebar.warning("No hay registros filtrados para geocodificar.")
 
 # Controles de visualización
 st.sidebar.markdown("---")
@@ -932,6 +963,6 @@ st.markdown("---")
 st.markdown(f"""
     <div style="color: #333; font-family: 'Share Tech Mono', monospace; font-size: 0.7rem; 
     text-align: center; text-transform: uppercase; letter-spacing: 1px;">
-        Sistema AGATHA v4.1 | Módulo FANI | Operador {OPERADOR_ID} | Clasificación: NIVEL 4
+        Sistema AGATHA v4.2 | Módulo FANI | Operador {OPERADOR_ID} | Clasificación: NIVEL 4
     </div>
 """, unsafe_allow_html=True)
