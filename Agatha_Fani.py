@@ -198,10 +198,62 @@ st.markdown(f"""
     </div>
 """, unsafe_allow_html=True)
 
-# --- GESTION DE SECRETOS ---
-mapbox_token = st.secrets.get("MAPBOX_API_KEY", None) if hasattr(st, "secrets") else None
-openai_token = st.secrets.get("OPENAI_API_KEY", None) if hasattr(st, "secrets") else None
+# --- SISTEMA DE GESTION DE CREDENCIALES MULTIMODAL ---
+import os
 
+def obtener_credencial(nombre_var, nombre_secrets=None):
+    """
+    Extrae credencial por prioridad: st.secrets > env var > None
+    nombre_var: nombre en variables de entorno (ej: MAPBOX_API_KEY)
+    nombre_secrets: nombre en st.secrets (si difiere, por defecto igual a nombre_var)
+    """
+    nombre_secrets = nombre_secrets or nombre_var
+    
+    # Prioridad 1: Streamlit Secrets (produccion)
+    try:
+        if hasattr(st, "secrets") and nombre_secrets in st.secrets:
+            return st.secrets[nombre_secrets]
+    except Exception:
+        pass
+    
+    # Prioridad 2: Variables de entorno del sistema
+    valor = os.environ.get(nombre_var)
+    if valor:
+        return valor
+    
+    # Prioridad 3: Variaciones comunes de nomenclatura
+    alternativas = [
+        nombre_var.replace("_", ""),           # MAPBOXAPIKEY
+        nombre_var.upper(),                   # MAPBOX_API_KEY
+        nombre_var.lower(),                   # mapbox_api_key
+        nombre_var.replace("_", "-"),          # MAPBOX-API-KEY
+    ]
+    for alt in alternativas:
+        valor = os.environ.get(alt)
+        if valor:
+            return valor
+    
+    return None
+
+# --- CARGA DE CREDENCIALES TACTICAS ---
+mapbox_token = obtener_credencial("MAPBOX_API_KEY")
+openai_token = obtener_credencial("OPENAI_API_KEY")
+openweather_token = obtener_credencial("OPENWEATHER_API_KEY")
+google_maps_token = obtener_credencial("GOOGLE_MAPS_KEY")
+
+# --- DIAGNOSTICO DE CONECTIVIDAD (Debug interno) ---
+if st.sidebar.toggle("Diagnostico de Sistemas", value=False):
+    st.sidebar.markdown("**Estado de APIs:**")
+    apis = {
+        "Mapbox": mapbox_token,
+        "OpenAI": openai_token,
+        "OpenWeather": openweather_token,
+        "Google Maps": google_maps_token
+    }
+    for nombre, token in apis.items():
+        estado = "ACTIVA" if token else "OFFLINE"
+        color = "#00ff80" if token else "#ff4444"
+        st.sidebar.markdown(f"<span style='color:{color}; font-family:Share Tech Mono'>{nombre}: {estado}</span>", unsafe_allow_html=True)
 # --- CENTROIDES GEOESPACIALES (Fallback tactico) ---
 CENTROIDES_TACTICOS = {
     "MARRUECOS": {"lat": 31.7917, "lon": -7.0926, "dispersion": 8.0},
