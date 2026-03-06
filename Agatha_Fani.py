@@ -364,7 +364,9 @@ def cargar_nodos():
             centroide = CENTROIDES_TACTICOS.get(pais, CENTROIDES_TACTICOS["DEFAULT"])
             
             # Generar offset pseudoaleatorio basado en ciudad para consistencia
-            seed = int(hashlib.md5(ciudad.encode()).hexdigest(), 16)
+            # Generar seed controlado dentro de rango 32-bit
+            hash_hex = hashlib.md5(ciudad.encode()).hexdigest()
+            seed = int(hash_hex[:8], 16)  # Tomar solo primeros 8 chars (32 bits)
             np.random.seed(seed)
             
             offset_lat = (np.random.random() - 0.5) * centroide["dispersion"]
@@ -458,6 +460,25 @@ def cargar_relaciones(df_nodos):
             continue
             
     return pd.DataFrame(edges)
+
+def obtener_condiciones_meteo(lat, lon, api_key):
+    """Integracion tactica OpenWeather para correlacion fenomenos-atmosfera"""
+    if not api_key:
+        return None
+    try:
+        url = f"https://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&appid={api_key}&units=metric"
+        respuesta = requests.get(url, timeout=5).json()
+        return {
+            "temp": respuesta.get("main", {}).get("temp"),
+            "presion": respuesta.get("main", {}).get("pressure"),
+            "humedad": respuesta.get("main", {}).get("humidity"),
+            "visibilidad": respuesta.get("visibility", 10000)/1000,  # km
+            "nubes": respuesta.get("clouds", {}).get("all", 0),
+            "viento_vel": respuesta.get("wind", {}).get("speed"),
+            "viento_dir": respuesta.get("wind", {}).get("deg")
+        }
+    except Exception:
+        return None
 
 # --- CARGA DE DATOS ---
 df_maestro = cargar_nodos()
