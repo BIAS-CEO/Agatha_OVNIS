@@ -19,6 +19,8 @@ from datetime import datetime
 from dotenv import load_dotenv
 from geopy.geocoders import Nominatim
 from geopy.extra.rate_limiter import RateLimiter
+# Añadir al inicio del archivo, después de imports:
+st.cache_data.clear()  # Limpia caché de datos al reiniciar
 
 load_dotenv()
 
