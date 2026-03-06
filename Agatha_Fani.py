@@ -352,56 +352,50 @@ def cargar_nodos():
     df['Ciudad'] = df['Ciudad'].fillna("Zona Operativa").astype(str)
     df['Ano'] = pd.to_numeric(df['Ano'], errors='coerce').fillna(2024).astype(int)
     
-    # Generacion de coordenadas (Geocodificacion tactica)
+        # Generacion de coordenadas (Geocodificacion tactica mejorada)
     if 'Latitud' not in df.columns or 'Longitud' not in df.columns or df['Latitud'].isna().all():
         lats, lons = [], []
         
-        for _, row in df.iterrows():
+        for idx, row in df.iterrows():
             pais = str(row.get('Pais', '')).strip().upper()
             ciudad = str(row.get('Ciudad', '')).strip()
             
             # Determinar centroide base
             centroide = CENTROIDES_TACTICOS.get(pais, CENTROIDES_TACTICOS["DEFAULT"])
             
-                        # Generar offset pseudoaleatorio basado en ciudad para consistencia
-            # Acotar seed a rango válido para numpy (0 a 2^32-1)
-            hash_int = int(hashlib.md5(ciudad.encode()).hexdigest(), 16)
-            seed = hash_int % (2**32 - 1)  # Máximo valor permitido por numpy
-            
-            # Usar generador moderno (PCG64) en lugar de legacy MT19937
+            # Generador independiente por fila (seed basado en índice + hash ciudad)
+            seed = (idx + hash(ciudad) % 10000) % (2**32 - 1)
             rng = np.random.default_rng(seed)
             
-            offset_lat = (rng.random() - 0.5) * centroide["dispersion"]
-            offset_lon = (rng.random() - 0.5) * centroide["dispersion"] * 1.5
-            
-            offset_lat = (np.random.random() - 0.5) * centroide["dispersion"]
-            offset_lon = (np.random.random() - 0.5) * centroide["dispersion"] * 1.5
+            # Dispersión gaussiana más natural (no cuadrada)
+            offset_lat = rng.normal(0, centroide["dispersion"] * 0.3)
+            offset_lon = rng.normal(0, centroide["dispersion"] * 0.5)
             
             lats.append(centroide["lat"] + offset_lat)
             lons.append(centroide["lon"] + offset_lon)
         
         df['Latitud'] = lats
         df['Longitud'] = lons
-    
-    # Paleta Neon categorizada por forma (sin emojis, solo codigo de color)
+
+    # Paleta Neon categorizada por forma (TUPLAS, no listas - para hashability)
     def asignar_color_neon(forma):
         f = str(forma).lower()
         if any(x in f for x in ["triangulo", "triangular", "delta", "tri"]):
-            return [0, 255, 128, 230]      # Verde neon
+            return (0, 255, 128, 230)      # Verde neon
         elif any(x in f for x in ["esfera", "orb", "circular", "redondo", "disco"]):
-            return [255, 0, 128, 230]      # Rosa/Magenta neon
+            return (255, 0, 128, 230)      # Rosa/Magenta neon
         elif any(x in f for x in ["cigarro", "cilindro", "tubo", "cigar"]):
-            return [255, 128, 0, 230]      # Naranja neon
+            return (255, 128, 0, 230)      # Naranja neon
         elif any(x in f for x in ["luz", "cambiante", "pulsante", "flash"]):
-            return [255, 255, 0, 230]      # Amarillo neon
+            return (255, 255, 0, 230)      # Amarillo neon
         elif any(x in f for x in ["diamante", "rombo", "cuadrado"]):
-            return [128, 0, 255, 230]      # Violeta neon
+            return (128, 0, 255, 230)      # Violeta neon
         elif any(x in f for x in ["rectangulo", "plataforma"]):
-            return [0, 128, 255, 230]      # Azul neon
+            return (0, 128, 255, 230)      # Azul neon
         else:
-            return [0, 255, 255, 230]      # Cyan neon (default)
+            return (0, 255, 255, 230)      # Cyan neon (default)
     
-    df['Color Rgb'] = df['Forma'].apply(asignar_color_neon)
+    df['Color Rgba'] = df['Forma'].apply(asignar_color_neon)
     
     # Identificador unico
     df['Id Caso'] = range(1, len(df) + 1)
