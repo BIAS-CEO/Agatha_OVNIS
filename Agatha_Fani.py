@@ -325,26 +325,59 @@ with col_filtros:
         df_filtrado = df_filtrado[df_filtrado['PAIS'] == sel_pais]
 
 with col_mapa:
-    st.markdown("#### Visor de Telemetria Orbital")
+    st.markdown("#### Visor de Telemetria Orbital (Mapbox Engine)")
     if not df_filtrado.empty:
         grafico_placeholder = st.empty() 
-        with st.spinner("Calculando telemetría..."):
+        with st.spinner("Sincronizando satélites Mapbox..."):
             
-            # Limitar a 5000 puntos para evitar que Plotly se congele
+            # Limitar a 5000 puntos para estabilidad en directo
             df_mapa = df_filtrado.head(5000)
             
-            fig = go.Figure(go.Scattergeo(
-                lon=df_mapa['lon'], lat=df_mapa['lat'], mode='markers',
-                marker=dict(size=7, color=df_mapa['COLOR_STR'], line=dict(width=0.5, color='white'), opacity=0.8),
-                text=df_mapa['CIUDAD'] + " (" + df_mapa['FORMA'] + ")", hoverinfo='text'
-            ))
-            fig.update_layout(
-                geo=dict(projection_type='orthographic', showland=True, landcolor='#1e1e1e', showocean=True, oceancolor='#0a0a0a', bgcolor='#0a0a0a'),
-                margin=dict(l=0, r=0, t=0, b=0), paper_bgcolor='#0a0a0a', height=450
-            )
+            # Si hay clave de Mapbox, usamos el motor táctico oscuro. Si no, usamos un fallback.
+            if MAPBOX_API_KEY:
+                fig = go.Figure(go.Scattermapbox(
+                    lon=df_mapa['lon'], 
+                    lat=df_mapa['lat'], 
+                    mode='markers',
+                    marker=dict(
+                        size=8, 
+                        color=df_mapa['COLOR_STR'], 
+                        opacity=0.85
+                    ),
+                    text=df_mapa['CIUDAD'] + " | Forma: " + df_mapa['FORMA'], 
+                    hoverinfo='text'
+                ))
+                
+                fig.update_layout(
+                    mapbox=dict(
+                        accesstoken=MAPBOX_API_KEY,
+                        style="dark",  # Estilo táctico oscuro nativo de Mapbox
+                        center=dict(lat=40.0, lon=-3.0), # Centro por defecto (ej. Península Ibérica / Atlántico)
+                        zoom=1.2,
+                        pitch=45  # Inclinación para dar perspectiva 3D
+                    ),
+                    margin=dict(l=0, r=0, t=0, b=0),
+                    paper_bgcolor='#0a0a0a', 
+                    height=450,
+                    showlegend=False
+                )
+            else:
+                # Fallback de seguridad por si falla la API Key
+                st.warning("Credencial MAPBOX_API_KEY no detectada. Usando motor gráfico secundario.")
+                fig = go.Figure(go.Scattergeo(
+                    lon=df_mapa['lon'], lat=df_mapa['lat'], mode='markers',
+                    marker=dict(size=7, color=df_mapa['COLOR_STR'], line=dict(width=0.5, color='white'), opacity=0.8),
+                    text=df_mapa['CIUDAD'] + " (" + df_mapa['FORMA'] + ")", hoverinfo='text'
+                ))
+                fig.update_layout(
+                    geo=dict(projection_type='orthographic', showland=True, landcolor='#1e1e1e', showocean=True, oceancolor='#0a0a0a', bgcolor='#0a0a0a'),
+                    margin=dict(l=0, r=0, t=0, b=0), paper_bgcolor='#0a0a0a', height=450
+                )
+                
             grafico_placeholder.plotly_chart(fig, width='stretch')
+            
         if len(df_filtrado) > 5000:
-            st.caption(f"Mostrando los 5000 nodos más recientes de {len(df_filtrado)} totales en el visor orbital.")
+            st.caption(f"Mostrando los 5000 nodos tácticos más recientes de {len(df_filtrado)} totales.")
 
 # --- INDICADORES RAPIDOS TACTICOS ---
 m1, m2, m3 = st.columns(3)
