@@ -2,7 +2,7 @@
 # ARCHIVO PRINCIPAL: Agatha_Fani.py
 # SISTEMA: Motor de Analisis Conductual Predictivo
 # MODULO: AGATHA FANI (Fenomenos Anomalos No Identificados)
-# VERSION: Opcon Ready v5.1 (Correccion de Sintaxis y Filtros Totales)
+# VERSION: Opcon Ready v5.2 (Carga Progresiva y Bloqueo Anti-Congelamiento)
 # OPERADOR: DIR-74
 # ====================================================================
 
@@ -10,12 +10,11 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
-import plotly.express as px
 import os
 import json
 import requests
-import unicodedata
 from datetime import datetime
+import time
 
 # --- CONFIGURACION DE PAGINA ---
 st.set_page_config(
@@ -23,9 +22,6 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
-
-# --- LIMPIEZA DE CACHE AL INICIO ---
-st.cache_data.clear()
 
 # --- CSS CORPORATIVO MATE (Flat Corporate) ---
 CSS_MATE = """
@@ -168,114 +164,129 @@ st.markdown(f"""
     </div>
 """, unsafe_allow_html=True)
 
-# --- SISTEMA DE GESTION DE CREDENCIALES ---
-def obtener_credencial(nombre_var):
-    try:
-        if hasattr(st, "secrets") and nombre_var in st.secrets:
-            return st.secrets[nombre_var]
-    except Exception:
-        pass
-    valor = os.environ.get(nombre_var)
-    if valor: return valor
-    return None
-
-OPENAI_API_KEY = obtener_credencial("OPENAI_API_KEY")
-MAPBOX_API_KEY = obtener_credencial("MAPBOX_API_KEY")
-OPENWEATHER_API_KEY = obtener_credencial("OPENWEATHER_API_KEY")
-GOOGLE_MAPS_KEY = obtener_credencial("GOOGLE_MAPS_KEY")
-DEEPSEEK_API_KEY = obtener_credencial("DEEPSEEK_API_KEY")
-
-# --- FUNCIONES AUXILIARES ---
-def encontrar_archivo(nombres_posibles):
-    for nombre in nombres_posibles:
-        rutas_posibles = [
-            nombre,
-            os.path.join("data", nombre),
-            os.path.join(".", nombre),
-            os.path.join("..", "data", nombre),
-            os.path.join("/mnt/data", nombre)
-        ]
-        for ruta in rutas_posibles:
-            if os.path.exists(ruta):
-                return ruta
-    return None
-
-def asignar_color_neon(forma):
-    f = str(forma).lower()
-    if any(x in f for x in ["triangulo", "triangular", "delta", "tri"]): return (0, 255, 128, 230)
-    elif any(x in f for x in ["esfera", "orb", "circular", "redondo", "disco", "disk"]): return (255, 0, 128, 230)
-    elif any(x in f for x in ["cigarro", "cilindro", "tubo", "cigar"]): return (255, 128, 0, 230)
-    elif any(x in f for x in ["luz", "cambiante", "pulsante", "flash", "light"]): return (255, 255, 0, 230)
-    elif any(x in f for x in ["diamante", "rombo", "cuadrado", "diamond"]): return (128, 0, 255, 230)
-    elif any(x in f for x in ["rectangulo", "plataforma", "rectangle"]): return (0, 128, 255, 230)
-    else: return (0, 255, 255, 230)
-
-def simular_coordenadas(df):
-    """Asignación de coordenadas basada en centroides de estados o países."""
-    np.random.seed(42)
-    lats, lons = [], []
-    centroides = {
-        "TX": (31.9, -99.9), "FL": (27.7, -81.6), "CA": (36.7, -119.4), "NY": (40.7, -74.0),
-        "SC": (33.8, -81.1), "PA": (41.2, -77.1), "LA": (30.9, -91.9), "CO": (39.5, -105.7),
-        "EEUU": (39.8, -98.5), "CANADA": (56.1, -106.3), "UK": (55.3, -3.4)
-    }
-    for _, row in df.iterrows():
-        estado = str(row.get('ESTADO', '')).upper().strip()
-        pais = str(row.get('PAIS', '')).upper().strip()
-        lat, lon = (39.8, -98.5)
-        if estado in centroides: lat, lon = centroides[estado]
-        elif pais in centroides: lat, lon = centroides[pais]
-        lats.append(lat + np.random.normal(0, 1.2))
-        lons.append(lon + np.random.normal(0, 1.2))
-    df['lat'], df['lon'] = lats, lons
-    return df
-
-@st.cache_data(show_spinner="Sincronizando matrices de inteligencia...")
-def cargar_nodos():
-    mensajes = []
-    nombres = ["agatha_ufo_master.csv", "agatha_ufo_nodes_full.csv", "agatha_ufo_nodes.csv"]
-    ruta = encontrar_archivo(nombres)
-    if ruta:
-        mensajes.append(f"Matriz detectada: {ruta}")
+# --- SECUENCIA DE CARGA PROGRESIVA ---
+# Utilizamos st.status para evitar la pantalla en blanco inicial
+with st.status("Inicializando Motor de Analisis Conductual Predictivo...", expanded=True) as status_boot:
+    
+    status_boot.write("Verificando CSS y estructura visual...")
+    time.sleep(0.1) # Breve pausa para asentar el DOM
+    
+    # --- SISTEMA DE GESTION DE CREDENCIALES ---
+    status_boot.write("Validando tokens de seguridad...")
+    def obtener_credencial(nombre_var):
         try:
-            df = pd.read_csv(ruta, encoding='utf-8', on_bad_lines='skip')
-            # Normalización de cabeceras
-            col_map = {
-                'AÑO': 'AÑO', 'Year': 'AÑO', 'DÍA': 'DIA', 'Day': 'DIA', 'MES': 'MES', 'Month': 'MES',
-                'CIUDAD': 'CIUDAD', 'City': 'CIUDAD', 'ESTADO': 'ESTADO', 'State': 'ESTADO',
-                'PAÍS': 'PAIS', 'Country': 'PAIS', 'FORMA': 'FORMA', 'Shape': 'FORMA',
-                'RESUMEN': 'RESUMEN', 'Summary': 'RESUMEN'
-            }
-            df.rename(columns=col_map, inplace=True)
-            for c in ['CIUDAD', 'ESTADO', 'PAIS', 'FORMA', 'RESUMEN']:
-                if c not in df.columns: df[c] = "No especificado"
-                else: df[c] = df[c].fillna("No especificado").astype(str)
-            if 'AÑO' not in df.columns: df['AÑO'] = 2026
-            df['AÑO'] = pd.to_numeric(df['AÑO'], errors='coerce').fillna(2026).astype(int)
-            df['DECADA'] = (df['AÑO'] // 10) * 10
-            df['FORMA'] = df['FORMA'].str.title()
-            df = simular_coordenadas(df)
-            df['COLOR_STR'] = df['FORMA'].apply(lambda f: f'rgba({asignar_color_neon(f)[0]},{asignar_color_neon(f)[1]},{asignar_color_neon(f)[2]},0.8)')
-            mensajes.append(f"Registros operativos: {len(df)}")
-            return df, mensajes
-        except Exception as e:
-            return pd.DataFrame(), [f"Error de proceso: {str(e)}"]
-    return pd.DataFrame(), ["Error: No se localizaron archivos fuente."]
+            if hasattr(st, "secrets") and nombre_var in st.secrets:
+                return st.secrets[nombre_var]
+        except Exception:
+            pass
+        valor = os.environ.get(nombre_var)
+        if valor: return valor
+        return None
+
+    OPENAI_API_KEY = obtener_credencial("OPENAI_API_KEY")
+    DEEPSEEK_API_KEY = obtener_credencial("DEEPSEEK_API_KEY")
+
+    # --- FUNCIONES AUXILIARES ---
+    def encontrar_archivo(nombres_posibles):
+        for nombre in nombres_posibles:
+            rutas_posibles = [
+                nombre,
+                os.path.join("data", nombre),
+                os.path.join(".", nombre),
+                os.path.join("..", "data", nombre),
+                os.path.join("/mnt/data", nombre)
+            ]
+            for ruta in rutas_posibles:
+                if os.path.exists(ruta):
+                    return ruta
+        return None
+
+    def asignar_color_neon(forma):
+        f = str(forma).lower()
+        if any(x in f for x in ["triangulo", "triangular", "delta", "tri"]): return (0, 255, 128, 230)
+        elif any(x in f for x in ["esfera", "orb", "circular", "redondo", "disco", "disk"]): return (255, 0, 128, 230)
+        elif any(x in f for x in ["cigarro", "cilindro", "tubo", "cigar"]): return (255, 128, 0, 230)
+        elif any(x in f for x in ["luz", "cambiante", "pulsante", "flash", "light"]): return (255, 255, 0, 230)
+        elif any(x in f for x in ["diamante", "rombo", "cuadrado", "diamond"]): return (128, 0, 255, 230)
+        elif any(x in f for x in ["rectangulo", "plataforma", "rectangle"]): return (0, 128, 255, 230)
+        else: return (0, 255, 255, 230)
+
+    def simular_coordenadas(df):
+        np.random.seed(42)
+        lats, lons = [], []
+        centroides = {
+            "TX": (31.9, -99.9), "FL": (27.7, -81.6), "CA": (36.7, -119.4), "NY": (40.7, -74.0),
+            "SC": (33.8, -81.1), "PA": (41.2, -77.1), "LA": (30.9, -91.9), "CO": (39.5, -105.7),
+            "EEUU": (39.8, -98.5), "CANADA": (56.1, -106.3), "UK": (55.3, -3.4)
+        }
+        for _, row in df.iterrows():
+            estado = str(row.get('ESTADO', '')).upper().strip()
+            pais = str(row.get('PAIS', '')).upper().strip()
+            lat, lon = (39.8, -98.5)
+            if estado in centroides: lat, lon = centroides[estado]
+            elif pais in centroides: lat, lon = centroides[pais]
+            lats.append(lat + np.random.normal(0, 1.2))
+            lons.append(lon + np.random.normal(0, 1.2))
+        df['lat'], df['lon'] = lats, lons
+        return df
+
+    @st.cache_data(show_spinner=False)
+    def cargar_nodos():
+        mensajes = []
+        nombres = ["agatha_ufo_master.csv", "agatha_ufo_nodes_full.csv", "agatha_ufo_nodes.csv"]
+        ruta = encontrar_archivo(nombres)
+        if ruta:
+            mensajes.append(f"Matriz detectada: {ruta}")
+            try:
+                df = pd.read_csv(ruta, encoding='utf-8', on_bad_lines='skip')
+                col_map = {
+                    'AÑO': 'AÑO', 'Year': 'AÑO', 'DÍA': 'DIA', 'Day': 'DIA', 'MES': 'MES', 'Month': 'MES',
+                    'CIUDAD': 'CIUDAD', 'City': 'CIUDAD', 'ESTADO': 'ESTADO', 'State': 'ESTADO',
+                    'PAÍS': 'PAIS', 'Country': 'PAIS', 'FORMA': 'FORMA', 'Shape': 'FORMA',
+                    'RESUMEN': 'RESUMEN', 'Summary': 'RESUMEN'
+                }
+                df.rename(columns=col_map, inplace=True)
+                for c in ['CIUDAD', 'ESTADO', 'PAIS', 'FORMA', 'RESUMEN']:
+                    if c not in df.columns: df[c] = "No especificado"
+                    else: df[c] = df[c].fillna("No especificado").astype(str)
+                if 'AÑO' not in df.columns: df['AÑO'] = 2026
+                df['AÑO'] = pd.to_numeric(df['AÑO'], errors='coerce').fillna(2026).astype(int)
+                df['DECADA'] = (df['AÑO'] // 10) * 10
+                df['FORMA'] = df['FORMA'].str.title()
+                df = simular_coordenadas(df)
+                df['COLOR_STR'] = df['FORMA'].apply(lambda f: f'rgba({asignar_color_neon(f)[0]},{asignar_color_neon(f)[1]},{asignar_color_neon(f)[2]},0.8)')
+                mensajes.append(f"Registros operativos: {len(df)}")
+                return df, mensajes
+            except Exception as e:
+                return pd.DataFrame(), [f"Error de proceso: {str(e)}"]
+        return pd.DataFrame(), ["Error: No se localizaron archivos fuente."]
+
+    status_boot.write("Extrayendo matrices de datos locales...")
+    df_maestro, diagn_mensajes = cargar_nodos()
+    
+    status_boot.update(label="Sistemas FANI en línea. Acceso concedido.", state="complete", expanded=False)
+
+
+# --- INTERFAZ PRINCIPAL ---
 
 if st.sidebar.button("FORZAR RECARGA DE MATRICES"):
     st.cache_data.clear()
     st.rerun()
 
-df_maestro, diagn_mensajes = cargar_nodos()
-
 def render_tabla_tactica(df):
     if df.empty: return
+    
+    # SEGURIDAD ANTI-CONGELAMIENTO: Limitamos la visualización en HTML a 1000 registros
+    # Construir un HTML enorme bloquea el hilo principal de renderizado de Streamlit
+    df_render = df.head(1000) 
+    
     cols_excluir = ['COLOR_STR', 'lat', 'lon', 'DECADA', 'ORD.', 'NUM.', 'Source_File']
-    cols_vis = [c for c in df.columns if c not in cols_excluir]
+    cols_vis = [c for c in df_render.columns if c not in cols_excluir]
+    
     html = '<div class="contenedor-tabla"><table class="rejilla-tactica"><thead><tr>'
     for c in cols_vis: html += f'<th>{c}</th>'
     html += '</tr></thead><tbody>'
-    for _, row in df.iterrows():
+    for _, row in df_render.iterrows():
         html += '<tr>'
         for c in cols_vis:
             val = row[c]
@@ -283,9 +294,12 @@ def render_tabla_tactica(df):
             html += f'<td class="{clase}">{val}</td>'
         html += '</tr>'
     html += '</tbody></table></div>'
+    
+    if len(df) > 1000:
+        st.caption(f"Mostrando los primeros 1000 registros de {len(df)} totales por razones de rendimiento táctico.")
+        
     st.markdown(html, unsafe_allow_html=True)
 
-# --- ENCABEZADO Y COMANDO ---
 st.markdown("<h1>Motor de Analisis Conductual Predictivo</h1>", unsafe_allow_html=True)
 st.markdown("<h3>Modulo FANI: Fenomenos Anomalos No Identificados</h3>", unsafe_allow_html=True)
 
@@ -327,20 +341,24 @@ col_map, col_list = st.columns([1.2, 1.8], gap="large")
 with col_map:
     st.markdown("#### Telemetria Orbital")
     if not df_filtrado.empty:
-        fig = go.Figure(go.Scattergeo(
-            lon=df_filtrado['lon'], lat=df_filtrado['lat'], mode='markers',
-            marker=dict(size=7, color=df_filtrado['COLOR_STR'], line=dict(width=0.5, color='white'), opacity=0.8),
-            text=df_filtrado['CIUDAD'] + " (" + df_filtrado['FORMA'] + ")", hoverinfo='text'
-        ))
-        fig.update_layout(
-            geo=dict(projection_type='orthographic', showland=True, landcolor='#1e1e1e', showocean=True, oceancolor='#0a0a0a', bgcolor='#0a0a0a'),
-            margin=dict(l=0, r=0, t=0, b=0), paper_bgcolor='#0a0a0a', height=500
-        )
-        st.plotly_chart(fig, use_container_width=True)
+        # st.empty nos permite asegurar un espacio antes de que el gráfico termine de calcularse
+        grafico_placeholder = st.empty() 
+        with st.spinner("Calculando telemetría..."):
+            fig = go.Figure(go.Scattergeo(
+                lon=df_filtrado['lon'], lat=df_filtrado['lat'], mode='markers',
+                marker=dict(size=7, color=df_filtrado['COLOR_STR'], line=dict(width=0.5, color='white'), opacity=0.8),
+                text=df_filtrado['CIUDAD'] + " (" + df_filtrado['FORMA'] + ")", hoverinfo='text'
+            ))
+            fig.update_layout(
+                geo=dict(projection_type='orthographic', showland=True, landcolor='#1e1e1e', showocean=True, oceancolor='#0a0a0a', bgcolor='#0a0a0a'),
+                margin=dict(l=0, r=0, t=0, b=0), paper_bgcolor='#0a0a0a', height=500
+            )
+            grafico_placeholder.plotly_chart(fig, use_container_width=True)
 
 with col_list:
     st.markdown(f"#### Base de Datos Tactica ({len(df_filtrado)} registros)")
-    render_tabla_tactica(df_filtrado.sort_values(by=['AÑO','MES','DIA'], ascending=False))
+    with st.spinner("Renderizando registros..."):
+        render_tabla_tactica(df_filtrado.sort_values(by=['AÑO','MES','DIA'], ascending=False))
 
 # --- ANALISIS NLP ---
 st.markdown("---")
@@ -355,26 +373,26 @@ with st.expander("MOTOR NLP FORENSE (DEEPSEEK)", expanded=False):
         
         if st.button("Ejecutar Analisis de Inteligencia", type="primary"):
             if DEEPSEEK_API_KEY:
-                try:
-                    h = {"Authorization": f"Bearer {DEEPSEEK_API_KEY}", "Content-Type": "application/json"}
-                    p = {
-                        "model": "deepseek-chat",
-                        "messages": [
-                            {"role": "system", "content": "Analiza el texto y responde solo con un JSON: {comportamiento, credibilidad (ALTA/MEDIA/BAJA), indice (0-100), hipotesis}"},
-                            {"role": "user", "content": resumen}
-                        ],
-                        "response_format": {"type": "json_object"}
-                    }
-                    r = requests.post("https://api.deepseek.com/v1/chat/completions", headers=h, json=p, timeout=25)
-                    content = r.json()["choices"][0]["message"]["content"]
-                    
-                    # Limpieza segura de la respuesta JSON
-                    if content.startswith("```"):
-                        content = content.split("```")[1]
-                        if content.startswith("json"): content = content[4:]
-                    
-                    st.json(json.loads(content.strip()))
-                except Exception as e:
-                    st.error(f"Error en nodo NLP: {str(e)}")
+                with st.spinner("Consultando nodo NLP externo..."):
+                    try:
+                        h = {"Authorization": f"Bearer {DEEPSEEK_API_KEY}", "Content-Type": "application/json"}
+                        p = {
+                            "model": "deepseek-chat",
+                            "messages": [
+                                {"role": "system", "content": "Analiza el texto y responde solo con un JSON: {comportamiento, credibilidad (ALTA/MEDIA/BAJA), indice (0-100), hipotesis}"},
+                                {"role": "user", "content": resumen}
+                            ],
+                            "response_format": {"type": "json_object"}
+                        }
+                        r = requests.post("https://api.deepseek.com/v1/chat/completions", headers=h, json=p, timeout=25)
+                        content = r.json()["choices"][0]["message"]["content"]
+                        
+                        if content.startswith("```"):
+                            content = content.split("```")[1]
+                            if content.startswith("json"): content = content[4:]
+                        
+                        st.json(json.loads(content.strip()))
+                    except Exception as e:
+                        st.error(f"Error en nodo NLP: {str(e)}")
             else:
                 st.warning("Falta DEEPSEEK_API_KEY en secretos.")
