@@ -292,42 +292,36 @@ st.markdown("<h3>Modulo FANI: Fenomenos Anomalos No Identificados</h3>", unsafe_
 with st.sidebar.expander("DIAGNOSTICO DEL SISTEMA"):
     for m in diagn_mensajes: st.write(f"- {m}")
 
-# --- FILTROS EN CASCADA ---
-st.markdown("#### FILTRADO DE REGISTROS FORENSES")
-df_filtrado = df_maestro.copy()
+# --- VISUALIZACION PRINCIPAL: MAPA Y FILTROS ---
+st.markdown("---")
+col_mapa, col_filtros = st.columns([2.5, 1.5], gap="large")
 
-if not df_filtrado.empty:
-    cf1, cf2, cf3 = st.columns(3)
-    dec_disp = sorted(df_filtrado['DECADA'].unique(), reverse=True)
-    sel_decada = cf1.selectbox("1. Seleccionar Decada", ["TODAS"] + [int(d) for d in dec_disp])
-    if sel_decada != "TODAS":
-        df_filtrado = df_filtrado[df_filtrado['DECADA'] == sel_decada]
+with col_filtros:
+    st.markdown("#### Parametros de Filtrado")
     
-    anio_disp = sorted(df_filtrado['AÑO'].unique(), reverse=True)
-    sel_anio = cf2.selectbox("2. Filtrar por Año", ["TODOS"] + [int(a) for a in anio_disp])
-    if sel_anio != "TODOS":
-        df_filtrado = df_filtrado[df_filtrado['AÑO'] == sel_anio]
-        
-    forma_disp = sorted(df_filtrado['FORMA'].unique())
-    sel_forma = cf3.selectbox("3. Filtrar por Morfologia", ["TODAS"] + [str(f) for f in forma_disp])
-    if sel_forma != "TODAS":
-        df_filtrado = df_filtrado[df_filtrado['FORMA'] == sel_forma]
-
-st.markdown("---")
-m1, m2, m3, m4 = st.columns(4)
-m1.metric("Registros Coincidentes", f"{len(df_filtrado):,}")
-m2.metric("Estructura Predom.", df_filtrado['FORMA'].mode().iloc[0] if not df_filtrado.empty else "N/A")
-m3.metric("Nodos Geograficos", f"{len(df_filtrado['CIUDAD'].unique()) if not df_filtrado.empty else 0:,}")
-m4.metric("Estado de Red", "OPTIMO")
-st.markdown("---")
-
-# --- VISUALIZACION ---
-col_map, col_list = st.columns([1.2, 1.8], gap="large")
-
-with col_map:
-    st.markdown("#### Telemetria Orbital")
+    # Adaptación de filtros según esquema táctico
+    df_filtrado = df_maestro.copy()
     if not df_filtrado.empty:
-        # st.empty nos permite asegurar un espacio antes de que el gráfico termine de calcularse
+        anio_disp = sorted(df_filtrado['AÑO'].unique(), reverse=True)
+        sel_anio = st.selectbox("AÑO", ["TODOS"] + [int(a) for a in anio_disp])
+        if sel_anio != "TODOS": df_filtrado = df_filtrado[df_filtrado['AÑO'] == sel_anio]
+        
+        # Filtros adicionales preparados para tu esquema (Mes, Día, Hora, País)
+        mes_disp = sorted(df_filtrado['MES'].unique())
+        sel_mes = st.selectbox("MES", ["TODOS"] + [str(m) for m in mes_disp])
+        if sel_mes != "TODOS": df_filtrado = df_filtrado[df_filtrado['MES'] == sel_mes]
+        
+        forma_disp = sorted(df_filtrado['FORMA'].unique())
+        sel_forma = st.selectbox("TIPO DE OBJETO", ["TODOS"] + [str(f) for f in forma_disp])
+        if sel_forma != "TODOS": df_filtrado = df_filtrado[df_filtrado['FORMA'] == sel_forma]
+        
+        pais_disp = sorted(df_filtrado['PAIS'].unique())
+        sel_pais = st.selectbox("PAIS", ["TODOS"] + [str(p) for p in pais_disp])
+        if sel_pais != "TODOS": df_filtrado = df_filtrado[df_filtrado['PAIS'] == sel_pais]
+
+with col_mapa:
+    st.markdown("#### Visor de Telemetria Orbital")
+    if not df_filtrado.empty:
         grafico_placeholder = st.empty() 
         with st.spinner("Calculando telemetría..."):
             fig = go.Figure(go.Scattergeo(
@@ -337,27 +331,53 @@ with col_map:
             ))
             fig.update_layout(
                 geo=dict(projection_type='orthographic', showland=True, landcolor='#1e1e1e', showocean=True, oceancolor='#0a0a0a', bgcolor='#0a0a0a'),
-                margin=dict(l=0, r=0, t=0, b=0), paper_bgcolor='#0a0a0a', height=500
+                margin=dict(l=0, r=0, t=0, b=0), paper_bgcolor='#0a0a0a', height=450
             )
             grafico_placeholder.plotly_chart(fig, use_container_width=True)
 
-with col_list:
-    st.markdown(f"#### Base de Datos Tactica ({len(df_filtrado)} registros)")
-    with st.spinner("Renderizando registros..."):
-        render_tabla_tactica(df_filtrado.sort_values(by=['AÑO','MES','DIA'], ascending=False))
-
-# --- ANALISIS NLP ---
+# --- INDICADORES RAPIDOS TACTICOS ---
+m1, m2, m3 = st.columns(3)
+m1.metric("Registros Activos", f"{len(df_filtrado):,}")
+m2.metric("Tipologia Predominante", df_filtrado['FORMA'].mode().iloc[0] if not df_filtrado.empty else "N/A")
+m3.metric("Zonas de Interes (Nodos)", f"{len(df_filtrado['CIUDAD'].unique()) if not df_filtrado.empty else 0:,}")
 st.markdown("---")
-with st.expander("MOTOR NLP FORENSE (DEEPSEEK)", expanded=False):
+
+
+# --- MODULOS OPERATIVOS (DESPLEGABLES) ---
+
+with st.expander("NODOS Y CONEXIONES (PUENTES)", expanded=False):
+    st.markdown("#### Analisis de Red")
+    st.info("Módulo de grafos relacionales pendiente de inicialización en futuras fases de desarrollo.")
+
+with st.expander(f"REGISTROS FORENSES ({len(df_filtrado)} Activos)", expanded=True):
+    if not df_filtrado.empty:
+        cols_excluir = ['COLOR_STR', 'lat', 'lon', 'DECADA', 'ORD.', 'NUM.', 'Source_File']
+        cols_vis = [c for c in df_filtrado.columns if c not in cols_excluir]
+        
+        # Inyectamos el estilo oscuro corporativo en el dataframe nativo
+        df_estilizado = df_filtrado[cols_vis].sort_values(by=['AÑO','MES','DIA'], ascending=False).style.set_properties(**{
+            'background-color': '#0a0a0a',
+            'color': '#cbd5e1',
+            'border-color': '#333333'
+        })
+        
+        st.dataframe(
+            df_estilizado,
+            use_container_width=True,
+            hide_index=True,
+            height=400
+        )
+
+with st.expander("PROCESADOR NLP FORENSE", expanded=False):
     if not df_filtrado.empty:
         df_nlp = df_filtrado.copy()
         df_nlp['TAG'] = df_nlp['CIUDAD'] + " | " + df_nlp['FORMA'] + " | " + df_nlp['AÑO'].astype(str)
-        caso_sel = st.selectbox("Seleccionar Expediente", df_nlp['TAG'].unique())
+        caso_sel = st.selectbox("Seleccionar Expediente Forense", df_nlp['TAG'].unique(), key="select_nlp")
         resumen = str(df_nlp[df_nlp['TAG'] == caso_sel].iloc[0]['RESUMEN'])
         
-        st.markdown(f"<div style='background:#1a1a1a; padding:15px; border-left:3px solid #64748b;'>{resumen}</div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='background:#1a1a1a; padding:15px; border-left:3px solid #64748b; color:#e2e8f0;'>{resumen}</div><br>", unsafe_allow_html=True)
         
-        if st.button("Ejecutar Analisis de Inteligencia", type="primary"):
+        if st.button("Ejecutar Analisis de Inteligencia (DeepSeek)", type="primary"):
             if DEEPSEEK_API_KEY:
                 with st.spinner("Consultando nodo NLP externo..."):
                     try:
@@ -379,6 +399,6 @@ with st.expander("MOTOR NLP FORENSE (DEEPSEEK)", expanded=False):
                         
                         st.json(json.loads(content.strip()))
                     except Exception as e:
-                        st.error(f"Error en nodo NLP: {str(e)}")
+                        st.error(f"Error de comunicación NLP: {str(e)}")
             else:
-                st.warning("Falta DEEPSEEK_API_KEY en secretos.")
+                st.warning("Falta credencial DEEPSEEK_API_KEY en configuración del sistema.")
