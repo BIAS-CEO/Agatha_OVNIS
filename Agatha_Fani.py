@@ -2,7 +2,7 @@
 # ARCHIVO PRINCIPAL: Agatha_Fani.py
 # SISTEMA: Motor de Analisis Conductual Predictivo
 # MODULO: AGATHA FANI (Fenomenos Anomalos No Identificados)
-# VERSION: Opcon Ready v5.2 (Carga Progresiva y Bloqueo Anti-Congelamiento)
+# VERSION: Opcon Ready v5.3 (Optimizacion de Memoria y Filtros Maestros)
 # OPERADOR: DIR-74
 # ====================================================================
 
@@ -82,51 +82,6 @@ h2, h3, h4 {
     font-weight: 400 !important;
 }
 
-.contenedor-tabla { 
-    width: 100%; 
-    max-height: 600px; 
-    overflow-y: auto; 
-    border: 1px solid #333333; 
-    background-color: #0a0a0a; 
-    margin-bottom: 20px; 
-}
-.rejilla-tactica { 
-    width: 100%; 
-    border-collapse: collapse; 
-    font-family: 'Titillium Web', sans-serif; 
-    font-size: 0.8rem; 
-    color: #e2e8f0; 
-}
-.rejilla-tactica thead th { 
-    position: sticky; 
-    top: 0; 
-    background-color: #1a1a1a; 
-    color: #00d4ff; 
-    text-align: left; 
-    padding: 10px 12px; 
-    text-transform: uppercase; 
-    font-size: 0.7rem; 
-    letter-spacing: 1px; 
-    border-bottom: 1px solid #333333; 
-    z-index: 10; 
-    font-weight: 600;
-}
-.rejilla-tactica tbody td { 
-    padding: 8px 12px; 
-    border-bottom: 1px solid #1a1a1a; 
-    color: #cbd5e1;
-}
-.rejilla-tactica tbody tr:hover { 
-    background-color: #1a1a1a; 
-}
-.valor-num { 
-    font-family: 'Share Tech Mono', monospace; 
-    color: #ffffff; 
-}
-.valor-texto {
-    color: #94a3b8;
-}
-
 .stButton > button { 
     border: 1px solid #333333 !important; 
     background-color: #1a1a1a !important; 
@@ -165,13 +120,11 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # --- SECUENCIA DE CARGA PROGRESIVA ---
-# Utilizamos st.status para evitar la pantalla en blanco inicial
 with st.status("Inicializando Motor de Analisis Conductual Predictivo...", expanded=True) as status_boot:
     
     status_boot.write("Verificando CSS y estructura visual...")
-    time.sleep(0.1) # Breve pausa para asentar el DOM
+    time.sleep(0.1)
     
-    # --- SISTEMA DE GESTION DE CREDENCIALES ---
     status_boot.write("Validando tokens de seguridad...")
     def obtener_credencial(nombre_var):
         try:
@@ -186,7 +139,6 @@ with st.status("Inicializando Motor de Analisis Conductual Predictivo...", expan
     OPENAI_API_KEY = obtener_credencial("OPENAI_API_KEY")
     DEEPSEEK_API_KEY = obtener_credencial("DEEPSEEK_API_KEY")
 
-    # --- FUNCIONES AUXILIARES ---
     def encontrar_archivo(nombres_posibles):
         for nombre in nombres_posibles:
             rutas_posibles = [
@@ -212,81 +164,32 @@ with st.status("Inicializando Motor de Analisis Conductual Predictivo...", expan
         else: return (0, 255, 255, 230)
 
     def simular_coordenadas(df):
-    """Asignación de coordenadas mediante vectorización de alta velocidad."""
-    np.random.seed(42)
-    centroides = {
-        "TX": (31.9, -99.9), "FL": (27.7, -81.6), "CA": (36.7, -119.4), "NY": (40.7, -74.0),
-        "SC": (33.8, -81.1), "PA": (41.2, -77.1), "LA": (30.9, -91.9), "CO": (39.5, -105.7),
-        "EEUU": (39.8, -98.5), "CANADA": (56.1, -106.3), "UK": (55.3, -3.4)
-    }
-    
-    # Estandarización de texto
-    est = df['ESTADO'].str.upper().str.strip()
-    pai = df['PAIS'].str.upper().str.strip()
-    
-    # Mapeo de coordenadas primarias
-    coord_est = est.map(centroides)
-    coord_pai = pai.map(centroides)
-    
-    # Fusión estructurada: Prioridad a Estado, luego a País
-    coords_finales = coord_est.combine_first(coord_pai)
-    
-    # Asignación de coordenadas por defecto para registros sin geolocalización
-    coords_defecto = pd.Series([(39.8, -98.5)] * len(df), index=df.index)
-    coords_finales = coords_finales.combine_first(coords_defecto)
-    
-    # Dispersión táctica (ruido gaussiano)
-    df['lat'] = coords_finales.apply(lambda x: x[0]) + np.random.normal(0, 1.2, len(df))
-    df['lon'] = coords_finales.apply(lambda x: x[1]) + np.random.normal(0, 1.2, len(df))
-    
-    return df
+        """Asignación de coordenadas mediante vectorización de alta velocidad."""
+        np.random.seed(42)
+        centroides = {
+            "TX": (31.9, -99.9), "FL": (27.7, -81.6), "CA": (36.7, -119.4), "NY": (40.7, -74.0),
+            "SC": (33.8, -81.1), "PA": (41.2, -77.1), "LA": (30.9, -91.9), "CO": (39.5, -105.7),
+            "EEUU": (39.8, -98.5), "CANADA": (56.1, -106.3), "UK": (55.3, -3.4)
+        }
+        
+        est = df['ESTADO'].str.upper().str.strip()
+        pai = df['PAIS'].str.upper().str.strip()
+        
+        coord_est = est.map(centroides)
+        coord_pai = pai.map(centroides)
+        
+        coords_finales = coord_est.combine_first(coord_pai)
+        coords_defecto = pd.Series([(39.8, -98.5)] * len(df), index=df.index)
+        coords_finales = coords_finales.combine_first(coords_defecto)
+        
+        df['lat'] = coords_finales.apply(lambda x: x[0]) + np.random.normal(0, 1.2, len(df))
+        df['lon'] = coords_finales.apply(lambda x: x[1]) + np.random.normal(0, 1.2, len(df))
+        
+        return df
 
-@st.cache_data(show_spinner=False)
-def cargar_nodos():
-    mensajes = []
-    # Prioridad absoluta a la matriz completa
-    nombres = ["agatha_ufo_nodes_full.csv", "agatha_ufo_master.csv", "agatha_ufo_nodes.csv"]
-    ruta = encontrar_archivo(nombres)
-    
-    if ruta:
-        mensajes.append(f"Matriz detectada: {ruta}")
-        try:
-            df = pd.read_csv(ruta, encoding='utf-8', on_bad_lines='skip')
-            col_map = {
-                'AÑO': 'AÑO', 'Year': 'AÑO', 'DÍA': 'DIA', 'Day': 'DIA', 'MES': 'MES', 'Month': 'MES',
-                'CIUDAD': 'CIUDAD', 'City': 'CIUDAD', 'ESTADO': 'ESTADO', 'State': 'ESTADO',
-                'PAÍS': 'PAIS', 'Country': 'PAIS', 'FORMA': 'FORMA', 'Shape': 'FORMA',
-                'RESUMEN': 'RESUMEN', 'Summary': 'RESUMEN'
-            }
-            df.rename(columns=col_map, inplace=True)
-            
-            for c in ['CIUDAD', 'ESTADO', 'PAIS', 'FORMA', 'RESUMEN']:
-                if c not in df.columns: df[c] = "No especificado"
-                else: df[c] = df[c].fillna("No especificado").astype(str)
-            
-            # PROTOCOLO DE PURGA: Eliminación definitiva de registros restringidos
-            df = df[~df['PAIS'].str.contains('Marruecos|Morocco', case=False, na=False)].copy()
-            
-            if 'AÑO' not in df.columns: df['AÑO'] = 2026
-            df['AÑO'] = pd.to_numeric(df['AÑO'], errors='coerce').fillna(2026).astype(int)
-            df['DECADA'] = (df['AÑO'] // 10) * 10
-            df['FORMA'] = df['FORMA'].str.title()
-            
-            # Llamada al simulador optimizado
-            df = simular_coordenadas(df)
-            df['COLOR_STR'] = df['FORMA'].apply(lambda f: f'rgba({asignar_color_neon(f)[0]},{asignar_color_neon(f)[1]},{asignar_color_neon(f)[2]},0.8)')
-            
-            mensajes.append(f"Registros operativos: {len(df)}")
-            return df, mensajes
-        except Exception as e:
-            return pd.DataFrame(), [f"Error crítico de proceso: {str(e)}"]
-            
-    return pd.DataFrame(), ["Error: No se localizaron archivos fuente."]
-    
     @st.cache_data(show_spinner=False)
     def cargar_nodos():
         mensajes = []
-        # CAMBIO 1: Prioridad absoluta al archivo FULL
         nombres = ["agatha_ufo_nodes_full.csv", "agatha_ufo_master.csv", "agatha_ufo_nodes.csv"]
         ruta = encontrar_archivo(nombres)
         
@@ -306,11 +209,17 @@ def cargar_nodos():
                     if c not in df.columns: df[c] = "No especificado"
                     else: df[c] = df[c].fillna("No especificado").astype(str)
                 
-                # PROTOCOLO DE PURGA DE DATOS CLASIFICADOS (Censura de Marruecos)
-                df = df[~df['PAIS'].str.contains('Marruecos|Morocco', case=False, na=False)]
+                # PROTOCOLO DE PURGA
+                df = df[~df['PAIS'].str.contains('Marruecos|Morocco', case=False, na=False)].copy()
                 
                 if 'AÑO' not in df.columns: df['AÑO'] = 2026
                 df['AÑO'] = pd.to_numeric(df['AÑO'], errors='coerce').fillna(2026).astype(int)
+                
+                # Forzar el mes a ser un número y luego un string sin decimales para los filtros
+                if 'MES' not in df.columns: df['MES'] = "No especificado"
+                df['MES'] = pd.to_numeric(df['MES'], errors='coerce').fillna(0).astype(int).astype(str)
+                df['MES'] = df['MES'].replace('0', 'No especificado')
+
                 df['DECADA'] = (df['AÑO'] // 10) * 10
                 df['FORMA'] = df['FORMA'].str.title()
                 
@@ -329,25 +238,11 @@ def cargar_nodos():
     
     status_boot.update(label="Sistemas FANI en línea. Acceso concedido.", state="complete", expanded=False)
 
-
 # --- INTERFAZ PRINCIPAL ---
 
 if st.sidebar.button("FORZAR RECARGA DE MATRICES"):
     st.cache_data.clear()
     st.rerun()
-
-def render_tabla_tactica(df):
-    if df.empty: return
-    
-    cols_excluir = ['COLOR_STR', 'lat', 'lon', 'DECADA', 'ORD.', 'NUM.', 'Source_File']
-    cols_vis = [c for c in df.columns if c not in cols_excluir]
-    
-    st.dataframe(
-        df[cols_vis],
-        use_container_width=True,
-        hide_index=True,
-        height=600
-    )
 
 st.markdown("<h1>Motor de Analisis Conductual Predictivo</h1>", unsafe_allow_html=True)
 st.markdown("<h3>Modulo FANI: Fenomenos Anomalos No Identificados</h3>", unsafe_allow_html=True)
@@ -362,50 +257,52 @@ col_mapa, col_filtros = st.columns([2.5, 1.5], gap="large")
 with col_filtros:
     st.markdown("#### Parametros de Filtrado")
     
-    # Adaptación de filtros según esquema táctico con protección de tipos de datos
+    # Extraemos opciones SIEMPRE desde la base maestra
+    anio_disp = sorted(df_maestro['AÑO'].unique(), reverse=True)
+    sel_anio = st.selectbox("AÑO", ["TODOS"] + [int(a) for a in anio_disp])
+    
+    mes_disp = sorted([m for m in df_maestro['MES'].unique() if m != 'No especificado'], key=lambda x: int(x))
+    sel_mes = st.selectbox("MES", ["TODOS"] + [str(m) for m in mes_disp])
+    
+    forma_disp = sorted(df_maestro['FORMA'].unique())
+    sel_forma = st.selectbox("TIPO DE OBJETO", ["TODOS"] + [str(f) for f in forma_disp])
+    
+    pais_disp = sorted(df_maestro['PAIS'].unique())
+    sel_pais = st.selectbox("PAIS", ["TODOS"] + [str(p) for p in pais_disp])
+
+    # Aplicamos selecciones a la matriz
     df_filtrado = df_maestro.copy()
-    if not df_filtrado.empty:
-        
-        # 1. Filtro de Año
-        anio_disp = sorted(df_filtrado['AÑO'].dropna().unique(), reverse=True)
-        sel_anio = st.selectbox("AÑO", ["TODOS"] + [int(a) for a in anio_disp])
-        if sel_anio != "TODOS": 
-            df_filtrado = df_filtrado[df_filtrado['AÑO'] == sel_anio]
-        
-        # 2. Filtro de Mes (Corrección de tipo numérico a texto)
-        mes_disp = sorted(df_filtrado['MES'].dropna().unique())
-        # Limpiamos posibles decimales fantasma (.0) si Pandas lo leyó como float
-        sel_mes = st.selectbox("MES", ["TODOS"] + [str(m).replace('.0', '') for m in mes_disp])
-        if sel_mes != "TODOS": 
-            df_filtrado = df_filtrado[df_filtrado['MES'].astype(str).str.replace('.0', '') == sel_mes]
-        
-        # 3. Filtro de Morfología / Tipo de Objeto
-        forma_disp = sorted(df_filtrado['FORMA'].dropna().unique())
-        sel_forma = st.selectbox("TIPO DE OBJETO", ["TODOS"] + [str(f) for f in forma_disp])
-        if sel_forma != "TODOS": 
-            df_filtrado = df_filtrado[df_filtrado['FORMA'].astype(str) == sel_forma]
-        
-        # 4. Filtro de País
-        pais_disp = sorted(df_filtrado['PAIS'].dropna().unique())
-        sel_pais = st.selectbox("PAIS", ["TODOS"] + [str(p) for p in pais_disp])
-        if sel_pais != "TODOS": 
-            df_filtrado = df_filtrado[df_filtrado['PAIS'].astype(str) == sel_pais]
+    
+    if sel_anio != "TODOS": 
+        df_filtrado = df_filtrado[df_filtrado['AÑO'] == sel_anio]
+    if sel_mes != "TODOS": 
+        df_filtrado = df_filtrado[df_filtrado['MES'] == sel_mes]
+    if sel_forma != "TODOS": 
+        df_filtrado = df_filtrado[df_filtrado['FORMA'] == sel_forma]
+    if sel_pais != "TODOS": 
+        df_filtrado = df_filtrado[df_filtrado['PAIS'] == sel_pais]
 
 with col_mapa:
     st.markdown("#### Visor de Telemetria Orbital")
     if not df_filtrado.empty:
         grafico_placeholder = st.empty() 
         with st.spinner("Calculando telemetría..."):
+            
+            # Limitar a 5000 puntos para evitar que Plotly se congele
+            df_mapa = df_filtrado.head(5000)
+            
             fig = go.Figure(go.Scattergeo(
-                lon=df_filtrado['lon'], lat=df_filtrado['lat'], mode='markers',
-                marker=dict(size=7, color=df_filtrado['COLOR_STR'], line=dict(width=0.5, color='white'), opacity=0.8),
-                text=df_filtrado['CIUDAD'] + " (" + df_filtrado['FORMA'] + ")", hoverinfo='text'
+                lon=df_mapa['lon'], lat=df_mapa['lat'], mode='markers',
+                marker=dict(size=7, color=df_mapa['COLOR_STR'], line=dict(width=0.5, color='white'), opacity=0.8),
+                text=df_mapa['CIUDAD'] + " (" + df_mapa['FORMA'] + ")", hoverinfo='text'
             ))
             fig.update_layout(
                 geo=dict(projection_type='orthographic', showland=True, landcolor='#1e1e1e', showocean=True, oceancolor='#0a0a0a', bgcolor='#0a0a0a'),
                 margin=dict(l=0, r=0, t=0, b=0), paper_bgcolor='#0a0a0a', height=450
             )
-            grafico_placeholder.plotly_chart(fig, use_container_width=True)
+            grafico_placeholder.plotly_chart(fig, width='stretch')
+        if len(df_filtrado) > 5000:
+            st.caption(f"Mostrando los 5000 nodos más recientes de {len(df_filtrado)} totales en el visor orbital.")
 
 # --- INDICADORES RAPIDOS TACTICOS ---
 m1, m2, m3 = st.columns(3)
@@ -413,7 +310,6 @@ m1.metric("Registros Activos", f"{len(df_filtrado):,}")
 m2.metric("Tipologia Predominante", df_filtrado['FORMA'].mode().iloc[0] if not df_filtrado.empty else "N/A")
 m3.metric("Zonas de Interes (Nodos)", f"{len(df_filtrado['CIUDAD'].unique()) if not df_filtrado.empty else 0:,}")
 st.markdown("---")
-
 
 # --- MODULOS OPERATIVOS (DESPLEGABLES) ---
 
@@ -426,65 +322,70 @@ with st.expander(f"REGISTROS FORENSES ({len(df_filtrado)} Activos)", expanded=Tr
         cols_excluir = ['COLOR_STR', 'lat', 'lon', 'DECADA', 'ORD.', 'NUM.', 'Source_File']
         cols_vis = [c for c in df_filtrado.columns if c not in cols_excluir]
         
-        # Lógica de carga selectiva y seguridad de renderizado
         filtros_activos = (sel_anio != "TODOS") or (sel_mes != "TODOS") or (sel_forma != "TODOS") or (sel_pais != "TODOS")
         
         if not filtros_activos:
             st.info("Sistema en reposo. Mostrando previsualización de los 100 registros más recientes. Active los filtros tácticos para una búsqueda específica.")
-            df_mostrar = df_filtrado.sort_values(by=['AÑO','MES','DIA'], ascending=False).head(100)
+            df_mostrar = df_filtrado.sort_values(by=['AÑO','MES'], ascending=[False, False]).head(100)
         else:
             if len(df_filtrado) > 1000:
                 st.warning(f"Búsqueda masiva detectada ({len(df_filtrado)} resultados). Mostrando los 1000 más relevantes para garantizar la estabilidad del sistema.")
-                df_mostrar = df_filtrado.sort_values(by=['AÑO','MES','DIA'], ascending=False).head(1000)
+                df_mostrar = df_filtrado.sort_values(by=['AÑO','MES'], ascending=[False, False]).head(1000)
             else:
-                df_mostrar = df_filtrado.sort_values(by=['AÑO','MES','DIA'], ascending=False)
+                df_mostrar = df_filtrado.sort_values(by=['AÑO','MES'], ascending=[False, False])
         
-        # Inyectamos el estilo oscuro corporativo
         df_estilizado = df_mostrar[cols_vis].style.set_properties(**{
             'background-color': '#0a0a0a',
             'color': '#cbd5e1',
             'border-color': '#333333'
         })
         
-        # Renderizado con la nueva sintaxis de Streamlit
         st.dataframe(
             df_estilizado,
             width='stretch',
             hide_index=True,
             height=400
         )
-        
+
 with st.expander("PROCESADOR NLP FORENSE", expanded=False):
     if not df_filtrado.empty:
         df_nlp = df_filtrado.copy()
         df_nlp['TAG'] = df_nlp['CIUDAD'] + " | " + df_nlp['FORMA'] + " | " + df_nlp['AÑO'].astype(str)
-        caso_sel = st.selectbox("Seleccionar Expediente Forense", df_nlp['TAG'].unique(), key="select_nlp")
-        resumen = str(df_nlp[df_nlp['TAG'] == caso_sel].iloc[0]['RESUMEN'])
         
-        st.markdown(f"<div style='background:#1a1a1a; padding:15px; border-left:3px solid #64748b; color:#e2e8f0;'>{resumen}</div><br>", unsafe_allow_html=True)
+        # Límite de opciones para el selectbox de NLP para no sobrecargar el navegador
+        opciones_tag = df_nlp['TAG'].unique()
+        if len(opciones_tag) > 500:
+            st.caption("Mostrando los 500 expedientes más recientes para análisis NLP.")
+            opciones_tag = opciones_tag[:500]
+            
+        caso_sel = st.selectbox("Seleccionar Expediente Forense", opciones_tag, key="select_nlp")
         
-        if st.button("Ejecutar Analisis de Inteligencia (DeepSeek)", type="primary"):
-            if DEEPSEEK_API_KEY:
-                with st.spinner("Consultando nodo NLP externo..."):
-                    try:
-                        h = {"Authorization": f"Bearer {DEEPSEEK_API_KEY}", "Content-Type": "application/json"}
-                        p = {
-                            "model": "deepseek-chat",
-                            "messages": [
-                                {"role": "system", "content": "Analiza el texto y responde solo con un JSON: {comportamiento, credibilidad (ALTA/MEDIA/BAJA), indice (0-100), hipotesis}"},
-                                {"role": "user", "content": resumen}
-                            ],
-                            "response_format": {"type": "json_object"}
-                        }
-                        r = requests.post("https://api.deepseek.com/v1/chat/completions", headers=h, json=p, timeout=25)
-                        content = r.json()["choices"][0]["message"]["content"]
-                        
-                        if content.startswith("```"):
-                            content = content.split("```")[1]
-                            if content.startswith("json"): content = content[4:]
-                        
-                        st.json(json.loads(content.strip()))
-                    except Exception as e:
-                        st.error(f"Error de comunicación NLP: {str(e)}")
-            else:
-                st.warning("Falta credencial DEEPSEEK_API_KEY en configuración del sistema.")
+        if caso_sel:
+            resumen = str(df_nlp[df_nlp['TAG'] == caso_sel].iloc[0]['RESUMEN'])
+            st.markdown(f"<div style='background:#1a1a1a; padding:15px; border-left:3px solid #64748b; color:#e2e8f0;'>{resumen}</div><br>", unsafe_allow_html=True)
+            
+            if st.button("Ejecutar Analisis de Inteligencia (DeepSeek)", type="primary"):
+                if DEEPSEEK_API_KEY:
+                    with st.spinner("Consultando nodo NLP externo..."):
+                        try:
+                            h = {"Authorization": f"Bearer {DEEPSEEK_API_KEY}", "Content-Type": "application/json"}
+                            p = {
+                                "model": "deepseek-chat",
+                                "messages": [
+                                    {"role": "system", "content": "Analiza el texto y responde solo con un JSON: {comportamiento, credibilidad (ALTA/MEDIA/BAJA), indice (0-100), hipotesis}"},
+                                    {"role": "user", "content": resumen}
+                                ],
+                                "response_format": {"type": "json_object"}
+                            }
+                            r = requests.post("https://api.deepseek.com/v1/chat/completions", headers=h, json=p, timeout=25)
+                            content = r.json()["choices"][0]["message"]["content"]
+                            
+                            if content.startswith("```"):
+                                content = content.split("```")[1]
+                                if content.startswith("json"): content = content[4:]
+                            
+                            st.json(json.loads(content.strip()))
+                        except Exception as e:
+                            st.error(f"Error de comunicación NLP: {str(e)}")
+                else:
+                    st.warning("Falta credencial DEEPSEEK_API_KEY en configuración del sistema.")
