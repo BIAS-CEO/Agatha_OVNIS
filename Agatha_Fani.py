@@ -212,24 +212,77 @@ with st.status("Inicializando Motor de Analisis Conductual Predictivo...", expan
         else: return (0, 255, 255, 230)
 
     def simular_coordenadas(df):
-        np.random.seed(42)
-        lats, lons = [], []
-        centroides = {
-            "TX": (31.9, -99.9), "FL": (27.7, -81.6), "CA": (36.7, -119.4), "NY": (40.7, -74.0),
-            "SC": (33.8, -81.1), "PA": (41.2, -77.1), "LA": (30.9, -91.9), "CO": (39.5, -105.7),
-            "EEUU": (39.8, -98.5), "CANADA": (56.1, -106.3), "UK": (55.3, -3.4)
-        }
-        for _, row in df.iterrows():
-            estado = str(row.get('ESTADO', '')).upper().strip()
-            pais = str(row.get('PAIS', '')).upper().strip()
-            lat, lon = (39.8, -98.5)
-            if estado in centroides: lat, lon = centroides[estado]
-            elif pais in centroides: lat, lon = centroides[pais]
-            lats.append(lat + np.random.normal(0, 1.2))
-            lons.append(lon + np.random.normal(0, 1.2))
-        df['lat'], df['lon'] = lats, lons
-        return df
+    """Asignación de coordenadas mediante vectorización de alta velocidad."""
+    np.random.seed(42)
+    centroides = {
+        "TX": (31.9, -99.9), "FL": (27.7, -81.6), "CA": (36.7, -119.4), "NY": (40.7, -74.0),
+        "SC": (33.8, -81.1), "PA": (41.2, -77.1), "LA": (30.9, -91.9), "CO": (39.5, -105.7),
+        "EEUU": (39.8, -98.5), "CANADA": (56.1, -106.3), "UK": (55.3, -3.4)
+    }
+    
+    # Estandarización de texto
+    est = df['ESTADO'].str.upper().str.strip()
+    pai = df['PAIS'].str.upper().str.strip()
+    
+    # Mapeo de coordenadas primarias
+    coord_est = est.map(centroides)
+    coord_pai = pai.map(centroides)
+    
+    # Fusión estructurada: Prioridad a Estado, luego a País
+    coords_finales = coord_est.combine_first(coord_pai)
+    
+    # Asignación de coordenadas por defecto para registros sin geolocalización
+    coords_defecto = pd.Series([(39.8, -98.5)] * len(df), index=df.index)
+    coords_finales = coords_finales.combine_first(coords_defecto)
+    
+    # Dispersión táctica (ruido gaussiano)
+    df['lat'] = coords_finales.apply(lambda x: x[0]) + np.random.normal(0, 1.2, len(df))
+    df['lon'] = coords_finales.apply(lambda x: x[1]) + np.random.normal(0, 1.2, len(df))
+    
+    return df
 
+@st.cache_data(show_spinner=False)
+def cargar_nodos():
+    mensajes = []
+    # Prioridad absoluta a la matriz completa
+    nombres = ["agatha_ufo_nodes_full.csv", "agatha_ufo_master.csv", "agatha_ufo_nodes.csv"]
+    ruta = encontrar_archivo(nombres)
+    
+    if ruta:
+        mensajes.append(f"Matriz detectada: {ruta}")
+        try:
+            df = pd.read_csv(ruta, encoding='utf-8', on_bad_lines='skip')
+            col_map = {
+                'AÑO': 'AÑO', 'Year': 'AÑO', 'DÍA': 'DIA', 'Day': 'DIA', 'MES': 'MES', 'Month': 'MES',
+                'CIUDAD': 'CIUDAD', 'City': 'CIUDAD', 'ESTADO': 'ESTADO', 'State': 'ESTADO',
+                'PAÍS': 'PAIS', 'Country': 'PAIS', 'FORMA': 'FORMA', 'Shape': 'FORMA',
+                'RESUMEN': 'RESUMEN', 'Summary': 'RESUMEN'
+            }
+            df.rename(columns=col_map, inplace=True)
+            
+            for c in ['CIUDAD', 'ESTADO', 'PAIS', 'FORMA', 'RESUMEN']:
+                if c not in df.columns: df[c] = "No especificado"
+                else: df[c] = df[c].fillna("No especificado").astype(str)
+            
+            # PROTOCOLO DE PURGA: Eliminación definitiva de registros restringidos
+            df = df[~df['PAIS'].str.contains('Marruecos|Morocco', case=False, na=False)].copy()
+            
+            if 'AÑO' not in df.columns: df['AÑO'] = 2026
+            df['AÑO'] = pd.to_numeric(df['AÑO'], errors='coerce').fillna(2026).astype(int)
+            df['DECADA'] = (df['AÑO'] // 10) * 10
+            df['FORMA'] = df['FORMA'].str.title()
+            
+            # Llamada al simulador optimizado
+            df = simular_coordenadas(df)
+            df['COLOR_STR'] = df['FORMA'].apply(lambda f: f'rgba({asignar_color_neon(f)[0]},{asignar_color_neon(f)[1]},{asignar_color_neon(f)[2]},0.8)')
+            
+            mensajes.append(f"Registros operativos: {len(df)}")
+            return df, mensajes
+        except Exception as e:
+            return pd.DataFrame(), [f"Error crítico de proceso: {str(e)}"]
+            
+    return pd.DataFrame(), ["Error: No se localizaron archivos fuente."]
+    
     @st.cache_data(show_spinner=False)
     def cargar_nodos():
         mensajes = []
