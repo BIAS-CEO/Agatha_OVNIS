@@ -2,7 +2,7 @@
 # ARCHIVO PRINCIPAL: Agatha_Fani.py
 # SISTEMA: Motor de Analisis Conductual Predictivo
 # MODULO: AGATHA FANI (Fenomenos Anomalos No Identificados)
-# VERSION: Opcon Ready v5.4 (UI Unificada, Red de Vuelo y Geolocalizacion Estricta)
+# VERSION: Opcon Ready v5.5 (UI Emision, Proyecciones Duales y Tiempo Real)
 # OPERADOR: DIR-74
 # ====================================================================
 
@@ -261,12 +261,20 @@ with st.status("Inicializando Motor de Analisis Conductual Predictivo...", expan
                 # PROTOCOLO DE PURGA
                 df = df[~df['PAIS'].str.contains('Marruecos|Morocco', case=False, na=False)].copy()
                 
+                # Saneamiento de variables temporales
                 if 'AÑO' not in df.columns: df['AÑO'] = 2026
                 df['AÑO'] = pd.to_numeric(df['AÑO'], errors='coerce').fillna(2026).astype(int)
                 
                 if 'MES' not in df.columns: df['MES'] = "No especificado"
                 df['MES'] = pd.to_numeric(df['MES'], errors='coerce').fillna(0).astype(int).astype(str)
                 df['MES'] = df['MES'].replace('0', 'No especificado')
+
+                if 'DIA' not in df.columns: df['DIA'] = "No especificado"
+                df['DIA'] = pd.to_numeric(df['DIA'], errors='coerce').fillna(0).astype(int).astype(str)
+                df['DIA'] = df['DIA'].replace('0', 'No especificado')
+
+                if 'HORA' not in df.columns: df['HORA'] = "No especificada"
+                df['HORA'] = df['HORA'].astype(str).fillna("No especificada")
 
                 df['DECADA'] = (df['AÑO'] // 10) * 10
                 df['FORMA'] = df['FORMA'].str.title()
@@ -305,35 +313,40 @@ col_mapa, col_filtros = st.columns([2.5, 1.5], gap="large")
 with col_filtros:
     st.markdown("#### Parametros de Filtrado")
     
+    # Filtros Temporales y Topológicos
+    c_f1, c_f2 = st.columns(2)
     anio_disp = sorted(df_maestro['AÑO'].unique(), reverse=True)
-    sel_anio = st.selectbox("AÑO", ["TODOS"] + [int(a) for a in anio_disp])
+    sel_anio = c_f1.selectbox("AÑO", ["TODOS"] + [int(a) for a in anio_disp])
     
     mes_disp = sorted([m for m in df_maestro['MES'].unique() if m != 'No especificado'], key=lambda x: int(x))
-    sel_mes = st.selectbox("MES", ["TODOS"] + [str(m) for m in mes_disp])
+    sel_mes = c_f2.selectbox("MES", ["TODOS"] + [str(m) for m in mes_disp])
     
+    c_f3, c_f4 = st.columns(2)
+    dia_disp = sorted([d for d in df_maestro['DIA'].unique() if d != 'No especificado'], key=lambda x: int(x))
+    sel_dia = c_f3.selectbox("DÍA", ["TODOS"] + [str(d) for d in dia_disp])
+    
+    hora_disp = sorted([h for h in df_maestro['HORA'].unique() if h != 'No especificada'])
+    sel_hora = c_f4.selectbox("HORA", ["TODAS"] + [str(h) for h in hora_disp])
+
     forma_disp = sorted(df_maestro['FORMA'].unique())
     sel_forma = st.selectbox("TIPO DE OBJETO", ["TODOS"] + [str(f) for f in forma_disp])
     
     pais_disp = sorted(df_maestro['PAIS'].unique())
-    sel_pais = st.selectbox("PAIS", ["TODOS"] + [str(p) for p in pais_disp])
+    sel_pais = st.selectbox("PAÍS", ["TODOS"] + [str(p) for p in pais_disp])
 
     df_filtrado = df_maestro.copy()
     
-    if sel_anio != "TODOS": 
-        df_filtrado = df_filtrado[df_filtrado['AÑO'] == sel_anio]
-    if sel_mes != "TODOS": 
-        df_filtrado = df_filtrado[df_filtrado['MES'] == sel_mes]
-    if sel_forma != "TODOS": 
-        df_filtrado = df_filtrado[df_filtrado['FORMA'] == sel_forma]
-    if sel_pais != "TODOS": 
-        df_filtrado = df_filtrado[df_filtrado['PAIS'] == sel_pais]
+    if sel_anio != "TODOS": df_filtrado = df_filtrado[df_filtrado['AÑO'] == sel_anio]
+    if sel_mes != "TODOS": df_filtrado = df_filtrado[df_filtrado['MES'] == sel_mes]
+    if sel_dia != "TODOS": df_filtrado = df_filtrado[df_filtrado['DIA'] == sel_dia]
+    if sel_hora != "TODAS": df_filtrado = df_filtrado[df_filtrado['HORA'] == sel_hora]
+    if sel_forma != "TODOS": df_filtrado = df_filtrado[df_filtrado['FORMA'] == sel_forma]
+    if sel_pais != "TODOS": df_filtrado = df_filtrado[df_filtrado['PAIS'] == sel_pais]
 
 with col_mapa:
-    modo_visor = st.radio(
-        "MODO DE PROYECCIÓN TÁCTICA",
-        ["TELEMETRÍA ORBITAL (Nodos Base)", "RED DE TRAYECTORIAS (Puentes)"],
-        horizontal=True
-    )
+    c_m1, c_m2 = st.columns(2)
+    modo_visor = c_m1.radio("MODO TÁCTICO", ["Nodos Base", "Red de Trayectorias"], horizontal=True)
+    tipo_proyeccion = c_m2.radio("PROYECCIÓN", ["Globo 3D", "Plano 2D"], horizontal=True)
     
     if not df_filtrado.empty:
         grafico_placeholder = st.empty() 
@@ -341,13 +354,13 @@ with col_mapa:
         with st.spinner("Calibrando proyecciones..."):
             fig = go.Figure()
             
-            if modo_visor == "TELEMETRÍA ORBITAL (Nodos Base)":
+            if modo_visor == "Nodos Base":
                 df_mapa = df_filtrado.head(5000)
                 
                 fig.add_trace(go.Scattergeo(
                     lon=df_mapa['lon'], lat=df_mapa['lat'], mode='markers',
                     marker=dict(size=6, color=df_mapa['COLOR_STR'], line=dict(width=0.5, color='rgba(255,255,255,0.3)'), opacity=0.9),
-                    text=df_mapa['CIUDAD'] + " | Forma: " + df_mapa['FORMA'], hoverinfo='text'
+                    text=df_mapa['CIUDAD'] + " | " + df_mapa['DIA'].astype(str) + "/" + df_mapa['MES'].astype(str) + " " + df_mapa['HORA'] + " (" + df_mapa['FORMA'] + ")", hoverinfo='text'
                 ))
                 
                 if len(df_filtrado) > 5000:
@@ -357,7 +370,7 @@ with col_mapa:
                 if len(df_filtrado) < 2:
                     st.warning("Se requieren al menos 2 registros tácticos para trazar corredores de vuelo.")
                 else:
-                    df_red = df_filtrado.sort_values(by=['AÑO', 'MES']).head(200)
+                    df_red = df_filtrado.sort_values(by=['AÑO', 'MES', 'DIA', 'HORA']).head(200)
                     formas_presentes = df_red['FORMA'].unique()
                     formas_validas = [f for f in formas_presentes if len(df_red[df_red['FORMA'] == f]) > 1]
                     
@@ -376,14 +389,17 @@ with col_mapa:
                     fig.add_trace(go.Scattergeo(
                         lon=df_red['lon'], lat=df_red['lat'], mode='markers',
                         marker=dict(size=6, color=df_red['COLOR_STR'], line=dict(width=0.5, color='rgba(255,255,255,0.8)'), opacity=1.0),
-                        text=df_red['CIUDAD'] + " | " + df_red['AÑO'].astype(str) + " (" + df_red['FORMA'] + ")",
+                        text=df_red['CIUDAD'] + " | " + df_red['DIA'].astype(str) + "/" + df_red['MES'].astype(str) + " " + df_red['HORA'] + " (" + df_red['FORMA'] + ")",
                         hoverinfo='text'
                     ))
                     st.caption(f"Trazando red basada en los 200 eventos cronológicos más relevantes.")
 
+            # Aplicar proyección seleccionada
+            proj_type = 'orthographic' if tipo_proyeccion == "Globo 3D" else 'equirectangular'
+            
             fig.update_layout(
                 geo=dict(
-                    projection_type='orthographic',
+                    projection_type=proj_type,
                     showland=True, landcolor='#121212',
                     showocean=True, oceancolor='#050505',
                     showcountries=True, countrycolor='#2a2a2a', countrywidth=0.5,
@@ -398,23 +414,22 @@ with col_mapa:
             grafico_placeholder.plotly_chart(fig, width='stretch')
             
             # --- MODULO DE LEYENDA TACTICA INTERACTIVA ---
-            if modo_visor == "RED DE TRAYECTORIAS (Puentes)" and len(df_filtrado) >= 2:
+            if modo_visor == "Red de Trayectorias" and len(df_filtrado) >= 2:
                 if 'formas_validas' in locals() and len(formas_validas) > 0:
                     with st.expander(f"LEYENDA TACTICA: ANALISIS DE CORREDORES ({len(formas_validas)} detectados)", expanded=False):
                         sel_corredor = st.selectbox("Seleccionar vector morfologico para analisis detallado", formas_validas)
                         
-                        # Extraemos la telemetria especifica de esa ruta
-                        df_ruta = df_red[df_red['FORMA'] == sel_corredor].sort_values(by=['AÑO', 'MES'])
+                        df_ruta = df_red[df_red['FORMA'] == sel_corredor].sort_values(by=['AÑO', 'MES', 'DIA', 'HORA'])
                         nodo_inicio = df_ruta.iloc[0]
                         nodo_fin = df_ruta.iloc[-1]
                         paises_cruzados = len(df_ruta['PAIS'].unique())
                         
                         st.markdown(f"**ANALISIS DE TRAYECTORIA: TIPO {sel_corredor.upper()}**")
                         st.markdown(f"- **Nodos interconectados:** {len(df_ruta)}")
-                        st.markdown(f"- **Origen de la secuencia:** {nodo_inicio['CIUDAD']} ({nodo_inicio['PAIS']}) | Fecha: {nodo_inicio['MES']}/{nodo_inicio['AÑO']}")
-                        st.markdown(f"- **Ultimo contacto:** {nodo_fin['CIUDAD']} ({nodo_fin['PAIS']}) | Fecha: {nodo_fin['MES']}/{nodo_fin['AÑO']}")
+                        st.markdown(f"- **Origen de la secuencia:** {nodo_inicio['CIUDAD']} ({nodo_inicio['PAIS']}) | Fecha: {nodo_inicio['DIA']}/{nodo_inicio['MES']}/{nodo_inicio['AÑO']} a las {nodo_inicio['HORA']}")
+                        st.markdown(f"- **Ultimo contacto:** {nodo_fin['CIUDAD']} ({nodo_fin['PAIS']}) | Fecha: {nodo_fin['DIA']}/{nodo_fin['MES']}/{nodo_fin['AÑO']} a las {nodo_fin['HORA']}")
                         
-                        st.info(f"Reporte Conductual: Se ha detectado un desplazamiento a traves de {paises_cruzados} fronteras nacionales. La correlacion temporal sugiere un barrido topografico o una ruta de observacion secuencial en el globo.")
+                        st.info(f"Reporte Conductual: Se ha detectado un desplazamiento a traves de {paises_cruzados} fronteras nacionales. La correlacion temporal sugiere un barrido topografico o una ruta de observacion secuencial.")
 
 # --- INDICADORES RAPIDOS TACTICOS ---
 m1, m2, m3 = st.columns(3)
@@ -430,17 +445,17 @@ with st.expander(f"REGISTROS FORENSES ({len(df_filtrado)} Activos)", expanded=Tr
         cols_excluir = ['COLOR_STR', 'lat', 'lon', 'DECADA', 'ORD.', 'NUM.', 'Source_File']
         cols_vis = [c for c in df_filtrado.columns if c not in cols_excluir]
         
-        filtros_activos = (sel_anio != "TODOS") or (sel_mes != "TODOS") or (sel_forma != "TODOS") or (sel_pais != "TODOS")
+        filtros_activos = (sel_anio != "TODOS") or (sel_mes != "TODOS") or (sel_dia != "TODOS") or (sel_hora != "TODAS") or (sel_forma != "TODOS") or (sel_pais != "TODOS")
         
         if not filtros_activos:
             st.info("Sistema en reposo. Mostrando previsualización de los 100 registros más recientes. Active los filtros tácticos para una búsqueda específica.")
-            df_mostrar = df_filtrado.sort_values(by=['AÑO','MES'], ascending=[False, False]).head(100)
+            df_mostrar = df_filtrado.sort_values(by=['AÑO','MES','DIA','HORA'], ascending=[False, False, False, False]).head(100)
         else:
             if len(df_filtrado) > 1000:
                 st.warning(f"Búsqueda masiva detectada ({len(df_filtrado)} resultados). Mostrando los 1000 más relevantes para garantizar la estabilidad del sistema.")
-                df_mostrar = df_filtrado.sort_values(by=['AÑO','MES'], ascending=[False, False]).head(1000)
+                df_mostrar = df_filtrado.sort_values(by=['AÑO','MES','DIA','HORA'], ascending=[False, False, False, False]).head(1000)
             else:
-                df_mostrar = df_filtrado.sort_values(by=['AÑO','MES'], ascending=[False, False])
+                df_mostrar = df_filtrado.sort_values(by=['AÑO','MES','DIA','HORA'], ascending=[False, False, False, False])
         
         df_estilizado = df_mostrar[cols_vis].style.set_properties(**{
             'background-color': '#0a0a0a',
