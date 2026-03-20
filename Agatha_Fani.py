@@ -354,20 +354,34 @@ with st.expander(f"REGISTROS FORENSES ({len(df_filtrado)} Activos)", expanded=Tr
         cols_excluir = ['COLOR_STR', 'lat', 'lon', 'DECADA', 'ORD.', 'NUM.', 'Source_File']
         cols_vis = [c for c in df_filtrado.columns if c not in cols_excluir]
         
-        # Inyectamos el estilo oscuro corporativo en el dataframe nativo
-        df_estilizado = df_filtrado[cols_vis].sort_values(by=['AÑO','MES','DIA'], ascending=False).style.set_properties(**{
+        # Lógica de carga selectiva y seguridad de renderizado
+        filtros_activos = (sel_anio != "TODOS") or (sel_mes != "TODOS") or (sel_forma != "TODOS") or (sel_pais != "TODOS")
+        
+        if not filtros_activos:
+            st.info("Sistema en reposo. Mostrando previsualización de los 100 registros más recientes. Active los filtros tácticos para una búsqueda específica.")
+            df_mostrar = df_filtrado.sort_values(by=['AÑO','MES','DIA'], ascending=False).head(100)
+        else:
+            if len(df_filtrado) > 1000:
+                st.warning(f"Búsqueda masiva detectada ({len(df_filtrado)} resultados). Mostrando los 1000 más relevantes para garantizar la estabilidad del sistema.")
+                df_mostrar = df_filtrado.sort_values(by=['AÑO','MES','DIA'], ascending=False).head(1000)
+            else:
+                df_mostrar = df_filtrado.sort_values(by=['AÑO','MES','DIA'], ascending=False)
+        
+        # Inyectamos el estilo oscuro corporativo
+        df_estilizado = df_mostrar[cols_vis].style.set_properties(**{
             'background-color': '#0a0a0a',
             'color': '#cbd5e1',
             'border-color': '#333333'
         })
         
+        # Renderizado con la nueva sintaxis de Streamlit
         st.dataframe(
             df_estilizado,
-            use_container_width=True,
+            width='stretch',
             hide_index=True,
             height=400
         )
-
+        
 with st.expander("PROCESADOR NLP FORENSE", expanded=False):
     if not df_filtrado.empty:
         df_nlp = df_filtrado.copy()
