@@ -167,67 +167,75 @@ with st.status("Inicializando Motor de Analisis Conductual Predictivo...", expan
         else: return (0, 255, 255, 230)
 
     def simular_coordenadas(df):
-        """Asignación de coordenadas determinista y normalización de texto para emisión en directo."""
-        import unicodedata
+        """Asignación de coordenadas determinista y ultra-robusta."""
+        np.random.seed(42)
         
-        def limpiar_texto(texto):
-            if pd.isna(texto): return "DESCONOCIDO"
-            texto = str(texto).upper().strip()
-            # Elimina tildes y caracteres especiales para un emparejamiento perfecto
-            texto = ''.join(c for c in unicodedata.normalize('NFD', texto) if unicodedata.category(c) != 'Mn')
-            return texto
-            
-        # Diccionario maestro estandarizado (Sin tildes)
+        # Mapeo global exhaustivo (cubre variantes con y sin tildes, e inglés)
         centroides = {
+            # Norteamérica
             "TX": (31.9, -99.9), "FL": (27.7, -81.6), "CA": (36.7, -119.4), "NY": (40.7, -74.0),
             "SC": (33.8, -81.1), "PA": (41.2, -77.1), "LA": (30.9, -91.9), "CO": (39.5, -105.7),
             "AZ": (34.0, -111.0), "MI": (44.3, -85.6), "IL": (40.0, -89.0), "OH": (40.4, -82.9),
             "WA": (47.7, -120.7), "NC": (35.7, -79.0), "MO": (37.9, -91.8), "ID": (44.0, -114.7),
             "NV": (38.8, -116.4), "VA": (37.4, -78.6),
-            "EEUU": (39.8, -98.5), "ESTADOS UNIDOS": (39.8, -98.5),
-            "CANADA": (56.1, -106.3),
-            "MEXICO": (23.6, -102.5),
-            "REINO UNIDO": (55.3, -3.4), "UK": (55.3, -3.4), "INGLATERRA": (52.3, -1.1),
-            "ESPANA": (40.46, -3.75),
-            "PAISES BAJOS": (52.13, 5.29),
-            "LITUANIA": (55.16, 23.88),
-            "IRLANDA": (53.14, -7.69),
-            "RUMANIA": (45.94, 24.96),
-            "ITALIA": (41.87, 12.56),
+            "EEUU": (39.8, -98.5), "ESTADOS UNIDOS": (39.8, -98.5), "USA": (39.8, -98.5),
+            "CANADA": (56.1, -106.3), "CANADÁ": (56.1, -106.3),
+            "MEXICO": (23.6, -102.5), "MÉXICO": (23.6, -102.5),
+            
+            # Europa
+            "UK": (55.3, -3.4), "REINO UNIDO": (55.3, -3.4), "INGLATERRA": (52.3, -1.1), "UNITED KINGDOM": (55.3, -3.4),
+            "ESPAÑA": (40.46, -3.75), "ESPANA": (40.46, -3.75), "SPAIN": (40.46, -3.75),
+            "PAISES BAJOS": (52.13, 5.29), "PAÍSES BAJOS": (52.13, 5.29), "NETHERLANDS": (52.13, 5.29),
+            "LITUANIA": (55.16, 23.88), "LITHUANIA": (55.16, 23.88),
+            "IRLANDA": (53.14, -7.69), "IRELAND": (53.14, -7.69),
+            "RUMANIA": (45.94, 24.96), "RUMANÍA": (45.94, 24.96), "ROMANIA": (45.94, 24.96),
+            "ITALIA": (41.87, 12.56), "ITALY": (41.87, 12.56),
+            "FRANCIA": (46.22, 2.21), "FRANCE": (46.22, 2.21),
+            "ALEMANIA": (51.16, 10.45), "GERMANY": (51.16, 10.45),
+            "PORTUGAL": (39.39, -8.22),
+            
+            # Resto del Mundo
             "INDIA": (20.59, 78.96),
             "JAMAICA": (18.1, -77.29),
-            "ARABIA SAUDI": (23.88, 45.07),
-            "SUDAFRICA": (-30.55, 22.93),
-            "BOTSUANA": (-22.32, 24.68),
-            "IRAN": (32.42, 53.68),
+            "ARABIA SAUDI": (23.88, 45.07), "ARABIA SAUDÍ": (23.88, 45.07), "SAUDI ARABIA": (23.88, 45.07),
+            "SUDAFRICA": (-30.55, 22.93), "SUDÁFRICA": (-30.55, 22.93), "SOUTH AFRICA": (-30.55, 22.93),
+            "BOTSUANA": (-22.32, 24.68), "BOTSWANA": (-22.32, 24.68),
+            "IRAN": (32.42, 53.68), "IRÁN": (32.42, 53.68),
             "AUSTRALIA": (-25.27, 133.77),
             "PUERTO RICO": (18.22, -66.59),
-            "REPUBLICA DOMINICANA": (18.73, -70.16),
-            "NUEVA ZELANDA": (-40.9, 174.88)
+            "REPUBLICA DOMINICANA": (18.73, -70.16), "REPÚBLICA DOMINICANA": (18.73, -70.16),
+            "NUEVA ZELANDA": (-40.9, 174.88), "NEW ZEALAND": (-40.9, 174.88),
+            "CHINA": (35.86, 104.19),
+            "JAPON": (36.20, 138.25), "JAPÓN": (36.20, 138.25), "JAPAN": (36.20, 138.25),
+            "BRASIL": (-14.23, -51.92), "BRAZIL": (-14.23, -51.92),
+            "ARGENTINA": (-38.41, -63.61),
+            "CHILE": (-35.67, -71.54),
+            "COLOMBIA": (4.57, -74.29)
         }
         
-        # Aplicamos la limpieza profunda a las columnas
-        est = df['ESTADO'].apply(limpiar_texto)
-        pai = df['PAIS'].apply(limpiar_texto)
+        # Extracción directa y limpieza básica
+        est = df['ESTADO'].astype(str).str.upper().str.strip()
+        pai = df['PAIS'].astype(str).str.upper().str.strip()
         
         coord_est = est.map(centroides)
         coord_pai = pai.map(centroides)
         
         coords_finales = coord_est.combine_first(coord_pai)
-        # Los no detectados caen en el atlántico para no contaminar datos reales
+        
+        # Coordenada de emergencia
         coords_defecto = pd.Series([(0.0, 0.0)] * len(df), index=df.index)
         coords_finales = coords_finales.combine_first(coords_defecto)
         
-        # Generación de coordenadas fijas basadas en el código ASCII de la ciudad
-        # Esto garantiza que el punto en el mapa NUNCA se mueva, dando aspecto de geolocalización real
+        # Algoritmo determinista para fijar los puntos geográficos
         df['hash_val'] = df['CIUDAD'].astype(str).apply(lambda x: sum(ord(c) for c in x))
-        df['lat_offset'] = ((df['hash_val'] % 100) - 50) / 100.0 * 2.5
-        df['lon_offset'] = (((df['hash_val'] // 10) % 100) - 50) / 100.0 * 2.5
+        
+        # Dispersión reducida a 1.5 grados para que los puntos de Europa no caigan al mar
+        df['lat_offset'] = ((df['hash_val'] % 100) - 50) / 100.0 * 1.5
+        df['lon_offset'] = (((df['hash_val'] // 10) % 100) - 50) / 100.0 * 1.5
         
         df['lat'] = coords_finales.apply(lambda x: x[0]) + df['lat_offset']
         df['lon'] = coords_finales.apply(lambda x: x[1]) + df['lon_offset']
         
-        # Limpiamos las columnas temporales de cálculo
         df = df.drop(columns=['hash_val', 'lat_offset', 'lon_offset'])
         
         return df
