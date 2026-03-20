@@ -299,25 +299,34 @@ col_mapa, col_filtros = st.columns([2.5, 1.5], gap="large")
 with col_filtros:
     st.markdown("#### Parametros de Filtrado")
     
-    # Adaptación de filtros según esquema táctico
+    # Adaptación de filtros según esquema táctico con protección de tipos de datos
     df_filtrado = df_maestro.copy()
     if not df_filtrado.empty:
-        anio_disp = sorted(df_filtrado['AÑO'].unique(), reverse=True)
+        
+        # 1. Filtro de Año
+        anio_disp = sorted(df_filtrado['AÑO'].dropna().unique(), reverse=True)
         sel_anio = st.selectbox("AÑO", ["TODOS"] + [int(a) for a in anio_disp])
-        if sel_anio != "TODOS": df_filtrado = df_filtrado[df_filtrado['AÑO'] == sel_anio]
+        if sel_anio != "TODOS": 
+            df_filtrado = df_filtrado[df_filtrado['AÑO'] == sel_anio]
         
-        # Filtros adicionales preparados para tu esquema (Mes, Día, Hora, País)
-        mes_disp = sorted(df_filtrado['MES'].unique())
-        sel_mes = st.selectbox("MES", ["TODOS"] + [str(m) for m in mes_disp])
-        if sel_mes != "TODOS": df_filtrado = df_filtrado[df_filtrado['MES'] == sel_mes]
+        # 2. Filtro de Mes (Corrección de tipo numérico a texto)
+        mes_disp = sorted(df_filtrado['MES'].dropna().unique())
+        # Limpiamos posibles decimales fantasma (.0) si Pandas lo leyó como float
+        sel_mes = st.selectbox("MES", ["TODOS"] + [str(m).replace('.0', '') for m in mes_disp])
+        if sel_mes != "TODOS": 
+            df_filtrado = df_filtrado[df_filtrado['MES'].astype(str).str.replace('.0', '') == sel_mes]
         
-        forma_disp = sorted(df_filtrado['FORMA'].unique())
+        # 3. Filtro de Morfología / Tipo de Objeto
+        forma_disp = sorted(df_filtrado['FORMA'].dropna().unique())
         sel_forma = st.selectbox("TIPO DE OBJETO", ["TODOS"] + [str(f) for f in forma_disp])
-        if sel_forma != "TODOS": df_filtrado = df_filtrado[df_filtrado['FORMA'] == sel_forma]
+        if sel_forma != "TODOS": 
+            df_filtrado = df_filtrado[df_filtrado['FORMA'].astype(str) == sel_forma]
         
-        pais_disp = sorted(df_filtrado['PAIS'].unique())
+        # 4. Filtro de País
+        pais_disp = sorted(df_filtrado['PAIS'].dropna().unique())
         sel_pais = st.selectbox("PAIS", ["TODOS"] + [str(p) for p in pais_disp])
-        if sel_pais != "TODOS": df_filtrado = df_filtrado[df_filtrado['PAIS'] == sel_pais]
+        if sel_pais != "TODOS": 
+            df_filtrado = df_filtrado[df_filtrado['PAIS'].astype(str) == sel_pais]
 
 with col_mapa:
     st.markdown("#### Visor de Telemetria Orbital")
