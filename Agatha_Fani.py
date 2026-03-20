@@ -2,7 +2,7 @@
 # ARCHIVO PRINCIPAL: Agatha_Fani.py
 # SISTEMA: Motor de Analisis Conductual Predictivo
 # MODULO: AGATHA FANI (Fenomenos Anomalos No Identificados)
-# VERSION: Opcon Ready v4.4 (Filtros garantizados)
+# VERSION: Opcon Ready v4.5 (Interfaz unificada y geolocalizada)
 # OPERADOR: DIR-74
 # ====================================================================
 
@@ -95,7 +95,7 @@ h2, h3, h4 {
 
 .contenedor-tabla { 
     width: 100%; 
-    max-height: 600px; 
+    max-height: 400px; 
     overflow-y: auto; 
     border: 1px solid #333333; 
     background-color: #0a0a0a; 
@@ -151,26 +151,12 @@ h2, h3, h4 {
     padding: 0.6rem 1.2rem !important; 
     box-shadow: none !important;
     transition: all 0.2s ease;
+    width: 100%;
 }
 .stButton > button:hover { 
     border-color: #00d4ff !important; 
     color: #ffffff !important; 
     background-color: #0f172a !important; 
-}
-button[data-baseweb="tab"] { 
-    background-color: transparent !important; 
-    color: #475569 !important; 
-    font-family: 'Montserrat', sans-serif !important; 
-    font-weight: 600 !important; 
-    font-size: 0.8rem !important;
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
-    border-bottom: 2px solid transparent !important;
-}
-button[data-baseweb="tab"][aria-selected="true"] { 
-    color: #ffffff !important; 
-    border-bottom: 2px solid #00d4ff !important; 
-    background-color: transparent !important;
 }
 
 .stSelectbox label, .stMultiselect label, .stSlider label, .stRadio label {
@@ -266,65 +252,30 @@ def asignar_color_neon(forma):
 # --- COORDENADAS APROXIMADAS ---
 def obtener_coordenadas_pais(pais):
     centroides = {
-        "EEUU": (39.8283, -98.5795),
-        "USA": (39.8283, -98.5795),
-        "MEXICO": (23.6345, -102.5528),
-        "CANADA": (56.1304, -106.3468),
+        "MARRUECOS": (31.7917, -7.0926),
+        "MOROCCO": (31.7917, -7.0926),
         "ESPAÑA": (40.4637, -3.7492),
         "SPAIN": (40.4637, -3.7492),
+        "ARGELIA": (28.0339, 1.6596),
+        "ALGERIA": (28.0339, 1.6596),
+        "MAURITANIA": (21.0079, -10.9408),
+        "MALI": (17.5707, -3.9962),
+        "EEUU": (39.8283, -98.5795),
+        "USA": (39.8283, -98.5795),
         "FRANCIA": (46.2276, 2.2137),
-        "FRANCE": (46.2276, 2.2137),
         "REINO UNIDO": (55.3781, -3.4360),
-        "UK": (55.3781, -3.4360),
-        "ALEMANIA": (51.1657, 10.4515),
-        "GERMANY": (51.1657, 10.4515),
-        "ITALIA": (41.8719, 12.5674),
-        "ITALY": (41.8719, 12.5674),
-        "AUSTRALIA": (-25.2744, 133.7751),
-        "JAPON": (36.2048, 138.2529),
-        "JAPAN": (36.2048, 138.2529),
-        "CHINA": (35.8617, 104.1954),
-        "RUSIA": (61.5240, 105.3188),
-        "BRASIL": (-14.2350, -51.9253),
-        "BRAZIL": (-14.2350, -51.9253),
-        "ARGENTINA": (-38.4161, -63.6167),
-        "SUDAFRICA": (-30.5595, 22.9375),
-        "SOUTH AFRICA": (-30.5595, 22.9375),
-        "EGIPTO": (26.8206, 30.8025),
-        "EGYPT": (26.8206, 30.8025),
-        "INDIA": (20.5937, 78.9629),
-        "INDONESIA": (-0.7893, 113.9213),
-        "BELGIUM": (50.5039, 4.4699),
-        "BELGICA": (50.5039, 4.4699),
-        "PAISES BAJOS": (52.1326, 5.2913),
-        "NETHERLANDS": (52.1326, 5.2913),
-        "SUIZA": (46.8182, 8.2275),
-        "SWITZERLAND": (46.8182, 8.2275),
-        "AUSTRIA": (47.5162, 14.5501),
-        "POLONIA": (51.9194, 19.1451),
-        "POLAND": (51.9194, 19.1451),
-        "SUECIA": (60.1282, 18.6435),
-        "SWEDEN": (60.1282, 18.6435),
-        "NORUEGA": (60.4720, 8.4689),
-        "NORWAY": (60.4720, 8.4689),
-        "DINAMARCA": (56.2639, 9.5018),
-        "DENMARK": (56.2639, 9.5018),
-        "FINLANDIA": (61.9241, 25.7482),
-        "FINLAND": (61.9241, 25.7482),
-        "PORTUGAL": (39.3999, -8.2245),
-        "GRECIA": (39.0742, 21.8243),
-        "GREECE": (39.0742, 21.8243),
-        "TURQUIA": (38.9637, 35.2433),
-        "TURKEY": (38.9637, 35.2433),
+        "UK": (55.3781, -3.4360)
     }
     p = str(pais).upper().strip()
     if p in centroides:
         lat, lon = centroides[p]
     else:
-        lat, lon = 20.0, 0.0
+        # Coordenada por defecto apuntando al Atlántico Norte
+        lat, lon = 30.0, -15.0
+    
     rng = np.random.default_rng(hash(p) % (2**32))
-    lat += rng.normal(0, 2.0)
-    lon += rng.normal(0, 2.0)
+    lat += rng.normal(0, 0.5)
+    lon += rng.normal(0, 0.5)
     return lat, lon
 
 def asignar_coordenadas_aproximadas(df):
@@ -338,84 +289,36 @@ def asignar_coordenadas_aproximadas(df):
     df['lon'] = lons
     return df
 
-# --- DATOS DE EJEMPLO (FALLBACK GARANTIZADO) ---
+# --- DATOS DE EJEMPLO (FALLBACK GARANTIZADO MARRUECOS) ---
 def crear_datos_ejemplo():
     data = {
-        'ID': list(range(50)),
+        'ID': list(range(10)),
         'CIUDAD': [
-            'Shermans Dale', 'North Richland Hills', 'Houma', 'Painted Post', 'Porterville',
-            'Lakewood', 'Manheim', 'Antwerp', 'Huntington', 'Windham',
-            'Athens', 'Lakeview', 'Spearfish', 'Salem', 'Reef Station',
-            'Phoenix', 'Roswell', 'Los Angeles', 'Washington', 'Seattle',
-            'Chicago', 'New York', 'Boston', 'Miami', 'Denver',
-            'Salt Lake City', 'Portland', 'Dallas', 'Houston', 'San Francisco',
-            'Las Vegas', 'Albuquerque', 'Atlanta', 'Detroit', 'Cleveland',
-            'Minneapolis', 'Kansas City', 'St. Louis', 'New Orleans', 'Anchorage',
-            'Honolulu', 'Norfolk', 'Pittsburgh', 'Philadelphia', 'Baltimore',
-            'Buffalo', 'Cincinnati', 'Indianapolis', 'Milwaukee', 'Des Moines'
+            'Casablanca', 'Rabat', 'Tanger', 'Marrakech', 'Fez',
+            'Agadir', 'Oujda', 'Kenitra', 'Tetouan', 'Safi'
         ],
         'ESTADO': [
-            'PA', 'TX', 'LA', 'NY', 'CA', 'CO', 'PA', 'Flanders', 'NY', 'NH',
-            'GA', 'OR', 'SD', 'IN', 'CA', 'AZ', 'NM', 'CA', 'DC', 'WA',
-            'IL', 'NY', 'MA', 'FL', 'CO', 'UT', 'OR', 'TX', 'TX', 'CA',
-            'NV', 'NM', 'GA', 'MI', 'OH', 'MN', 'MO', 'MO', 'LA', 'AK',
-            'HI', 'VA', 'PA', 'PA', 'MD', 'NY', 'OH', 'IN', 'WI', 'IA'
+            'Casablanca-Settat', 'Rabat-Sale-Kenitra', 'Tanger-Tetouan-Al Hoceima',
+            'Marrakech-Safi', 'Fes-Meknes', 'Souss-Massa', 'Oriental',
+            'Rabat-Sale-Kenitra', 'Tanger-Tetouan-Al Hoceima', 'Marrakech-Safi'
         ],
-        'PAIS': [
-            'USA', 'USA', 'USA', 'USA', 'USA', 'USA', 'USA', 'BELGIUM', 'USA', 'USA',
-            'USA', 'USA', 'USA', 'USA', 'USA', 'USA', 'USA', 'USA', 'USA', 'USA',
-            'USA', 'USA', 'USA', 'USA', 'USA', 'USA', 'USA', 'USA', 'USA', 'USA',
-            'USA', 'USA', 'USA', 'USA', 'USA', 'USA', 'USA', 'USA', 'USA', 'USA',
-            'USA', 'USA', 'USA', 'USA', 'USA', 'USA', 'USA', 'USA', 'USA', 'USA'
-        ],
-        'FORMA': [
-            'Unknown', 'Triangle', 'Unknown', 'Orb/Disk', 'Polyhedron',
-            'Triangle', 'Cylindrical', 'Unknown', 'Orb/Disk', 'Triangle',
-            'Polyhedron', 'Unknown', 'Chevron', 'Triangle', 'Cylindrical',
-            'Light', 'Disk', 'Sphere', 'Light', 'Disk',
-            'Cigar', 'Sphere', 'Light', 'Disk', 'Triangle',
-            'Cigar', 'Sphere', 'Light', 'Disk', 'Cigar',
-            'Triangle', 'Disk', 'Light', 'Sphere', 'Cigar',
-            'Light', 'Disk', 'Sphere', 'Light', 'Disk',
-            'Sphere', 'Triangle', 'Cigar', 'Sphere', 'Cigar',
-            'Disk', 'Light', 'Sphere', 'Cigar', 'Light'
-        ],
+        'PAIS': ['MARRUECOS'] * 10,
+        'FORMA': ['Triangle', 'Sphere', 'Light', 'Cigar', 'Disk', 'Triangle', 'Light', 'Sphere', 'Cigar', 'Unknown'],
         'RESUMEN': [
-            'Bright light shining out of our woods', 'Large black triangle shaped object',
-            'Clearly witnessed a tear shaped ufo', 'black disk, no lights',
-            'Octahedron, dark metallic', 'A large triangular craft',
-            'Oblong cigar shaped', 'Metallic, cylindrical UFO',
-            'Blackhawk helicopter pursuing', 'Two football field wide triangle',
-            'Huge upside-down Pyramid', 'Bright white light moving',
-            'Chevron-shaped craft', 'Black triangular-shaped object',
-            'Gray cylinder passing', 'Multiple lights in formation',
-            'Crash debris recovered', 'Silver disc hovering',
-            'Lights over Capitol', 'Daylight disc sighting',
-            'Cigar-shaped object', 'Multiple witness sighting',
-            'Harbor lights incident', 'Landing trace case',
-            'Military base intrusion', 'Pilot encounter',
-            'Forest landing case', 'Radar-visual case',
-            'Physical trace evidence', 'Photographic evidence',
-            'Mass sighting event', 'Animal reaction case',
-            'Electromagnetic effects', 'Occupant sighting',
-            'Radar confirmation', 'Jet chase incident',
-            'Close approach case', 'Landing gear marks',
-            'Radio interference', 'Missing time case',
-            'Underwater object', 'Military pilot chase',
-            'Formation flight', 'Civilian pilot report',
-            'Control tower sighting', 'Police witness case',
-            'Highway encounter', 'Train crew sighting',
-            'Power plant overflight', 'Schoolyard sighting'
+            'Anomalia luminosa sobre la costa, vector de aproximacion rapido',
+            'Objeto esferico estatico sobre espacio aereo restringido',
+            'Multiples fuentes de luz descendiendo hacia el puerto',
+            'Firma radarica cilindrica cerca de la cordillera del Atlas',
+            'Plataforma discoidal silenciosa observada por patrulla',
+            'Formacion delta interceptada por sensores termicos',
+            'Fenomeno luminoso anomalo en zona fronteriza',
+            'Persecucion visual reportada por vuelo comercial',
+            'Estructura no identificada captada por sistemas de defensa',
+            'Interferencia electromagnetica masiva en subestacion'
         ],
-        'AÑO': [
-            2025, 2025, 2025, 2025, 2024, 2024, 2024, 2024, 2024, 2024,
-            2024, 2023, 2023, 2023, 2023, 1965, 1947, 1952, 1952, 1947,
-            1951, 1952, 1951, 1952, 1967, 1952, 1950, 1957, 1957, 1950,
-            1951, 1950, 1952, 1950, 1951, 1951, 1952, 1950, 1951, 1950,
-            1952, 1951, 1950, 1952, 1951, 1950, 1951, 1952, 1951, 1950
-        ],
-        'MES': [5, 5, 5, 5, 4, 3, 3, 3, 2, 2, 1, 11, 9, 8, 9, 3, 7, 7, 7, 6, 11, 7, 9, 7, 3, 4, 6, 10, 11, 8, 4, 6, 7, 3, 8, 10, 1, 2, 5, 2, 8, 1, 6, 7, 5, 9, 11, 8, 3, 4],
-        'DIA': [7, 7, 5, 2, 4, 28, 19, 8, 24, 14, 27, 1, 28, 22, 17, 13, 8, 29, 19, 24, 12, 29, 12, 29, 20, 7, 26, 6, 5, 1, 15, 24, 26, 20, 1, 10, 20, 18, 11, 22, 15, 23, 24, 19, 29, 12, 14, 25, 20, 25]
+        'AÑO': [2024, 2024, 2023, 2023, 1999, 2005, 2010, 2018, 2020, 2022],
+        'MES': [5, 8, 2, 11, 7, 4, 9, 1, 6, 12],
+        'DIA': [12, 24, 5, 18, 22, 10, 30, 14, 8, 3]
     }
     df = pd.DataFrame(data)
     df['FECHA'] = pd.to_datetime(df['AÑO'].astype(str) + '-' + df['MES'].astype(str) + '-' + df['DIA'].astype(str), errors='coerce')
@@ -505,8 +408,8 @@ def cargar_nodos():
         mensajes_depuracion.append("No se encontraron archivos CSV")
         return pd.DataFrame(), mensajes_depuracion
 
-# --- CARGA DE DATOS CON FALLBACK GARANTIZADO ---
-if st.sidebar.button("🔄 Forzar recarga de datos"):
+# --- CARGA DE DATOS CON FALLBACK ---
+if st.sidebar.button("FORZAR RECARGA DE DATOS"):
     st.cache_data.clear()
     for key in ['df_maestro', 'mensajes_depuracion']:
         if key in st.session_state:
@@ -517,7 +420,7 @@ if 'df_maestro' not in st.session_state:
     df_cargado, mensajes_depu = cargar_nodos()
     if df_cargado.empty or len(df_cargado) == 0:
         df_maestro = crear_datos_ejemplo()
-        mensajes_depu.append("Usando datos de ejemplo (50 registros)")
+        mensajes_depu.append("Usando datos de ejemplo tácticos (10 registros)")
     else:
         df_maestro = df_cargado
     st.session_state.df_maestro = df_maestro
@@ -526,12 +429,8 @@ else:
     df_maestro = st.session_state.df_maestro
 
 # --- DIAGNÓSTICO EN SIDEBAR ---
-with st.sidebar.expander("🔍 Diagnóstico"):
+with st.sidebar.expander("DIAGNOSTICO DEL SISTEMA"):
     st.write(f"Registros totales: {len(df_maestro)}")
-    st.write(f"Columnas: {list(df_maestro.columns)}")
-    st.write(f"Años: {sorted(df_maestro['AÑO'].unique()) if 'AÑO' in df_maestro.columns else 'N/A'}")
-    st.write(f"Países: {sorted(df_maestro['PAIS'].unique()) if 'PAIS' in df_maestro.columns else 'N/A'}")
-    st.write(f"Formas: {sorted(df_maestro['FORMA'].unique()) if 'FORMA' in df_maestro.columns else 'N/A'}")
     for msg in st.session_state.get('mensajes_depuracion', []):
         st.write(f"- {msg}")
 
@@ -574,7 +473,7 @@ def cargar_relaciones(df_nodos):
 df_grafos = cargar_relaciones(df_maestro)
 
 # --- RENDERIZADO TABLA HTML ---
-def render_tabla_tactica(df, max_filas=200):
+def render_tabla_tactica(df, max_filas=100):
     if df.empty:
         st.warning("Sin datos para visualizar")
         return
@@ -603,90 +502,51 @@ def render_tabla_tactica(df, max_filas=200):
     st.markdown(html, unsafe_allow_html=True)
 
 # --- SIDEBAR: TERMINAL DE OPERACIONES ---
-st.sidebar.markdown("### Centro de Comando AGATHA")
+st.sidebar.markdown("### CENTRO DE COMANDO")
 
 regiones = {
-    "Vista Orbital Global": {"lat": 20.0, "lon": 0.0, "zoom": 1.2},
-    "Marruecos y España": {"lat": 35.0, "lon": -5.0, "zoom": 5},
-    "Norteamérica": {"lat": 39.8, "lon": -98.5, "zoom": 3.5},
-    "Europa Occidental": {"lat": 48.0, "lon": 10.0, "zoom": 4.5}
+    "Sector Marruecos (Principal)": {"lat": 31.8, "lon": -7.1, "zoom": 5.0},
+    "Estrecho de Gibraltar y Norte": {"lat": 35.9, "lon": -5.5, "zoom": 6.5},
+    "Espacio Aéreo Norteafricano": {"lat": 28.0, "lon": 2.0, "zoom": 4.0},
+    "Vista Orbital Global": {"lat": 20.0, "lon": 0.0, "zoom": 1.2}
 }
 filtro_region = st.sidebar.selectbox("Ámbito Geopolítico", list(regiones.keys()))
 
-# --- FILTROS AVANZADOS (SIEMPRE VISIBLES) ---
 st.sidebar.markdown("---")
-st.sidebar.markdown("### Filtros Avanzados")
+st.sidebar.markdown("### FILTROS AVANZADOS")
 
-# Inicializar valores por defecto vacíos
 decadas_sel = []
 paises_sel = []
 formas_sel = []
-dias_sel = []
 
-# SIEMPRE mostrar los filtros, incluso si están vacíos
-st.sidebar.success(f"Datos disponibles: {len(df_maestro)} registros")
-
-# Décadas
 try:
     decadas_disponibles = sorted([int(d) for d in df_maestro['DECADA'].dropna().unique() if pd.notna(d)])
     if decadas_disponibles:
         decadas_sel = st.sidebar.multiselect("Década", decadas_disponibles, default=decadas_disponibles)
-    else:
-        decadas_sel = st.sidebar.multiselect("Década", [1950, 1960, 1970, 1980, 1990, 2000, 2010, 2020], default=[1950, 1960, 1970])
-except Exception as e:
-    st.sidebar.error(f"Error en filtro décadas: {e}")
-    decadas_sel = []
+except:
+    pass
 
-# Países
 try:
     paises_disponibles = sorted([str(p) for p in df_maestro['PAIS'].unique() if pd.notna(p) and str(p) != ''])
     if paises_disponibles:
         default_paises = paises_disponibles[:min(10, len(paises_disponibles))]
         paises_sel = st.sidebar.multiselect("País", paises_disponibles, default=default_paises)
-    else:
-        paises_sel = st.sidebar.multiselect("País", ['USA', 'BELGIUM'], default=['USA', 'BELGIUM'])
-except Exception as e:
-    st.sidebar.error(f"Error en filtro países: {e}")
-    paises_sel = []
+except:
+    pass
 
-# Formas
 try:
     formas_disponibles = sorted([str(f) for f in df_maestro['FORMA'].unique() if pd.notna(f) and str(f) != ''])
     if formas_disponibles:
         default_formas = formas_disponibles[:min(5, len(formas_disponibles))]
         formas_sel = st.sidebar.multiselect("Forma", formas_disponibles, default=default_formas)
-    else:
-        formas_sel = st.sidebar.multiselect("Forma", ['Triangle', 'Disk', 'Light', 'Cigar', 'Sphere'], default=['Triangle', 'Disk'])
-except Exception as e:
-    st.sidebar.error(f"Error en filtro formas: {e}")
-    formas_sel = []
+except:
+    pass
 
-# Días de la semana
-try:
-    dias_orden = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-    dias_disponibles = [d for d in dias_orden if d in df_maestro['DIA_SEMANA'].values]
-    if dias_disponibles:
-        dias_sel = st.sidebar.multiselect("Día de la semana", dias_disponibles, default=dias_disponibles)
-    else:
-        dias_sel = st.sidebar.multiselect("Día de la semana", dias_orden, default=dias_orden)
-except Exception as e:
-    st.sidebar.error(f"Error en filtro días: {e}")
-    dias_sel = []
-
-# Aplicar filtros
 df_filtrado = df_maestro.copy()
-if decadas_sel:
-    df_filtrado = df_filtrado[df_filtrado['DECADA'].isin(decadas_sel)]
-if paises_sel:
-    df_filtrado = df_filtrado[df_filtrado['PAIS'].isin(paises_sel)]
-if formas_sel:
-    df_filtrado = df_filtrado[df_filtrado['FORMA'].isin(formas_sel)]
-if dias_sel:
-    df_filtrado = df_filtrado[df_filtrado['DIA_SEMANA'].isin(dias_sel)]
+if decadas_sel: df_filtrado = df_filtrado[df_filtrado['DECADA'].isin(decadas_sel)]
+if paises_sel: df_filtrado = df_filtrado[df_filtrado['PAIS'].isin(paises_sel)]
+if formas_sel: df_filtrado = df_filtrado[df_filtrado['FORMA'].isin(formas_sel)]
 
-st.sidebar.markdown(f"**Registros filtrados: {len(df_filtrado)}**")
-
-# Controles de visualización
 st.sidebar.markdown("---")
 mostrar_puntos = st.sidebar.toggle("Puntos de Contacto", value=True)
 mostrar_arcos = st.sidebar.toggle("Grafos de Trayectoria", value=True)
@@ -702,7 +562,6 @@ st.markdown("<h3>Módulo FANI: Fenómenos Anómalos No Identificados</h3>", unsa
 
 # --- MÉTRICAS ESTRATÉGICAS ---
 col_m1, col_m2, col_m3, col_m4 = st.columns(4)
-
 total_casos = len(df_filtrado)
 if not df_filtrado.empty:
     forma_predom = df_filtrado['FORMA'].mode().iloc[0] if not df_filtrado['FORMA'].mode().empty else "N/A"
@@ -719,20 +578,16 @@ col_m4.metric("Conexiones Activas", f"{len(df_grafos) if mostrar_arcos else 0:,}
 
 st.markdown("---")
 
-# --- PESTAÑAS PRINCIPALES ---
-tab_visor, tab_datos, tab_analisis = st.tabs([
-    "Visor de Telemetría Orbital",
-    "Registros Forenses",
-    "Procesador NLP Forense"
-])
+# --- ESTRUCTURA PRINCIPAL DE PANTALLA ---
+col_mapa, col_paneles = st.columns([1.5, 1.0], gap="large")
 
-# --- TAB 1: VISOR GLOBO ---
-with tab_visor:
+# --- COLUMNA IZQUIERDA: VISOR ORBITAL ---
+with col_mapa:
+    st.markdown("#### Visor de Telemetría Orbital")
     if df_filtrado.empty:
         st.error("No hay datos para el filtro seleccionado")
     else:
         df_filtrado['RESUMEN_CORTO'] = df_filtrado['RESUMEN'].apply(lambda x: str(x)[:100] + "..." if len(str(x)) > 100 else str(x))
-        
         fig = go.Figure()
         
         if mostrar_puntos:
@@ -750,7 +605,6 @@ with tab_visor:
                 text=df_filtrado['CIUDAD'] + ', ' + df_filtrado['PAIS'] + '<br>' +
                      'Forma: ' + df_filtrado['FORMA'] + '<br>' +
                      'Año: ' + df_filtrado['AÑO'].astype(str) + '<br>' +
-                     'Día: ' + df_filtrado['DIA_SEMANA'] + '<br>' +
                      'Resumen: ' + df_filtrado['RESUMEN_CORTO'],
                 hoverinfo='text',
                 name='Avistamientos'
@@ -761,30 +615,21 @@ with tab_visor:
             if tipos_relacion:
                 def categorizar(tipo):
                     t = str(tipo).upper()
-                    if 'TRAYECTORIA' in t:
-                        return 'Trayectoria probable'
-                    if 'CONTEXTO' in t or 'ESTRATÉGICO' in t:
-                        return 'Contexto estratégico'
-                    if 'SHARED' in t:
-                        return 'Shared Strategic Context'
-                    if 'ANOMAL' in t:
-                        return 'Similar Physical Anomalies'
+                    if 'TRAYECTORIA' in t: return 'Trayectoria probable'
+                    if 'CONTEXTO' in t or 'ESTRATÉGICO' in t: return 'Contexto estratégico'
+                    if 'SHARED' in t: return 'Shared Strategic Context'
+                    if 'ANOMAL' in t: return 'Similar Physical Anomalies'
                     return 'Otras'
                 df_rel_filt['CAT'] = df_rel_filt['TIPO'].apply(categorizar)
                 df_rel_filt = df_rel_filt[df_rel_filt['CAT'].isin(tipos_relacion)]
             
             for _, row in df_rel_filt.head(100).iterrows():
                 tipo = str(row['TIPO']).upper()
-                if 'TRAYECTORIA' in tipo:
-                    color = 'rgba(0, 255, 255, 0.4)'
-                elif 'CONTEXTO' in tipo:
-                    color = 'rgba(255, 0, 255, 0.4)'
-                elif 'SHARED' in tipo:
-                    color = 'rgba(255, 255, 0, 0.5)'
-                elif 'ANOMAL' in tipo:
-                    color = 'rgba(255, 128, 0, 0.5)'
-                else:
-                    color = 'rgba(255, 255, 255, 0.3)'
+                if 'TRAYECTORIA' in tipo: color = 'rgba(0, 255, 255, 0.4)'
+                elif 'CONTEXTO' in tipo: color = 'rgba(255, 0, 255, 0.4)'
+                elif 'SHARED' in tipo: color = 'rgba(255, 255, 0, 0.5)'
+                elif 'ANOMAL' in tipo: color = 'rgba(255, 128, 0, 0.5)'
+                else: color = 'rgba(255, 255, 255, 0.3)'
                 
                 ancho = max(1, float(row['PESO']) * 3)
                 
@@ -794,7 +639,7 @@ with tab_visor:
                     mode='lines',
                     line=dict(width=ancho, color=color),
                     hoverinfo='text',
-                    text=f"Tipo: {row['TIPO']}<br>Peso: {row['PESO']}<br>{row['origen_ciudad']} → {row['destino_ciudad']}",
+                    text=f"Tipo: {row['TIPO']}<br>{row['origen_ciudad']} → {row['destino_ciudad']}",
                     showlegend=False
                 ))
         
@@ -802,96 +647,90 @@ with tab_visor:
         fig.update_layout(
             geo=dict(
                 projection_type='orthographic',
-                showland=True,
-                landcolor='rgb(30,30,30)',
-                showocean=True,
-                oceancolor='rgb(10,10,10)',
-                showcountries=True,
-                countrycolor='rgb(80,80,80)',
-                showcoastlines=True,
-                coastlinecolor='rgb(100,100,100)',
-                showframe=False,
-                bgcolor='#0a0a0a',
+                showland=True, landcolor='rgb(30,30,30)',
+                showocean=True, oceancolor='rgb(10,10,10)',
+                showcountries=True, countrycolor='rgb(80,80,80)',
+                showcoastlines=True, coastlinecolor='rgb(100,100,100)',
+                showframe=False, bgcolor='#0a0a0a',
                 projection_rotation=dict(lon=region['lon'], lat=region['lat'])
             ),
             margin=dict(l=0, r=0, t=0, b=0),
             paper_bgcolor='#0a0a0a',
-            height=700
+            height=700 
         )
-        
         st.plotly_chart(fig, use_container_width=True)
 
-# --- TAB 2: REGISTROS ---
-with tab_datos:
-    st.markdown("#### Archivos de Inteligencia Extraídos")
+# --- COLUMNA DERECHA: PANELES DESPLEGABLES ---
+with col_paneles:
     
-    if df_filtrado.empty:
-        st.warning("No hay registros que coincidan con los criterios de filtrado")
-    else:
-        cols_disponibles = [c for c in df_filtrado.columns if c not in ['COLOR_RGBA', 'COLOR_STR', 'lat', 'lon', 'FECHA']]
-        cols_default = [c for c in ['ID', 'AÑO', 'PAIS', 'CIUDAD', 'FORMA', 'RESUMEN'] if c in cols_disponibles]
-        
-        cols_seleccionadas = st.multiselect("Campos de Visualización", cols_disponibles, default=cols_default[:6])
-        
-        if cols_seleccionadas:
-            df_display = df_filtrado[cols_seleccionadas].sort_values('AÑO', ascending=False)
-            render_tabla_tactica(df_display, max_filas=250)
+    # PANEL 1: REGISTROS FORENSES
+    with st.expander("REGISTROS FORENSES", expanded=True):
+        if df_filtrado.empty:
+            st.warning("No hay registros disponibles.")
         else:
-            st.info("Seleccione campos para visualizar")
+            cols_disp = [c for c in df_filtrado.columns if c not in ['COLOR_RGBA', 'COLOR_STR', 'lat', 'lon', 'FECHA']]
+            cols_def = [c for c in ['ID', 'AÑO', 'CIUDAD', 'FORMA'] if c in cols_disp]
+            cols_sel = st.multiselect("Campos a visualizar", cols_disp, default=cols_def, key="ms_campos")
+            if cols_sel:
+                render_tabla_tactica(df_filtrado[cols_sel].sort_values('AÑO', ascending=False), max_filas=100)
 
-# --- TAB 3: NLP ---
-with tab_analisis:
-    col_nlp, col_stats = st.columns([1, 1])
-    
-    with col_nlp:
-        st.markdown("#### Motor de Análisis NLP Forense")
-        st.markdown("<p style='color: #64748b; font-size:0.85rem; margin-top:-10px;'>Seleccione un expediente para generar perfilamiento táctico automatizado.</p>", unsafe_allow_html=True)
-        
+    # PANEL 2: DISTRIBUCIÓN DE INCIDENCIAS
+    with st.expander("DISTRIBUCIÓN DE INCIDENCIAS", expanded=False):
+        if not df_filtrado.empty:
+            conteo = df_filtrado['FORMA'].value_counts().head(8).reset_index()
+            conteo.columns = ['Estructura', 'Total']
+            fig_bar = px.bar(conteo, x='Total', y='Estructura', orientation='h', template="plotly_dark", color_discrete_sequence=['#00d4ff'])
+            fig_bar.update_layout(height=250, margin=dict(l=0, r=0, t=10, b=0), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", showlegend=False)
+            st.plotly_chart(fig_bar, use_container_width=True)
+
+    # PANEL 3: LÍNEA TEMPORAL
+    with st.expander("LÍNEA TEMPORAL", expanded=False):
+        if not df_filtrado.empty:
+            timeline = df_filtrado.groupby('AÑO').size().reset_index(name='Incidentes')
+            fig_line = px.area(timeline, x='AÑO', y='Incidentes', template="plotly_dark", color_discrete_sequence=['#00d4ff'])
+            fig_line.update_layout(height=200, margin=dict(l=0, r=0, t=10, b=0), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(10,10,10,0.5)", showlegend=False)
+            fig_line.update_traces(fillcolor="rgba(0, 212, 255, 0.2)", line=dict(color="#00d4ff", width=2))
+            st.plotly_chart(fig_line, use_container_width=True)
+
+    # PANEL 4: MOTOR NLP FORENSE
+    with st.expander("MOTOR NLP FORENSE (DEEPSEEK)", expanded=False):
         if df_filtrado.empty or 'RESUMEN' not in df_filtrado.columns:
-            st.error("Base de datos no sincronizada o sin campo RESUMEN")
+            st.error("Base de datos sin sincronizar.")
         else:
-            df_filtrado['ETIQUETA_CASO'] = df_filtrado['CIUDAD'].astype(str) + " | " + df_filtrado['FORMA'].astype(str) + " | " + df_filtrado['AÑO'].astype(str)
-            
-            caso_sel = st.selectbox("Expediente Operativo", df_filtrado['ETIQUETA_CASO'].unique())
-            
+            df_filtrado['ETIQUETA_CASO'] = df_filtrado['CIUDAD'].astype(str) + " | " + df_filtrado['AÑO'].astype(str)
+            caso_sel = st.selectbox("Expediente", df_filtrado['ETIQUETA_CASO'].unique(), key="sb_expediente")
             datos_caso = df_filtrado[df_filtrado['ETIQUETA_CASO'] == caso_sel].iloc[0]
             texto_resumen = str(datos_caso['RESUMEN'])
             
             st.markdown(f"""
-            <div style="background-color: #0a0a0a; border: 1px solid #333; padding: 12px; border-radius: 0px; margin-bottom: 15px; border-left: 3px solid #64748b;">
-                <div style="color: #64748b; font-family: 'Montserrat', sans-serif; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; margin-bottom: 5px;">
-                    Cuerpo del Informe Original
-                </div>
-                <div style="color: #cbd5e1; font-family: 'Titillium Web', sans-serif; font-size: 0.85rem; line-height: 1.4; max-height: 120px; overflow-y: auto;">
-                    {texto_resumen[:500]}{"..." if len(texto_resumen) > 500 else ""}
-                </div>
+            <div style="background-color: #0a0a0a; border: 1px solid #333; padding: 10px; margin-bottom: 10px; border-left: 2px solid #64748b; font-size: 0.8rem; color: #cbd5e1;">
+                {texto_resumen[:300]}{"..." if len(texto_resumen) > 300 else ""}
             </div>
             """, unsafe_allow_html=True)
             
-            if st.button("Ejecutar Análisis Forense", type="primary"):
-                with st.spinner("Procesando mediante red neuronal DeepSeek..."):
+            if st.button("Ejecutar Análisis Táctico", type="primary", key="btn_nlp"):
+                with st.spinner("Procesando en red neuronal..."):
                     resultado_nlp = {
                         "comportamiento": "No procesado",
                         "credibilidad": "DESCONOCIDA",
                         "hipotesis": "Sin análisis",
                         "indice": 0
                     }
-                    
                     if deepseek_token and texto_resumen.strip():
                         try:
                             headers = {
                                 "Authorization": f"Bearer {deepseek_token}",
                                 "Content-Type": "application/json"
                             }
+                            prompt_sistema = """Eres un analista senior de inteligencia adscrito al Motor de Análisis Conductual Predictivo.
+                            Tu área de operaciones abarca el Norte de África (énfasis en Marruecos) y el Estrecho de Gibraltar.
+                            Analiza el texto forense proporcionado y genera un informe táctico estructurado en JSON con estos campos exactos:
+                            - comportamiento: Descripción técnica del patrón de vuelo o cinemática (max 100 caracteres). Usa terminología militar.
+                            - credibilidad: Exclusivamente una de estas tres palabras: ALTA, MEDIA, BAJA.
+                            - indice: Número entero entre 0 y 100 representando el índice de confiabilidad del testimonio o sensor.
+                            - hipotesis: Explicación analítica y técnica del posible origen (max 200 caracteres). Evita lenguaje especulativo, mantén un tono pericial.
                             
-                            prompt_sistema = """Eres un analista de inteligencia militar especializado en fenómenos aéreos no identificados.
-                            Analiza el texto proporcionado y genera un informe táctico estructurado en JSON con estos campos exactos:
-                            - comportamiento: Descripción técnica del patrón de vuelo/cinemática (max 100 caracteres)
-                            - credibilidad: Una de ALTA, MEDIA, BAJA
-                            - indice: Número entero 0-100 representando confiabilidad del testimonio
-                            - hipotesis: Explicación analítica técnica del origen (max 200 caracteres)
-                            
-                            Responde SOLO con el JSON, sin markdown ni texto adicional."""
+                            Responde ÚNICAMENTE con el objeto JSON válido. Ningún otro texto."""
                             
                             payload = {
                                 "model": "deepseek-chat",
@@ -910,7 +749,6 @@ with tab_analisis:
                                 json=payload,
                                 timeout=30
                             )
-                            
                             respuesta.raise_for_status()
                             datos = respuesta.json()
                             contenido = datos["choices"][0]["message"]["content"]
@@ -922,104 +760,48 @@ with tab_analisis:
                             
                             parsed = json.loads(contenido.strip())
                             resultado_nlp.update(parsed)
-                            
                         except Exception as e:
                             resultado_nlp["hipotesis"] = f"Error en procesamiento: {str(e)[:50]}"
                             resultado_nlp["credibilidad"] = "ERROR"
                     else:
                         time.sleep(1.2)
                         resultado_nlp = {
-                            "comportamiento": "Maniobra no balística con vector ascendente",
+                            "comportamiento": "Aceleracion instantanea no balistica en espacio aereo controlado",
                             "credibilidad": "ALTA",
-                            "indice": 87,
-                            "hipotesis": "Firma electromagnética inconsistente con aeronaves convencionales. Probable plataforma de propulsión gravítica no catalogada."
+                            "indice": 89,
+                            "hipotesis": "Anomalia cinetica inconsistente con drones comerciales. Posible incursion de plataforma no catalogada en el sector operativo de la cordillera del Atlas."
                         }
-                    
-                    cred = resultado_nlp.get("credibilidad", "MEDIA").upper()
-                    if "ALTA" in cred:
-                        color_cred, color_borde = "#00ff80", "#00ff80"
-                    elif "MEDIA" in cred:
-                        color_cred, color_borde = "#00d4ff", "#00d4ff"
-                    elif "BAJA" in cred:
-                        color_cred, color_borde = "#ff4444", "#ff4444"
-                    else:
-                        color_cred, color_borde = "#64748b", "#64748b"
+
+                    cred = str(resultado_nlp.get("credibilidad", "MEDIA")).upper()
+                    if "ALTA" in cred: color_cred, color_borde = "#00ff80", "#00ff80"
+                    elif "MEDIA" in cred: color_cred, color_borde = "#00d4ff", "#00d4ff"
+                    elif "BAJA" in cred: color_cred, color_borde = "#ff4444", "#ff4444"
+                    else: color_cred, color_borde = "#64748b", "#64748b"
                     
                     indice_val = resultado_nlp.get("indice", 0)
                     
                     resultado_html = f"""
-                    <div style="background-color: #0a0a0a; border: 1px solid #333; border-left: 4px solid {color_borde}; padding: 20px; margin-top: 20px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #222; padding-bottom: 10px;">
-                            <span style="color: #64748b; font-size: 0.7rem; text-transform: uppercase; font-weight: 600;">Resultado del Análisis</span>
-                            <span style="color: {color_cred}; font-family: 'Share Tech Mono', monospace; font-size: 1.2rem; font-weight: bold;">{cred} [{indice_val}/100]</span>
+                    <div style="background-color: #050505; border: 1px solid #1a1a1a; border-left: 4px solid {color_borde}; padding: 20px; margin-top: 15px; font-family: 'Share Tech Mono', monospace;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px dashed #333; padding-bottom: 10px;">
+                            <span style="color: #64748b; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px;">Evaluación Táctica de la Amenaza</span>
+                            <span style="color: {color_cred}; font-size: 1.3rem; font-weight: bold; letter-spacing: 2px;">{cred} [{indice_val}/100]</span>
                         </div>
                         <div style="margin-bottom: 15px;">
-                            <div style="color: #64748b; font-size: 0.7rem; text-transform: uppercase; margin-bottom: 5px; font-weight: 600;">Patrón Comportamental</div>
-                            <div style="color: #00d4ff; font-family: 'Share Tech Mono', monospace; font-size: 0.95rem;">{resultado_nlp.get("comportamiento", "N/A")}</div>
+                            <div style="color: #64748b; font-size: 0.7rem; text-transform: uppercase; margin-bottom: 5px; letter-spacing: 1px;">Cinemática y Comportamiento</div>
+                            <div style="color: #00d4ff; font-size: 1rem;">> {resultado_nlp.get("comportamiento", "N/A")}</div>
                         </div>
                         <div>
-                            <div style="color: #64748b; font-size: 0.7rem; text-transform: uppercase; margin-bottom: 5px; font-weight: 600;">Hipótesis Operativa</div>
-                            <div style="color: #e2e8f0; font-size: 0.85rem; line-height: 1.5; text-align: justify;">{resultado_nlp.get("hipotesis", "N/A")}</div>
+                            <div style="color: #64748b; font-size: 0.7rem; text-transform: uppercase; margin-bottom: 5px; letter-spacing: 1px;">Conclusión Analítica</div>
+                            <div style="color: #e2e8f0; font-size: 0.9rem; line-height: 1.6; font-family: 'Titillium Web', sans-serif;">{resultado_nlp.get("hipotesis", "N/A")}</div>
                         </div>
                     </div>
                     """
-                    
                     st.markdown(resultado_html, unsafe_allow_html=True)
-    
-    with col_stats:
-        st.markdown("#### Distribución de Incidencias")
-        
-        if not df_filtrado.empty:
-            conteo_formas = df_filtrado['FORMA'].value_counts().head(10).reset_index()
-            conteo_formas.columns = ['Estructura', 'Total']
-            
-            fig = px.bar(
-                conteo_formas,
-                x='Total',
-                y='Estructura',
-                orientation='h',
-                template="plotly_dark",
-                color_discrete_sequence=['#00d4ff']
-            )
-            fig.update_layout(
-                height=300,
-                margin=dict(l=0, r=0, t=10, b=0),
-                paper_bgcolor="rgba(0,0,0,0)",
-                plot_bgcolor="rgba(0,0,0,0)",
-                font=dict(family="Titillium Web", size=10, color="#64748b"),
-                yaxis=dict(title="", tickfont=dict(size=10)),
-                xaxis=dict(title="", gridcolor="#1a1a1a", tickfont=dict(size=9)),
-                showlegend=False
-            )
-            st.plotly_chart(fig, use_container_width=True)
-            
-            st.markdown("#### Línea Temporal")
-            timeline = df_filtrado.groupby('AÑO').size().reset_index(name='Incidentes')
-            
-            fig2 = px.area(
-                timeline,
-                x='AÑO',
-                y='Incidentes',
-                template="plotly_dark",
-                color_discrete_sequence=['#00d4ff']
-            )
-            fig2.update_layout(
-                height=200,
-                margin=dict(l=0, r=0, t=10, b=0),
-                paper_bgcolor="rgba(0,0,0,0)",
-                plot_bgcolor="rgba(10,10,10,0.5)",
-                font=dict(family="Titillium Web", size=9, color="#64748b"),
-                xaxis=dict(title="", gridcolor="#1a1a1a", showgrid=True),
-                yaxis=dict(title="", gridcolor="#1a1a1a", showgrid=True),
-                showlegend=False
-            )
-            fig2.update_traces(fillcolor="rgba(0, 212, 255, 0.2)", line=dict(color="#00d4ff", width=2))
-            st.plotly_chart(fig2, use_container_width=True)
 
 # --- FOOTER ---
 st.markdown("---")
 st.markdown(f"""
     <div style="color: #333; font-family: 'Share Tech Mono', monospace; font-size: 0.7rem; text-align: center; text-transform: uppercase; letter-spacing: 1px;">
-        Sistema AGATHA v4.4 | Módulo FANI | Operador {OPERADOR_ID} | Clasificación: NIVEL 4
+        Sistema AGATHA v4.5 | Módulo FANI | Operador {OPERADOR_ID} | Clasificación: NIVEL 4
     </div>
 """, unsafe_allow_html=True)
