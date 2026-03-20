@@ -246,11 +246,15 @@ with st.status("Inicializando Motor de Analisis Conductual Predictivo...", expan
             mensajes.append(f"Matriz detectada: {ruta}")
             try:
                 df = pd.read_csv(ruta, encoding='utf-8', on_bad_lines='skip')
+                
+                # Estandarización brutal de cabeceras para evitar fallos de lectura
+                df.columns = df.columns.str.upper().str.strip()
+                
                 col_map = {
-                    'AÑO': 'AÑO', 'Year': 'AÑO', 'DÍA': 'DIA', 'Day': 'DIA', 'MES': 'MES', 'Month': 'MES',
-                    'CIUDAD': 'CIUDAD', 'City': 'CIUDAD', 'ESTADO': 'ESTADO', 'State': 'ESTADO',
-                    'PAÍS': 'PAIS', 'Country': 'PAIS', 'FORMA': 'FORMA', 'Shape': 'FORMA',
-                    'RESUMEN': 'RESUMEN', 'Summary': 'RESUMEN'
+                    'YEAR': 'AÑO', 'DÍA': 'DIA', 'DAY': 'DIA', 'MONTH': 'MES',
+                    'CITY': 'CIUDAD', 'STATE': 'ESTADO', 'PAÍS': 'PAIS', 
+                    'COUNTRY': 'PAIS', 'SHAPE': 'FORMA', 'SUMMARY': 'RESUMEN',
+                    'TIME': 'HORA'
                 }
                 df.rename(columns=col_map, inplace=True)
                 
@@ -259,7 +263,7 @@ with st.status("Inicializando Motor de Analisis Conductual Predictivo...", expan
                     else: df[c] = df[c].fillna("No especificado").astype(str)
                 
                 # PROTOCOLO DE PURGA
-                df = df[~df['PAIS'].str.contains('Marruecos|Morocco', case=False, na=False)].copy()
+                df = df[~df['PAIS'].str.contains('MARRUECOS|MOROCCO', case=False, na=False)].copy()
                 
                 # Saneamiento de variables temporales
                 if 'AÑO' not in df.columns: df['AÑO'] = 2026
@@ -273,8 +277,20 @@ with st.status("Inicializando Motor de Analisis Conductual Predictivo...", expan
                 df['DIA'] = pd.to_numeric(df['DIA'], errors='coerce').fillna(0).astype(int).astype(str)
                 df['DIA'] = df['DIA'].replace('0', 'No especificado')
 
+                # --- EXTRACCION Y FORMATO DE HORA (00:00 - 23:59) ---
                 if 'HORA' not in df.columns: df['HORA'] = "No especificada"
-                df['HORA'] = df['HORA'].astype(str).fillna("No especificada")
+                
+                def formatear_hora(h):
+                    val = str(h).strip()
+                    if val.lower() in ['nan', 'nat', 'none', 'null', '', 'no especificada']:
+                        return "No especificada"
+                    # Si tiene formato HH:MM:SS o HH:MM, recortamos y rellenamos con ceros
+                    if ':' in val:
+                        partes = val.split(':')
+                        return f"{partes[0].zfill(2)}:{partes[1].zfill(2)}"
+                    return "No especificada"
+
+                df['HORA'] = df['HORA'].apply(formatear_hora)
 
                 df['DECADA'] = (df['AÑO'] // 10) * 10
                 df['FORMA'] = df['FORMA'].str.title()
