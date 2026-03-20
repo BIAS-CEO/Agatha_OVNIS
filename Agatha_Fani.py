@@ -276,29 +276,15 @@ if st.sidebar.button("FORZAR RECARGA DE MATRICES"):
 def render_tabla_tactica(df):
     if df.empty: return
     
-    # SEGURIDAD ANTI-CONGELAMIENTO: Limitamos la visualización en HTML a 1000 registros
-    # Construir un HTML enorme bloquea el hilo principal de renderizado de Streamlit
-    df_render = df.head(1000) 
-    
     cols_excluir = ['COLOR_STR', 'lat', 'lon', 'DECADA', 'ORD.', 'NUM.', 'Source_File']
-    cols_vis = [c for c in df_render.columns if c not in cols_excluir]
+    cols_vis = [c for c in df.columns if c not in cols_excluir]
     
-    html = '<div class="contenedor-tabla"><table class="rejilla-tactica"><thead><tr>'
-    for c in cols_vis: html += f'<th>{c}</th>'
-    html += '</tr></thead><tbody>'
-    for _, row in df_render.iterrows():
-        html += '<tr>'
-        for c in cols_vis:
-            val = row[c]
-            clase = 'valor-num' if str(val).replace('.','').isdigit() else 'valor-texto'
-            html += f'<td class="{clase}">{val}</td>'
-        html += '</tr>'
-    html += '</tbody></table></div>'
-    
-    if len(df) > 1000:
-        st.caption(f"Mostrando los primeros 1000 registros de {len(df)} totales por razones de rendimiento táctico.")
-        
-    st.markdown(html, unsafe_allow_html=True)
+    st.dataframe(
+        df[cols_vis],
+        use_container_width=True,
+        hide_index=True,
+        height=600
+    )
 
 st.markdown("<h1>Motor de Analisis Conductual Predictivo</h1>", unsafe_allow_html=True)
 st.markdown("<h3>Modulo FANI: Fenomenos Anomalos No Identificados</h3>", unsafe_allow_html=True)
