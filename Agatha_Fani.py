@@ -359,19 +359,19 @@ with col_mapa:
                 else:
                     df_red = df_filtrado.sort_values(by=['AÑO', 'MES']).head(200)
                     formas_presentes = df_red['FORMA'].unique()
+                    formas_validas = [f for f in formas_presentes if len(df_red[df_red['FORMA'] == f]) > 1]
                     
-                    for forma in formas_presentes:
+                    for forma in formas_validas:
                         df_forma = df_red[df_red['FORMA'] == forma]
-                        if len(df_forma) > 1:
-                            lons = df_forma['lon'].tolist()
-                            lats = df_forma['lat'].tolist()
-                            color_linea = df_forma.iloc[0]['COLOR_STR']
-                            
-                            fig.add_trace(go.Scattergeo(
-                                lon=lons, lat=lats, mode='lines',
-                                line=dict(width=1.5, color=color_linea),
-                                opacity=0.35, hoverinfo='none'
-                            ))
+                        lons = df_forma['lon'].tolist()
+                        lats = df_forma['lat'].tolist()
+                        color_linea = df_forma.iloc[0]['COLOR_STR']
+                        
+                        fig.add_trace(go.Scattergeo(
+                            lon=lons, lat=lats, mode='lines',
+                            line=dict(width=1.5, color=color_linea),
+                            opacity=0.35, hoverinfo='none'
+                        ))
                     
                     fig.add_trace(go.Scattergeo(
                         lon=df_red['lon'], lat=df_red['lat'], mode='markers',
@@ -396,6 +396,25 @@ with col_mapa:
             )
             
             grafico_placeholder.plotly_chart(fig, width='stretch')
+            
+            # --- MODULO DE LEYENDA TACTICA INTERACTIVA ---
+            if modo_visor == "RED DE TRAYECTORIAS (Puentes)" and len(df_filtrado) >= 2:
+                if 'formas_validas' in locals() and len(formas_validas) > 0:
+                    with st.expander(f"LEYENDA TACTICA: ANALISIS DE CORREDORES ({len(formas_validas)} detectados)", expanded=False):
+                        sel_corredor = st.selectbox("Seleccionar vector morfologico para analisis detallado", formas_validas)
+                        
+                        # Extraemos la telemetria especifica de esa ruta
+                        df_ruta = df_red[df_red['FORMA'] == sel_corredor].sort_values(by=['AÑO', 'MES'])
+                        nodo_inicio = df_ruta.iloc[0]
+                        nodo_fin = df_ruta.iloc[-1]
+                        paises_cruzados = len(df_ruta['PAIS'].unique())
+                        
+                        st.markdown(f"**ANALISIS DE TRAYECTORIA: TIPO {sel_corredor.upper()}**")
+                        st.markdown(f"- **Nodos interconectados:** {len(df_ruta)}")
+                        st.markdown(f"- **Origen de la secuencia:** {nodo_inicio['CIUDAD']} ({nodo_inicio['PAIS']}) | Fecha: {nodo_inicio['MES']}/{nodo_inicio['AÑO']}")
+                        st.markdown(f"- **Ultimo contacto:** {nodo_fin['CIUDAD']} ({nodo_fin['PAIS']}) | Fecha: {nodo_fin['MES']}/{nodo_fin['AÑO']}")
+                        
+                        st.info(f"Reporte Conductual: Se ha detectado un desplazamiento a traves de {paises_cruzados} fronteras nacionales. La correlacion temporal sugiere un barrido topografico o una ruta de observacion secuencial en el globo.")
 
 # --- INDICADORES RAPIDOS TACTICOS ---
 m1, m2, m3 = st.columns(3)
