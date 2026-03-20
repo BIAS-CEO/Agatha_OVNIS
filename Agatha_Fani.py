@@ -138,6 +138,9 @@ with st.status("Inicializando Motor de Analisis Conductual Predictivo...", expan
 
     OPENAI_API_KEY = obtener_credencial("OPENAI_API_KEY")
     DEEPSEEK_API_KEY = obtener_credencial("DEEPSEEK_API_KEY")
+    MAPBOX_API_KEY = obtener_credencial("MAPBOX_API_KEY")
+    OPENWEATHER_API_KEY = obtener_credencial("OPENWEATHER_API_KEY")
+    GOOGLE_MAPS_KEY = obtener_credencial("GOOGLE_MAPS_KEY")
 
     def encontrar_archivo(nombres_posibles):
         for nombre in nombres_posibles:
