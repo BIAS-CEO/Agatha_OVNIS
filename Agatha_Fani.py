@@ -328,55 +328,49 @@ with col_filtros:
         df_filtrado = df_filtrado[df_filtrado['PAIS'] == sel_pais]
 
 with col_mapa:
-    st.markdown("#### Visor de Telemetria Orbital (Mapbox Engine)")
+    st.markdown("#### Visor de Telemetria Orbital (Proyeccion Esferica)")
     if not df_filtrado.empty:
         grafico_placeholder = st.empty() 
-        with st.spinner("Sincronizando satélites Mapbox..."):
+        with st.spinner("Calibrando giroscopios y proyección 3D..."):
             
-            # Limitar a 5000 puntos para estabilidad en directo
+            # Límite de seguridad para emisión
             df_mapa = df_filtrado.head(5000)
             
-            # Si hay clave de Mapbox, usamos el motor táctico oscuro. Si no, usamos un fallback.
-            if MAPBOX_API_KEY:
-                fig = go.Figure(go.Scattermapbox(
-                    lon=df_mapa['lon'], 
-                    lat=df_mapa['lat'], 
-                    mode='markers',
-                    marker=dict(
-                        size=8, 
-                        color=df_mapa['COLOR_STR'], 
-                        opacity=0.85
-                    ),
-                    text=df_mapa['CIUDAD'] + " | Forma: " + df_mapa['FORMA'], 
-                    hoverinfo='text'
-                ))
-                
-                fig.update_layout(
-                    mapbox=dict(
-                        accesstoken=MAPBOX_API_KEY,
-                        style="dark",  # Estilo táctico oscuro nativo de Mapbox
-                        center=dict(lat=40.0, lon=-3.0), # Centro por defecto (ej. Península Ibérica / Atlántico)
-                        zoom=1.2,
-                        pitch=45  # Inclinación para dar perspectiva 3D
-                    ),
-                    margin=dict(l=0, r=0, t=0, b=0),
-                    paper_bgcolor='#0a0a0a', 
-                    height=450,
-                    showlegend=False
-                )
-            else:
-                # Fallback de seguridad por si falla la API Key
-                st.warning("Credencial MAPBOX_API_KEY no detectada. Usando motor gráfico secundario.")
-                fig = go.Figure(go.Scattergeo(
-                    lon=df_mapa['lon'], lat=df_mapa['lat'], mode='markers',
-                    marker=dict(size=7, color=df_mapa['COLOR_STR'], line=dict(width=0.5, color='white'), opacity=0.8),
-                    text=df_mapa['CIUDAD'] + " (" + df_mapa['FORMA'] + ")", hoverinfo='text'
-                ))
-                fig.update_layout(
-                    geo=dict(projection_type='orthographic', showland=True, landcolor='#1e1e1e', showocean=True, oceancolor='#0a0a0a', bgcolor='#0a0a0a'),
-                    margin=dict(l=0, r=0, t=0, b=0), paper_bgcolor='#0a0a0a', height=450
-                )
-                
+            fig = go.Figure(go.Scattergeo(
+                lon=df_mapa['lon'], 
+                lat=df_mapa['lat'], 
+                mode='markers',
+                marker=dict(
+                    size=6, 
+                    color=df_mapa['COLOR_STR'], 
+                    line=dict(width=0.5, color='rgba(255,255,255,0.3)'), 
+                    opacity=0.9
+                ),
+                text=df_mapa['CIUDAD'] + " | Forma: " + df_mapa['FORMA'], 
+                hoverinfo='text'
+            ))
+            
+            # Estética "Cuarto Milenio" para el globo terráqueo
+            fig.update_layout(
+                geo=dict(
+                    projection_type='orthographic', # El motor esférico 3D
+                    showland=True,
+                    landcolor='#121212',            # Tierra en gris muy oscuro
+                    showocean=True,
+                    oceancolor='#050505',           # Océano negro/abisal
+                    showcountries=True,
+                    countrycolor='#2a2a2a',         # Fronteras tácticas sutiles
+                    countrywidth=0.5,
+                    showlakes=False,
+                    bgcolor='#0a0a0a',              # Color del espacio
+                    resolution=50                   # Alta resolución de continentes
+                ),
+                margin=dict(l=0, r=0, t=0, b=0),
+                paper_bgcolor='#0a0a0a', 
+                height=500,
+                showlegend=False
+            )
+            
             grafico_placeholder.plotly_chart(fig, width='stretch')
             
         if len(df_filtrado) > 5000:
