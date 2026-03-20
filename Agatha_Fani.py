@@ -2,7 +2,7 @@
 # ARCHIVO PRINCIPAL: Agatha_Fani.py
 # SISTEMA: Motor de Analisis Conductual Predictivo
 # MODULO: AGATHA FANI (Fenomenos Anomalos No Identificados)
-# VERSION: Opcon Ready v5.5 (UI Emision, Proyecciones Duales y Tiempo Real)
+# VERSION: Opcon Ready v5.6 (UI Emision, Mapas Duales, Cronologia y Catalogo)
 # OPERADOR: DIR-74
 # ====================================================================
 
@@ -172,7 +172,6 @@ with st.status("Inicializando Motor de Analisis Conductual Predictivo...", expan
         
         # Mapeo global exhaustivo
         centroides = {
-            # Norteamérica
             "TX": (31.9, -99.9), "FL": (27.7, -81.6), "CA": (36.7, -119.4), "NY": (40.7, -74.0),
             "SC": (33.8, -81.1), "PA": (41.2, -77.1), "LA": (30.9, -91.9), "CO": (39.5, -105.7),
             "AZ": (34.0, -111.0), "MI": (44.3, -85.6), "IL": (40.0, -89.0), "OH": (40.4, -82.9),
@@ -181,8 +180,6 @@ with st.status("Inicializando Motor de Analisis Conductual Predictivo...", expan
             "EEUU": (39.8, -98.5), "ESTADOS UNIDOS": (39.8, -98.5), "USA": (39.8, -98.5),
             "CANADA": (56.1, -106.3), "CANADÁ": (56.1, -106.3),
             "MEXICO": (23.6, -102.5), "MÉXICO": (23.6, -102.5),
-            
-            # Europa
             "UK": (55.3, -3.4), "REINO UNIDO": (55.3, -3.4), "INGLATERRA": (52.3, -1.1), "UNITED KINGDOM": (55.3, -3.4),
             "ESPAÑA": (40.46, -3.75), "ESPANA": (40.46, -3.75), "SPAIN": (40.46, -3.75),
             "PAISES BAJOS": (52.13, 5.29), "PAÍSES BAJOS": (52.13, 5.29), "NETHERLANDS": (52.13, 5.29),
@@ -193,8 +190,6 @@ with st.status("Inicializando Motor de Analisis Conductual Predictivo...", expan
             "FRANCIA": (46.22, 2.21), "FRANCE": (46.22, 2.21),
             "ALEMANIA": (51.16, 10.45), "GERMANY": (51.16, 10.45),
             "PORTUGAL": (39.39, -8.22),
-            
-            # Resto del Mundo
             "INDIA": (20.59, 78.96),
             "JAMAICA": (18.1, -77.29),
             "ARABIA SAUDI": (23.88, 45.07), "ARABIA SAUDÍ": (23.88, 45.07), "SAUDI ARABIA": (23.88, 45.07),
@@ -220,7 +215,6 @@ with st.status("Inicializando Motor de Analisis Conductual Predictivo...", expan
         coord_pai = pai.map(centroides)
         
         coords_finales = coord_est.combine_first(coord_pai)
-        
         coords_defecto = pd.Series([(0.0, 0.0)] * len(df), index=df.index)
         coords_finales = coords_finales.combine_first(coords_defecto)
         
@@ -247,7 +241,6 @@ with st.status("Inicializando Motor de Analisis Conductual Predictivo...", expan
             try:
                 df = pd.read_csv(ruta, encoding='utf-8', on_bad_lines='skip')
                 
-                # Estandarización brutal de cabeceras para evitar fallos de lectura
                 df.columns = df.columns.str.upper().str.strip()
                 
                 col_map = {
@@ -284,10 +277,10 @@ with st.status("Inicializando Motor de Analisis Conductual Predictivo...", expan
                     val = str(h).strip()
                     if val.lower() in ['nan', 'nat', 'none', 'null', '', 'no especificada']:
                         return "No especificada"
-                    # Si tiene formato HH:MM:SS o HH:MM, recortamos y rellenamos con ceros
                     if ':' in val:
                         partes = val.split(':')
-                        return f"{partes[0].zfill(2)}:{partes[1].zfill(2)}"
+                        if len(partes) >= 2:
+                            return f"{partes[0].zfill(2)}:{partes[1].zfill(2)}"
                     return "No especificada"
 
                 df['HORA'] = df['HORA'].apply(formatear_hora)
@@ -322,6 +315,27 @@ st.markdown("<h3>Modulo FANI: Fenomenos Anomalos No Identificados</h3>", unsafe_
 with st.sidebar.expander("DIAGNOSTICO DEL SISTEMA"):
     for m in diagn_mensajes: st.write(f"- {m}")
 
+# --- CATÁLOGO DE REFERENCIA MORFOLÓGICA ---
+with st.sidebar.expander("MANUAL DE IDENTIFICACION VISUAL", expanded=False):
+    st.markdown("<div style='color:#94a3b8; font-size:0.75rem; margin-bottom:10px; line-height:1.4;'>Archivos clasificados de tipología FANI. Cargue el manual táctico completo en el directorio /assets.</div>", unsafe_allow_html=True)
+    
+    if not os.path.exists("assets"):
+        os.makedirs("assets")
+    
+    ruta_img_catalogo = os.path.join("assets", "catalogo_morfologico_completo.png")
+    
+    if os.path.exists(ruta_img_catalogo):
+        st.image(ruta_img_catalogo, caption="Manual de Identificación de Tipos FANI")
+        st.markdown("<br>", unsafe_allow_html=True)
+    else:
+        st.markdown(f"""
+        <div style='width:100%; height:150px; border:1px dashed #334155; display:flex; align-items:center; justify-content:center; background:#0f172a; margin-bottom:15px;'>
+            <span style='color:#64748b; font-size:0.65rem; font-family:monospace; text-align:center;'>
+                [ACTIVO VISUAL REQUERIDO]<br>catalogo_morfologico_completo.png
+            </span>
+        </div>
+        """, unsafe_allow_html=True)
+
 # --- VISUALIZACION PRINCIPAL: MAPA Y FILTROS ---
 st.markdown("---")
 col_mapa, col_filtros = st.columns([2.5, 1.5], gap="large")
@@ -329,7 +343,6 @@ col_mapa, col_filtros = st.columns([2.5, 1.5], gap="large")
 with col_filtros:
     st.markdown("#### Parametros de Filtrado")
     
-    # Filtros Temporales y Topológicos
     c_f1, c_f2 = st.columns(2)
     anio_disp = sorted(df_maestro['AÑO'].unique(), reverse=True)
     sel_anio = c_f1.selectbox("AÑO", ["TODOS"] + [int(a) for a in anio_disp])
@@ -410,7 +423,6 @@ with col_mapa:
                     ))
                     st.caption(f"Trazando red basada en los 200 eventos cronológicos más relevantes.")
 
-            # Aplicar proyección seleccionada
             proj_type = 'orthographic' if tipo_proyeccion == "Globo 3D" else 'equirectangular'
             
             fig.update_layout(
