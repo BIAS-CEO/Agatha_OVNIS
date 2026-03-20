@@ -164,55 +164,71 @@ with st.status("Inicializando Motor de Analisis Conductual Predictivo...", expan
         else: return (0, 255, 255, 230)
 
     def simular_coordenadas(df):
-        """Asignación de coordenadas mediante vectorización de alta velocidad."""
-        np.random.seed(42)
+        """Asignación de coordenadas determinista y normalización de texto para emisión en directo."""
+        import unicodedata
         
-        # Mapeo global de nodos estratégicos
+        def limpiar_texto(texto):
+            if pd.isna(texto): return "DESCONOCIDO"
+            texto = str(texto).upper().strip()
+            # Elimina tildes y caracteres especiales para un emparejamiento perfecto
+            texto = ''.join(c for c in unicodedata.normalize('NFD', texto) if unicodedata.category(c) != 'Mn')
+            return texto
+            
+        # Diccionario maestro estandarizado (Sin tildes)
         centroides = {
-            # Norteamérica
             "TX": (31.9, -99.9), "FL": (27.7, -81.6), "CA": (36.7, -119.4), "NY": (40.7, -74.0),
             "SC": (33.8, -81.1), "PA": (41.2, -77.1), "LA": (30.9, -91.9), "CO": (39.5, -105.7),
             "AZ": (34.0, -111.0), "MI": (44.3, -85.6), "IL": (40.0, -89.0), "OH": (40.4, -82.9),
             "WA": (47.7, -120.7), "NC": (35.7, -79.0), "MO": (37.9, -91.8), "ID": (44.0, -114.7),
-            "NV": (38.8, -116.4), "EEUU": (39.8, -98.5), "CANADA": (56.1, -106.3), "CANADÁ": (56.1, -106.3),
-            "MEXICO": (23.6, -102.5), "MÉXICO": (23.6, -102.5),
-            
-            # Europa
-            "UK": (55.3, -3.4), "REINO UNIDO": (55.3, -3.4), "INGLATERRA": (52.3, -1.1),
-            "ESPAÑA": (40.46, -3.75), "PAISES BAJOS": (52.13, 5.29), "PAÍSES BAJOS": (52.13, 5.29),
-            "LITUANIA": (55.16, 23.88), "IRLANDA": (53.14, -7.69), "RUMANIA": (45.94, 24.96), 
-            "RUMANÍA": (45.94, 24.96), "ITALIA": (41.87, 12.56),
-            
-            # Resto del Mundo
-            "INDIA": (20.59, 78.96), "JAMAICA": (18.1, -77.29), "ARABIA SAUDI": (23.88, 45.07), 
-            "ARABIA SAUDÍ": (23.88, 45.07), "SUDAFRICA": (-30.55, 22.93), "SUDÁFRICA": (-30.55, 22.93),
-            "BOTSUANA": (-22.32, 24.68), "IRAN": (32.42, 53.68), "IRÁN": (32.42, 53.68),
-            "AUSTRALIA": (-25.27, 133.77), "PUERTO RICO": (18.22, -66.59), 
-            "REPUBLICA DOMINICANA": (18.73, -70.16), "REPÚBLICA DOMINICANA": (18.73, -70.16),
+            "NV": (38.8, -116.4), "VA": (37.4, -78.6),
+            "EEUU": (39.8, -98.5), "ESTADOS UNIDOS": (39.8, -98.5),
+            "CANADA": (56.1, -106.3),
+            "MEXICO": (23.6, -102.5),
+            "REINO UNIDO": (55.3, -3.4), "UK": (55.3, -3.4), "INGLATERRA": (52.3, -1.1),
+            "ESPANA": (40.46, -3.75),
+            "PAISES BAJOS": (52.13, 5.29),
+            "LITUANIA": (55.16, 23.88),
+            "IRLANDA": (53.14, -7.69),
+            "RUMANIA": (45.94, 24.96),
+            "ITALIA": (41.87, 12.56),
+            "INDIA": (20.59, 78.96),
+            "JAMAICA": (18.1, -77.29),
+            "ARABIA SAUDI": (23.88, 45.07),
+            "SUDAFRICA": (-30.55, 22.93),
+            "BOTSUANA": (-22.32, 24.68),
+            "IRAN": (32.42, 53.68),
+            "AUSTRALIA": (-25.27, 133.77),
+            "PUERTO RICO": (18.22, -66.59),
+            "REPUBLICA DOMINICANA": (18.73, -70.16),
             "NUEVA ZELANDA": (-40.9, 174.88)
         }
         
-        est = df['ESTADO'].str.upper().str.strip()
-        pai = df['PAIS'].str.upper().str.strip()
+        # Aplicamos la limpieza profunda a las columnas
+        est = df['ESTADO'].apply(limpiar_texto)
+        pai = df['PAIS'].apply(limpiar_texto)
         
-        # Mapeo de coordenadas primarias
         coord_est = est.map(centroides)
         coord_pai = pai.map(centroides)
         
-        # Fusión estructurada: Prioridad a Estado, luego a País
         coords_finales = coord_est.combine_first(coord_pai)
-        
-        # Si un nodo sigue sin ser reconocido, lo enviamos a 0,0 (Océano Atlántico, Golfo de Guinea) 
-        # para que sea evidente que es una anomalía de localización, y no lo confunda con EEUU.
+        # Los no detectados caen en el atlántico para no contaminar datos reales
         coords_defecto = pd.Series([(0.0, 0.0)] * len(df), index=df.index)
         coords_finales = coords_finales.combine_first(coords_defecto)
         
-        # Dispersión táctica (ruido gaussiano)
-        df['lat'] = coords_finales.apply(lambda x: x[0]) + np.random.normal(0, 1.2, len(df))
-        df['lon'] = coords_finales.apply(lambda x: x[1]) + np.random.normal(0, 1.2, len(df))
+        # Generación de coordenadas fijas basadas en el código ASCII de la ciudad
+        # Esto garantiza que el punto en el mapa NUNCA se mueva, dando aspecto de geolocalización real
+        df['hash_val'] = df['CIUDAD'].astype(str).apply(lambda x: sum(ord(c) for c in x))
+        df['lat_offset'] = ((df['hash_val'] % 100) - 50) / 100.0 * 2.5
+        df['lon_offset'] = (((df['hash_val'] // 10) % 100) - 50) / 100.0 * 2.5
+        
+        df['lat'] = coords_finales.apply(lambda x: x[0]) + df['lat_offset']
+        df['lon'] = coords_finales.apply(lambda x: x[1]) + df['lon_offset']
+        
+        # Limpiamos las columnas temporales de cálculo
+        df = df.drop(columns=['hash_val', 'lat_offset', 'lon_offset'])
         
         return df
-
+        
     @st.cache_data(show_spinner=False)
     def cargar_nodos():
         mensajes = []
