@@ -2,7 +2,7 @@
 # ARCHIVO PRINCIPAL: Agatha_Fani.py
 # SISTEMA: Motor de Analisis Conductual Predictivo
 # MODULO: AGATHA FANI (Fenomenos Anomalos No Identificados)
-# VERSION: Opcon Ready v5.3 (Optimizacion de Memoria y Filtros Maestros)
+# VERSION: Opcon Ready v5.4 (UI Unificada, Red de Vuelo y Geolocalizacion Estricta)
 # OPERADOR: DIR-74
 # ====================================================================
 
@@ -170,7 +170,7 @@ with st.status("Inicializando Motor de Analisis Conductual Predictivo...", expan
         """Asignación de coordenadas determinista y ultra-robusta."""
         np.random.seed(42)
         
-        # Mapeo global exhaustivo (cubre variantes con y sin tildes, e inglés)
+        # Mapeo global exhaustivo
         centroides = {
             # Norteamérica
             "TX": (31.9, -99.9), "FL": (27.7, -81.6), "CA": (36.7, -119.4), "NY": (40.7, -74.0),
@@ -213,7 +213,6 @@ with st.status("Inicializando Motor de Analisis Conductual Predictivo...", expan
             "COLOMBIA": (4.57, -74.29)
         }
         
-        # Extracción directa y limpieza básica
         est = df['ESTADO'].astype(str).str.upper().str.strip()
         pai = df['PAIS'].astype(str).str.upper().str.strip()
         
@@ -222,14 +221,11 @@ with st.status("Inicializando Motor de Analisis Conductual Predictivo...", expan
         
         coords_finales = coord_est.combine_first(coord_pai)
         
-        # Coordenada de emergencia
         coords_defecto = pd.Series([(0.0, 0.0)] * len(df), index=df.index)
         coords_finales = coords_finales.combine_first(coords_defecto)
         
-        # Algoritmo determinista para fijar los puntos geográficos
         df['hash_val'] = df['CIUDAD'].astype(str).apply(lambda x: sum(ord(c) for c in x))
         
-        # Dispersión reducida a 1.5 grados para que los puntos de Europa no caigan al mar
         df['lat_offset'] = ((df['hash_val'] % 100) - 50) / 100.0 * 1.5
         df['lon_offset'] = (((df['hash_val'] // 10) % 100) - 50) / 100.0 * 1.5
         
@@ -268,7 +264,6 @@ with st.status("Inicializando Motor de Analisis Conductual Predictivo...", expan
                 if 'AÑO' not in df.columns: df['AÑO'] = 2026
                 df['AÑO'] = pd.to_numeric(df['AÑO'], errors='coerce').fillna(2026).astype(int)
                 
-                # Forzar el mes a ser un número y luego un string sin decimales para los filtros
                 if 'MES' not in df.columns: df['MES'] = "No especificado"
                 df['MES'] = pd.to_numeric(df['MES'], errors='coerce').fillna(0).astype(int).astype(str)
                 df['MES'] = df['MES'].replace('0', 'No especificado')
@@ -310,7 +305,6 @@ col_mapa, col_filtros = st.columns([2.5, 1.5], gap="large")
 with col_filtros:
     st.markdown("#### Parametros de Filtrado")
     
-    # Extraemos opciones SIEMPRE desde la base maestra
     anio_disp = sorted(df_maestro['AÑO'].unique(), reverse=True)
     sel_anio = st.selectbox("AÑO", ["TODOS"] + [int(a) for a in anio_disp])
     
@@ -323,7 +317,6 @@ with col_filtros:
     pais_disp = sorted(df_maestro['PAIS'].unique())
     sel_pais = st.selectbox("PAIS", ["TODOS"] + [str(p) for p in pais_disp])
 
-    # Aplicamos selecciones a la matriz
     df_filtrado = df_maestro.copy()
     
     if sel_anio != "TODOS": 
@@ -336,53 +329,73 @@ with col_filtros:
         df_filtrado = df_filtrado[df_filtrado['PAIS'] == sel_pais]
 
 with col_mapa:
-    st.markdown("#### Visor de Telemetria Orbital (Proyeccion Esferica)")
+    modo_visor = st.radio(
+        "MODO DE PROYECCIÓN TÁCTICA",
+        ["TELEMETRÍA ORBITAL (Nodos Base)", "RED DE TRAYECTORIAS (Puentes)"],
+        horizontal=True
+    )
+    
     if not df_filtrado.empty:
         grafico_placeholder = st.empty() 
-        with st.spinner("Calibrando giroscopios y proyección 3D..."):
+        
+        with st.spinner("Calibrando proyecciones..."):
+            fig = go.Figure()
             
-            # Límite de seguridad para emisión
-            df_mapa = df_filtrado.head(5000)
-            
-            fig = go.Figure(go.Scattergeo(
-                lon=df_mapa['lon'], 
-                lat=df_mapa['lat'], 
-                mode='markers',
-                marker=dict(
-                    size=6, 
-                    color=df_mapa['COLOR_STR'], 
-                    line=dict(width=0.5, color='rgba(255,255,255,0.3)'), 
-                    opacity=0.9
-                ),
-                text=df_mapa['CIUDAD'] + " | Forma: " + df_mapa['FORMA'], 
-                hoverinfo='text'
-            ))
-            
-            # Estética "Cuarto Milenio" para el globo terráqueo
+            if modo_visor == "TELEMETRÍA ORBITAL (Nodos Base)":
+                df_mapa = df_filtrado.head(5000)
+                
+                fig.add_trace(go.Scattergeo(
+                    lon=df_mapa['lon'], lat=df_mapa['lat'], mode='markers',
+                    marker=dict(size=6, color=df_mapa['COLOR_STR'], line=dict(width=0.5, color='rgba(255,255,255,0.3)'), opacity=0.9),
+                    text=df_mapa['CIUDAD'] + " | Forma: " + df_mapa['FORMA'], hoverinfo='text'
+                ))
+                
+                if len(df_filtrado) > 5000:
+                    st.caption(f"Mostrando los 5000 nodos más recientes de {len(df_filtrado)} totales.")
+                    
+            else:
+                if len(df_filtrado) < 2:
+                    st.warning("Se requieren al menos 2 registros tácticos para trazar corredores de vuelo.")
+                else:
+                    df_red = df_filtrado.sort_values(by=['AÑO', 'MES']).head(200)
+                    formas_presentes = df_red['FORMA'].unique()
+                    
+                    for forma in formas_presentes:
+                        df_forma = df_red[df_red['FORMA'] == forma]
+                        if len(df_forma) > 1:
+                            lons = df_forma['lon'].tolist()
+                            lats = df_forma['lat'].tolist()
+                            color_linea = df_forma.iloc[0]['COLOR_STR']
+                            
+                            fig.add_trace(go.Scattergeo(
+                                lon=lons, lat=lats, mode='lines',
+                                line=dict(width=1.5, color=color_linea),
+                                opacity=0.35, hoverinfo='none'
+                            ))
+                    
+                    fig.add_trace(go.Scattergeo(
+                        lon=df_red['lon'], lat=df_red['lat'], mode='markers',
+                        marker=dict(size=6, color=df_red['COLOR_STR'], line=dict(width=0.5, color='rgba(255,255,255,0.8)'), opacity=1.0),
+                        text=df_red['CIUDAD'] + " | " + df_red['AÑO'].astype(str) + " (" + df_red['FORMA'] + ")",
+                        hoverinfo='text'
+                    ))
+                    st.caption(f"Trazando red basada en los 200 eventos cronológicos más relevantes.")
+
             fig.update_layout(
                 geo=dict(
-                    projection_type='orthographic', # El motor esférico 3D
-                    showland=True,
-                    landcolor='#121212',            # Tierra en gris muy oscuro
-                    showocean=True,
-                    oceancolor='#050505',           # Océano negro/abisal
-                    showcountries=True,
-                    countrycolor='#2a2a2a',         # Fronteras tácticas sutiles
-                    countrywidth=0.5,
-                    showlakes=False,
-                    bgcolor='#0a0a0a',              # Color del espacio
-                    resolution=50                   # Alta resolución de continentes
+                    projection_type='orthographic',
+                    showland=True, landcolor='#121212',
+                    showocean=True, oceancolor='#050505',
+                    showcountries=True, countrycolor='#2a2a2a', countrywidth=0.5,
+                    showlakes=False, bgcolor='#0a0a0a', resolution=50
                 ),
                 margin=dict(l=0, r=0, t=0, b=0),
                 paper_bgcolor='#0a0a0a', 
-                height=500,
+                height=450,
                 showlegend=False
             )
             
             grafico_placeholder.plotly_chart(fig, width='stretch')
-            
-        if len(df_filtrado) > 5000:
-            st.caption(f"Mostrando los 5000 nodos tácticos más recientes de {len(df_filtrado)} totales.")
 
 # --- INDICADORES RAPIDOS TACTICOS ---
 m1, m2, m3 = st.columns(3)
@@ -392,85 +405,6 @@ m3.metric("Zonas de Interes (Nodos)", f"{len(df_filtrado['CIUDAD'].unique()) if 
 st.markdown("---")
 
 # --- MODULOS OPERATIVOS (DESPLEGABLES) ---
-
-with st.expander("NODOS Y CONEXIONES (PUENTES)", expanded=False):
-    st.markdown("#### Analisis de Red y Corredores Anomalos")
-    
-    if len(df_filtrado) < 2:
-        st.info("Estado de red inactivo: Se requieren al menos 2 registros tácticos en el filtrado actual para establecer correlaciones y puentes.")
-    else:
-        with st.spinner("Calculando vectores de trayectoria y correlaciones topológicas..."):
-            
-            # Para evitar saturar el motor gráfico y mantener la legibilidad, 
-            # analizamos los 200 nodos más relevantes del filtrado.
-            df_red = df_filtrado.sort_values(by=['AÑO', 'MES']).head(200)
-            
-            fig_net = go.Figure()
-            
-            # 1. Trazado de Conexiones (Puentes)
-            formas_presentes = df_red['FORMA'].unique()
-            rutas_trazadas = 0
-            
-            for forma in formas_presentes:
-                df_forma = df_red[df_red['FORMA'] == forma]
-                if len(df_forma) > 1:
-                    rutas_trazadas += 1
-                    lons = df_forma['lon'].tolist()
-                    lats = df_forma['lat'].tolist()
-                    color_linea = df_forma.iloc[0]['COLOR_STR']
-                    
-                    # Dibujamos el corredor uniendo los puntos cronológicamente
-                    fig_net.add_trace(go.Scattergeo(
-                        lon=lons,
-                        lat=lats,
-                        mode='lines',
-                        line=dict(width=1.5, color=color_linea),
-                        opacity=0.35, # Transparencia táctica para no cegar el mapa
-                        hoverinfo='none'
-                    ))
-            
-            # 2. Renderizado de Nodos Base (Por encima de las líneas)
-            fig_net.add_trace(go.Scattergeo(
-                lon=df_red['lon'], lat=df_red['lat'],
-                mode='markers',
-                marker=dict(
-                    size=6, 
-                    color=df_red['COLOR_STR'], 
-                    line=dict(width=0.5, color='rgba(255,255,255,0.8)'), 
-                    opacity=1.0
-                ),
-                text=df_red['CIUDAD'] + " | " + df_red['AÑO'].astype(str) + " (" + df_red['FORMA'] + ")",
-                hoverinfo='text'
-            ))
-            
-            # 3. Texturizado del Globo (Estética Sala de Operaciones)
-            fig_net.update_layout(
-                geo=dict(
-                    projection_type='orthographic',
-                    showland=True, landcolor='#121212',
-                    showocean=True, oceancolor='#050505',
-                    showcountries=True, countrycolor='#2a2a2a', countrywidth=0.5,
-                    bgcolor='#0a0a0a',
-                    resolution=50
-                ),
-                margin=dict(l=0, r=0, t=0, b=0),
-                paper_bgcolor='#0a0a0a',
-                height=500,
-                showlegend=False
-            )
-            
-            # Renderizado a ancho completo
-            st.plotly_chart(fig_net, width='stretch')
-            
-            # Panel de Telemetría Inferior
-            st.markdown("---")
-            c1, c2, c3 = st.columns(3)
-            c1.metric("Nodos Enlazados temporalmente", len(df_red))
-            c2.metric("Corredores Morfológicos Detectados", rutas_trazadas)
-            
-            # Cálculo de dispersión (Correlación básica)
-            nivel_correlacion = min(100, max(0, int((rutas_trazadas / len(formas_presentes)) * 100) + np.random.randint(5, 15))) if len(formas_presentes) > 0 else 0
-            c3.metric("Índice de Correlación de Vuelo", f"{nivel_correlacion}%")
 
 with st.expander(f"REGISTROS FORENSES ({len(df_filtrado)} Activos)", expanded=True):
     if not df_filtrado.empty:
@@ -507,7 +441,6 @@ with st.expander("PROCESADOR NLP FORENSE", expanded=False):
         df_nlp = df_filtrado.copy()
         df_nlp['TAG'] = df_nlp['CIUDAD'] + " | " + df_nlp['FORMA'] + " | " + df_nlp['AÑO'].astype(str)
         
-        # Límite de opciones para el selectbox de NLP para no sobrecargar el navegador
         opciones_tag = df_nlp['TAG'].unique()
         if len(opciones_tag) > 500:
             st.caption("Mostrando los 500 expedientes más recientes para análisis NLP.")
