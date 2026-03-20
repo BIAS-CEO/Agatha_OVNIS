@@ -233,8 +233,10 @@ with st.status("Inicializando Motor de Analisis Conductual Predictivo...", expan
     @st.cache_data(show_spinner=False)
     def cargar_nodos():
         mensajes = []
-        nombres = ["agatha_ufo_master.csv", "agatha_ufo_nodes_full.csv", "agatha_ufo_nodes.csv"]
+        # CAMBIO 1: Prioridad absoluta al archivo FULL
+        nombres = ["agatha_ufo_nodes_full.csv", "agatha_ufo_master.csv", "agatha_ufo_nodes.csv"]
         ruta = encontrar_archivo(nombres)
+        
         if ruta:
             mensajes.append(f"Matriz detectada: {ruta}")
             try:
@@ -246,19 +248,27 @@ with st.status("Inicializando Motor de Analisis Conductual Predictivo...", expan
                     'RESUMEN': 'RESUMEN', 'Summary': 'RESUMEN'
                 }
                 df.rename(columns=col_map, inplace=True)
+                
                 for c in ['CIUDAD', 'ESTADO', 'PAIS', 'FORMA', 'RESUMEN']:
                     if c not in df.columns: df[c] = "No especificado"
                     else: df[c] = df[c].fillna("No especificado").astype(str)
+                
+                # PROTOCOLO DE PURGA DE DATOS CLASIFICADOS (Censura de Marruecos)
+                df = df[~df['PAIS'].str.contains('Marruecos|Morocco', case=False, na=False)]
+                
                 if 'AÑO' not in df.columns: df['AÑO'] = 2026
                 df['AÑO'] = pd.to_numeric(df['AÑO'], errors='coerce').fillna(2026).astype(int)
                 df['DECADA'] = (df['AÑO'] // 10) * 10
                 df['FORMA'] = df['FORMA'].str.title()
+                
                 df = simular_coordenadas(df)
                 df['COLOR_STR'] = df['FORMA'].apply(lambda f: f'rgba({asignar_color_neon(f)[0]},{asignar_color_neon(f)[1]},{asignar_color_neon(f)[2]},0.8)')
+                
                 mensajes.append(f"Registros operativos: {len(df)}")
                 return df, mensajes
             except Exception as e:
                 return pd.DataFrame(), [f"Error de proceso: {str(e)}"]
+                
         return pd.DataFrame(), ["Error: No se localizaron archivos fuente."]
 
     status_boot.write("Extrayendo matrices de datos locales...")
