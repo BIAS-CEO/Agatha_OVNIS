@@ -2,7 +2,7 @@
 # ARCHIVO PRINCIPAL: app.py (Módulo Agatha Fani)
 # SISTEMA: Motor de Analisis Conductual Predictivo
 # MODULO: AGATHA FANI (Fenomenos Anomalos No Identificados)
-# VERSION: Opcon Ready v5.7 (UI Fullscreen sin barra lateral)
+# VERSION: Opcon Ready v5.7.1 (Corrección de KeyError AÑO)
 # OPERADOR: DIR-74
 # ====================================================================
 
@@ -207,17 +207,18 @@ with st.status("Inicializando Motor de Analisis Conductual Predictivo...", expan
             "COLOMBIA": (4.57, -74.29)
         }
         
-        est = df['ESTADO'].astype(str).str.upper().str.strip()
-        pai = df['PAIS'].astype(str).str.upper().str.strip()
+        # Saneamiento previo
+        df['ESTADO'] = df.get('ESTADO', pd.Series(["No especificado"]*len(df))).astype(str).str.upper().str.strip()
+        df['PAIS'] = df.get('PAIS', pd.Series(["No especificado"]*len(df))).astype(str).str.upper().str.strip()
         
-        coord_est = est.map(centroides)
-        coord_pai = pai.map(centroides)
+        coord_est = df['ESTADO'].map(centroides)
+        coord_pai = df['PAIS'].map(centroides)
         
         coords_finales = coord_est.combine_first(coord_pai)
         coords_defecto = pd.Series([(0.0, 0.0)] * len(df), index=df.index)
         coords_finales = coords_finales.combine_first(coords_defecto)
         
-        df['hash_val'] = df['CIUDAD'].astype(str).apply(lambda x: sum(ord(c) for c in x))
+        df['hash_val'] = df.get('CIUDAD', pd.Series([""]*len(df))).astype(str).apply(lambda x: sum(ord(c) for c in x))
         
         df['lat_offset'] = ((df['hash_val'] % 100) - 50) / 100.0 * 1.5
         df['lon_offset'] = (((df['hash_val'] // 10) % 100) - 50) / 100.0 * 1.5
@@ -225,8 +226,7 @@ with st.status("Inicializando Motor de Analisis Conductual Predictivo...", expan
         df['lat'] = coords_finales.apply(lambda x: x[0]) + df['lat_offset']
         df['lon'] = coords_finales.apply(lambda x: x[1]) + df['lon_offset']
         
-        df = df.drop(columns=['hash_val', 'lat_offset', 'lon_offset'])
-        
+        df = df.drop(columns=['hash_val', 'lat_offset', 'lon_offset'], errors='ignore')
         return df
         
     @st.cache_data(show_spinner=False)
@@ -235,7 +235,6 @@ with st.status("Inicializando Motor de Analisis Conductual Predictivo...", expan
         nombres = ["agatha_ufo_nodes_full.csv", "agatha_ufo_master.csv", "agatha_ufo_nodes.csv"]
         ruta = encontrar_archivo(nombres)
         
-        # Generación de datos MOCK si no hay archivo (para previsualización)
         if not ruta:
             mensajes.append("Aviso: No se detectaron archivos fuente. Generando matriz simulada.")
             formas_sim = ["Diamante", "Cubo", "Desconocido", "Otros", "Cruz", "Cilindro", "Circulo", 
@@ -258,26 +257,35 @@ with st.status("Inicializando Motor de Analisis Conductual Predictivo...", expan
             df = pd.DataFrame(data)
         else:
             mensajes.append(f"Matriz detectada: {ruta}")
-            df = pd.read_csv(ruta, encoding='utf-8', on_bad_lines='skip')
-            df.columns = df.columns.str.upper().str.strip()
-            
-            col_map = {
-                'YEAR': 'AÑO', 'DÍA': 'DIA', 'DAY': 'DIA', 'MONTH': 'MES',
-                'CITY': 'CIUDAD', 'STATE': 'ESTADO', 'PAÍS': 'PAIS', 
-                'COUNTRY': 'PAIS', 'SHAPE': 'FORMA', 'SUMMARY': 'RESUMEN',
-                'TIME': 'HORA'
-            }
-            df.rename(columns=col_map, inplace=True)
-        
+            try:
+                df = pd.read_csv(ruta, encoding='utf-8', on_bad_lines='skip')
+                df.columns = df.columns.str.upper().str.strip()
+                
+                col_map = {
+                    'YEAR': 'AÑO', 'DÍA': 'DIA', 'DAY': 'DIA', 'MONTH': 'MES',
+                    'CITY': 'CIUDAD', 'STATE': 'ESTADO', 'PAÍS': 'PAIS', 
+                    'COUNTRY': 'PAIS', 'SHAPE': 'FORMA', 'SUMMARY': 'RESUMEN',
+                    'TIME': 'HORA'
+                }
+                df.rename(columns=col_map, inplace=True)
+            except Exception as e:
+                mensajes.append(f"Error crítico de lectura: {str(e)}")
+                return pd.DataFrame(), mensajes
+
+        # ASEGURAR COLUMNAS CRÍTICAS
         for c in ['CIUDAD', 'ESTADO', 'PAIS', 'FORMA', 'RESUMEN']:
             if c not in df.columns: df[c] = "No especificado"
             else: df[c] = df[c].fillna("No especificado").astype(str)
         
         # PROTOCOLO DE PURGA
-        df = df[~df['PAIS'].str.contains('MARRUECOS|MOROCCO', case=False, na=False)].copy()
+        if 'PAIS' in df.columns:
+            df = df[~df['PAIS'].str.contains('MARRUECOS|MOROCCO', case=False, na=False)].copy()
         
-        if 'AÑO' not in df.columns: df['AÑO'] = 2026
-        df['AÑO'] = pd.to_numeric(df['AÑO'], errors='coerce').fillna(2026).astype(int)
+        # VALIDACIÓN DE AÑO (Origen del KeyError)
+        if 'AÑO' not in df.columns: 
+            df['AÑO'] = 2026
+        else:
+            df['AÑO'] = pd.to_numeric(df['AÑO'], errors='coerce').fillna(2026).astype(int)
         
         for t in ['MES', 'DIA']:
             if t not in df.columns: df[t] = "No especificado"
@@ -325,33 +333,38 @@ col_mapa, col_filtros = st.columns([2.5, 1.5], gap="large")
 with col_filtros:
     st.markdown("#### Parametros de Filtrado")
     
-    c_f1, c_f2 = st.columns(2)
-    anio_disp = sorted(df_maestro['AÑO'].unique(), reverse=True)
-    sel_anio = c_f1.selectbox("AÑO", ["TODOS"] + [int(a) for a in anio_disp])
-    
-    mes_disp = sorted([m for m in df_maestro['MES'].unique() if m != 'No especificado'], key=lambda x: int(x))
-    sel_mes = c_f2.selectbox("MES", ["TODOS"] + [str(m) for m in mes_disp])
-    
-    c_f3, c_f4 = st.columns(2)
-    dia_disp = sorted([d for d in df_maestro['DIA'].unique() if d != 'No especificado'], key=lambda x: int(x))
-    sel_dia = c_f3.selectbox("DÍA", ["TODOS"] + [str(d) for d in dia_disp])
-    
-    hora_disp = sorted([h for h in df_maestro['HORA'].unique() if h != 'No especificada'])
-    sel_hora = c_f4.selectbox("HORA", ["TODAS"] + [str(h) for h in hora_disp])
+    # PROTECCIÓN CONTRA DATAFRAME VACÍO O SIN COLUMNAS
+    if not df_maestro.empty and 'AÑO' in df_maestro.columns:
+        c_f1, c_f2 = st.columns(2)
+        anio_disp = sorted(df_maestro['AÑO'].unique(), reverse=True)
+        sel_anio = c_f1.selectbox("AÑO", ["TODOS"] + [int(a) for a in anio_disp])
+        
+        mes_disp = sorted([m for m in df_maestro['MES'].unique() if m != 'No especificado'], key=lambda x: int(x))
+        sel_mes = c_f2.selectbox("MES", ["TODOS"] + [str(m) for m in mes_disp])
+        
+        c_f3, c_f4 = st.columns(2)
+        dia_disp = sorted([d for d in df_maestro['DIA'].unique() if d != 'No especificado'], key=lambda x: int(x))
+        sel_dia = c_f3.selectbox("DÍA", ["TODOS"] + [str(d) for d in dia_disp])
+        
+        hora_disp = sorted([h for h in df_maestro['HORA'].unique() if h != 'No especificada'])
+        sel_hora = c_f4.selectbox("HORA", ["TODAS"] + [str(h) for h in hora_disp])
 
-    forma_disp = sorted(df_maestro['FORMA'].unique())
-    sel_forma = st.selectbox("TIPO DE OBJETO", ["TODOS"] + [str(f) for f in forma_disp])
-    
-    pais_disp = sorted(df_maestro['PAIS'].unique())
-    sel_pais = st.selectbox("PAÍS", ["TODOS"] + [str(p) for p in pais_disp])
+        forma_disp = sorted(df_maestro['FORMA'].unique())
+        sel_forma = st.selectbox("TIPO DE OBJETO", ["TODOS"] + [str(f) for f in forma_disp])
+        
+        pais_disp = sorted(df_maestro['PAIS'].unique())
+        sel_pais = st.selectbox("PAÍS", ["TODOS"] + [str(p) for p in pais_disp])
 
-    df_filtrado = df_maestro.copy()
-    if sel_anio != "TODOS": df_filtrado = df_filtrado[df_filtrado['AÑO'] == sel_anio]
-    if sel_mes != "TODOS": df_filtrado = df_filtrado[df_filtrado['MES'] == sel_mes]
-    if sel_dia != "TODOS": df_filtrado = df_filtrado[df_filtrado['DIA'] == sel_dia]
-    if sel_hora != "TODAS": df_filtrado = df_filtrado[df_filtrado['HORA'] == sel_hora]
-    if sel_forma != "TODOS": df_filtrado = df_filtrado[df_filtrado['FORMA'] == sel_forma]
-    if sel_pais != "TODOS": df_filtrado = df_filtrado[df_filtrado['PAIS'] == sel_pais]
+        df_filtrado = df_maestro.copy()
+        if sel_anio != "TODOS": df_filtrado = df_filtrado[df_filtrado['AÑO'] == sel_anio]
+        if sel_mes != "TODOS": df_filtrado = df_filtrado[df_filtrado['MES'] == sel_mes]
+        if sel_dia != "TODOS": df_filtrado = df_filtrado[df_filtrado['DIA'] == sel_dia]
+        if sel_hora != "TODAS": df_filtrado = df_filtrado[df_filtrado['HORA'] == sel_hora]
+        if sel_forma != "TODOS": df_filtrado = df_filtrado[df_filtrado['FORMA'] == sel_forma]
+        if sel_pais != "TODOS": df_filtrado = df_filtrado[df_filtrado['PAIS'] == sel_pais]
+    else:
+        st.error("Matriz de datos no compatible. Verifique archivos fuente.")
+        df_filtrado = pd.DataFrame()
 
 with col_mapa:
     c_m1, c_m2 = st.columns(2)
@@ -398,7 +411,7 @@ m3.metric("Zonas de Interes (Nodos)", f"{len(df_filtrado['CIUDAD'].unique()) if 
 with st.expander(f"REGISTROS FORENSES ({len(df_filtrado)} Activos)", expanded=True):
     if not df_filtrado.empty:
         df_mostrar = df_filtrado.sort_values(by=['AÑO','MES','DIA','HORA'], ascending=False).head(100)
-        st.dataframe(df_mostrar.drop(columns=['COLOR_STR', 'lat', 'lon'], errors='ignore'), use_container_width=True, hide_index=True)
+        st.dataframe(df_mostrar.drop(columns=['COLOR_STR', 'lat', 'lon', 'hash_val'], errors='ignore'), use_container_width=True, hide_index=True)
 
 # --- PROCESADOR NLP FORENSE ---
 with st.expander("PROCESADOR NLP FORENSE", expanded=False):
