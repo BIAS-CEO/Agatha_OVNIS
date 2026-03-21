@@ -3,7 +3,7 @@
 # SISTEMA: Motor de Analisis Conductual Predictivo
 # MODULO: AGATHA (Intelligent Neural Network)
 # SUB-MODULO: MÓDULO CONTACT (Fenómeno Anómalo No Identificado)
-# VERSION: Opcon Ready v6.1.1 (Paso 2: Reubicación y Optimización del Catálogo)
+# VERSION: Opcon Ready v6.1.2 (Paso 3: Integración NLP - Identidad AGATHA)
 # OPERADOR: DIR-74 | NIVEL 4 - INTELIGENCIA ESTRATEGICA
 # ====================================================================
 
@@ -218,7 +218,7 @@ def cargar_nodos():
 # --- SECUENCIA DE ARRANQUE ---
 with st.status("Inicializando Motor de Inteligencia AGATHA...", expanded=True) as status_boot:
     df_maestro, diagn_mensajes = cargar_nodos()
-    status_boot.update(label="Sistemas AGATHA v6.1.1 Online. MÓDULO CONTACT Activo.", state="complete", expanded=False)
+    status_boot.update(label="Sistemas AGATHA v6.1.2 Online. MÓDULO CONTACT Activo.", state="complete", expanded=False)
 
 # --- CABECERA PRINCIPAL (DISEÑO IKER JIMENEZ) ---
 col_titulo, col_boton = st.columns([3.5, 1.5], gap="medium")
@@ -250,7 +250,6 @@ with st.expander("CATÁLOGO UAP IDENTIFICACIÓN VISUAL DE OBJETOS", expanded=Fal
         os.makedirs("assets")
     ruta_cat = os.path.join("assets", "catalogo_morfologico_completo.png")
     if os.path.exists(ruta_cat):
-        # use_container_width=True asegura que ocupe el 100% del ancho del contenedor
         st.image(ruta_cat, use_container_width=True, caption="Manual Táctico de Identificación UAP")
     else:
         st.info("Activo visual 'catalogo_morfologico_completo.png' no detectado en el directorio /assets.")
@@ -298,9 +297,50 @@ with col_mapa:
             )
             grafico.plotly_chart(fig, width='stretch')
 
-# --- MODULOS OPERATIVOS ---
-with st.expander("PROCESADOR FORENSE - INTELIGENCIA AGATHA", expanded=False):
-    st.write("Fase de análisis conductual inactiva en v6.1.1")
+# --- PROCESADO FORENSE: INTELIGENCIA AGATHA ---
+st.markdown("---")
+with st.expander("PROCESADO FORENSE - INTELIGENCIA AGATHA", expanded=False):
+    if not df_filtrado.empty:
+        df_nlp = df_filtrado.copy()
+        df_nlp['TAG'] = df_nlp['CIUDAD'] + " | " + df_nlp['FORMA'] + " | " + df_nlp['AÑO'].astype(str)
+        caso_sel = st.selectbox("Seleccionar Expediente Forense UAP", df_nlp['TAG'].unique()[:500], key="select_nlp")
+        
+        if caso_sel:
+            resumen_txt = str(df_nlp[df_nlp['TAG'] == caso_sel].iloc[0]['RESUMEN'])
+            st.markdown(f"<div style='background:#1a1a1a; padding:15px; border-left:4px solid #00d4ff; color:#e2e8f0; font-size:0.9rem;'>{resumen_txt}</div><br>", unsafe_allow_html=True)
+            
+            if st.button("EJECUTAR ANÁLISIS DE INTELIGENCIA AGATHA", type="primary"):
+                if DEEPSEEK_API_KEY:
+                    with st.spinner("Inteligencia AGATHA procesando resumen conductual..."):
+                        try:
+                            headers = {
+                                "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
+                                "Content-Type": "application/json"
+                            }
+                            payload = {
+                                "model": "deepseek-chat",
+                                "messages": [
+                                    {"role": "system", "content": "Analiza el reporte UAP y responde estrictamente con un JSON: {comportamiento, credibilidad, indice_anomalia, hipotesis}"},
+                                    {"role": "user", "content": resumen_txt}
+                                ],
+                                "response_format": {"type": "json_object"}
+                            }
+                            response = requests.post("https://api.deepseek.com/v1/chat/completions", headers=headers, json=payload, timeout=25)
+                            
+                            # Procesamiento de respuesta
+                            res_json = response.json()
+                            raw_content = res_json["choices"][0]["message"]["content"]
+                            
+                            # Limpieza de tags markdown
+                            clean_json = raw_content.replace("```json", "").replace("```", "").strip()
+                            
+                            st.markdown("#### REPORTE ANALÍTICO AGATHA")
+                            st.json(json.loads(clean_json))
+                            
+                        except Exception as e:
+                            st.error(f"Error de comunicación con el nodo central de AGATHA.")
+                else:
+                    st.warning("Error: El motor de inteligencia de AGATHA no tiene acceso a las claves de procesamiento.")
 
 # Pie de página técnico
-st.markdown("<div style='font-family:Share Tech Mono; color:#334155; font-size:0.7rem; text-align:right;'>AGATHA OS v6.1.1 | OP: DIR-74 | ENCRYPTION: AES-256</div>", unsafe_allow_html=True)
+st.markdown("<div style='font-family:Share Tech Mono; color:#334155; font-size:0.7rem; text-align:right;'>AGATHA OS v6.1.2 | OP: DIR-74 | ENCRYPTION: AES-256</div>", unsafe_allow_html=True)
