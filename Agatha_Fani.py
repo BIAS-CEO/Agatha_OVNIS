@@ -3,7 +3,7 @@
 # SISTEMA: Motor de Analisis Conductual Predictivo
 # MODULO: AGATHA (Intelligent Neural Network)
 # SUB-MODULO: MÓDULO CONTACT (Fenómeno Anómalo No Identificado)
-# VERSION: Opcon Ready v6.1.3 (Lógica NUFORC "Explicación" en NLP)
+# VERSION: Opcon Ready v6.1.4 (Integración: Notifica tu Avistamiento)
 # OPERADOR: DIR-74 | NIVEL 4 - INTELIGENCIA ESTRATEGICA
 # ====================================================================
 
@@ -140,6 +140,16 @@ CSS_MATE = """
 [data-testid="stExpander"] img {
     width: 100% !important;
 }
+
+/* Estilo para el formulario de reporte */
+.report-form-container {
+    background-color: #0f172a;
+    border: 1px solid #1e293b;
+    border-left: 5px solid #f59e0b;
+    padding: 20px;
+    margin-top: 20px;
+    margin-bottom: 20px;
+}
 </style>
 """
 st.markdown(CSS_MATE, unsafe_allow_html=True)
@@ -218,7 +228,7 @@ def cargar_nodos():
 # --- SECUENCIA DE ARRANQUE ---
 with st.status("Inicializando Motor de Inteligencia AGATHA...", expanded=True) as status_boot:
     df_maestro, diagn_mensajes = cargar_nodos()
-    status_boot.update(label="Sistemas AGATHA v6.1.3 Online. MÓDULO CONTACT Activo.", state="complete", expanded=False)
+    status_boot.update(label="Sistemas AGATHA v6.1.4 Online. MÓDULO CONTACT Activo.", state="complete", expanded=False)
 
 # --- CABECERA PRINCIPAL (DISEÑO IKER JIMENEZ) ---
 col_titulo, col_boton = st.columns([3.5, 1.5], gap="medium")
@@ -233,6 +243,48 @@ with col_boton:
         st.rerun()
 
 st.markdown("<div class='contact-quote'>\"El Universo es enorme. Y si solo estamos nosotros, cuánto espacio desaprovechado\" - Contact.</div>", unsafe_allow_html=True)
+
+# --- MÓDULO: NOTIFICA TU AVISTAMIENTO UAP (LA JOYA DE LA CORONA) ---
+st.markdown("---")
+with st.expander("NOTIFICA TU AVISTAMIENTO UAP - REPORTE TÁCTICO CIUDADANO", expanded=False):
+    st.markdown("""
+        <div style='background: rgba(245, 158, 11, 0.1); border-left: 5px solid #f59e0b; padding: 15px; margin-bottom: 20px;'>
+            <h4 style='color: #f59e0b; margin-top: 0;'>AVISO DE INTELIGENCIA</h4>
+            <p style='color: #cbd5e1; font-size: 0.9rem; margin-bottom: 0;'>
+                Este módulo permite el registro directo de fenómenos anómalos. La información proporcionada será analizada 
+                forensemente por la red neuronal AGATHA para su integración en el modelo conductual global.
+            </p>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    with st.form("uap_report_form", clear_on_submit=True):
+        c1, c2 = st.columns(2)
+        with c1:
+            rep_fecha = st.date_input("FECHA DEL AVISTAMIENTO", value=datetime.now())
+            rep_hora = st.time_input("HORA APROXIMADA", value=datetime.now().time())
+            rep_pais = st.selectbox("PAÍS", ["España", "México", "Portugal", "USA", "Reino Unido", "Canadá", "Otro"])
+        
+        with c2:
+            rep_ciudad = st.text_input("CIUDAD / MUNICIPIO / ZONA ESPECÍFICA")
+            rep_tipo = st.selectbox("TIPO DE OBJETO OBSERVADO", [
+                "Esfera", "Triángulo", "Disco", "Cigarro", "Cilindro", 
+                "Luz", "Flash", "Formación", "Cambiante", "Óvalo", "Otro"
+            ])
+            rep_duracion = st.text_input("DURACIÓN ESTIMADA (Ej: 30 segundos, 5 minutos)")
+            
+        rep_comentarios = st.text_area("DETALLES CONDUCTUALES Y DESCRIPCIÓN DEL FENÓMENO", 
+                                      placeholder="Describa movimientos, colores, efectos sonoros o alteraciones del entorno...")
+        
+        c_sub_1, c_sub_2 = st.columns([3, 1])
+        with c_sub_2:
+            submit_report = st.form_submit_button("ENVIAR REPORTE A AGATHA")
+            
+        if submit_report:
+            if rep_ciudad and rep_comentarios:
+                st.success("REGISTRO COMPLETADO: El reporte ha sido enviado al nodo central de AGATHA para su validación forense.")
+                # Aquí se integraría la lógica para guardar el reporte en base de datos en el futuro
+            else:
+                st.error("ERROR DE VALIDACIÓN: Los campos Ciudad y Comentarios son obligatorios para el análisis.")
 
 # --- INDICADORES TÁCTICOS ---
 st.markdown("---")
@@ -317,7 +369,6 @@ with st.expander("PROCESADO FORENSE - INTELIGENCIA AGATHA", expanded=False):
                                 "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
                                 "Content-Type": "application/json"
                             }
-                            # Actualización del prompt con lógica conductual NUFORC (explicaciones convencionales)
                             payload = {
                                 "model": "deepseek-chat",
                                 "messages": [
@@ -330,21 +381,15 @@ with st.expander("PROCESADO FORENSE - INTELIGENCIA AGATHA", expanded=False):
                                 "response_format": {"type": "json_object"}
                             }
                             response = requests.post("https://api.deepseek.com/v1/chat/completions", headers=headers, json=payload, timeout=25)
-                            
-                            # Procesamiento de respuesta
                             res_json = response.json()
                             raw_content = res_json["choices"][0]["message"]["content"]
-                            
-                            # Limpieza de tags markdown
                             clean_json = raw_content.replace("```json", "").replace("```", "").strip()
-                            
                             st.markdown("#### REPORTE ANALÍTICO AGATHA")
                             st.json(json.loads(clean_json))
-                            
                         except Exception as e:
                             st.error(f"Error de comunicación con el nodo central de AGATHA.")
                 else:
                     st.warning("Error: El motor de inteligencia de AGATHA no tiene acceso a las claves de procesamiento.")
 
 # Pie de página técnico
-st.markdown("<div style='font-family:Share Tech Mono; color:#334155; font-size:0.7rem; text-align:right;'>AGATHA OS v6.1.3 | OP: DIR-74 | ENCRYPTION: AES-256 | LÓGICA NUFORC ACTIVA</div>", unsafe_allow_html=True)
+st.markdown("<div style='font-family:Share Tech Mono; color:#334155; font-size:0.7rem; text-align:right;'>AGATHA OS v6.1.4 | OP: DIR-74 | ENCRYPTION: AES-256 | LÓGICA NUFORC ACTIVA</div>", unsafe_allow_html=True)
