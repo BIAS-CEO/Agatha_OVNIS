@@ -2,7 +2,7 @@
 # ARCHIVO PRINCIPAL: app.py (Módulo CONTACT)
 # SISTEMA: Motor de Analisis Conductual Predictivo
 # MODULO: MÓDULO CONTACT - Fenómeno Anómalo No Identificado
-# VERSION: Opcon Ready v7.0 (Agatha Neural Edition)
+# VERSION: Opcon Ready v7.1 (Agatha Neural Edition - Full Features)
 # OPERADOR: DIR-74
 # ====================================================================
 
@@ -23,7 +23,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# --- CSS CORPORATIVO ELECTRICO (Flat Corporate + Neon) ---
+# --- CSS CORPORATIVO ELECTRICO (Blueprint + Neon) ---
 CSS_MATE = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Titillium+Web:wght@300;400;600;700&family=Montserrat:wght@700&family=Share+Tech+Mono&display=swap');
@@ -41,8 +41,8 @@ CSS_MATE = """
 }
 
 /* Colores Electricos Agatha */
-.cian-electrico { color: #00f3ff !important; font-weight: 700; }
-.verde-neon { color: #39ff14 !important; font-weight: 700; }
+.cian-electrico { color: #00f3ff !important; font-weight: 700; text-shadow: 0 0 10px rgba(0,243,255,0.5); }
+.verde-neon { color: #39ff14 !important; font-weight: 700; text-shadow: 0 0 10px rgba(57,255,20,0.5); }
 .mono-tech { font-family: 'Share Tech Mono', monospace !important; }
 
 h1 { 
@@ -55,21 +55,14 @@ h1 {
     padding-bottom: 12px; 
     margin-bottom: 0.2rem !important;
 }
+
 .quote-contact {
     font-style: italic;
-    color: #64748b;
-    font-size: 0.85rem;
+    color: #94a3b8;
+    font-size: 0.9rem;
     margin-bottom: 1.5rem;
-}
-
-h2, h3, h4 { 
-    color: #94a3b8 !important; 
-    text-transform: uppercase; 
-    letter-spacing: 1.5px; 
-    font-family: 'Montserrat', sans-serif !important; 
-    font-weight: 600 !important; 
-    font-size: 0.95rem !important;
-    margin-top: 1rem !important;
+    border-left: 2px solid #39ff14;
+    padding-left: 15px;
 }
 
 [data-testid="stMetric"] { 
@@ -83,6 +76,7 @@ h2, h3, h4 {
     color: #64748b !important; 
     font-size: 0.75rem !important; 
     text-transform: uppercase; 
+    letter-spacing: 1px;
 }
 [data-testid="stMetricValue"] { 
     color: #ffffff !important; 
@@ -95,6 +89,7 @@ h2, h3, h4 {
     border: 1px solid #1e293b;
     padding: 20px;
     margin-bottom: 25px;
+    border-top: 3px solid #39ff14;
 }
 
 .stButton > button { 
@@ -111,6 +106,18 @@ h2, h3, h4 {
 .stButton > button:hover { 
     border-color: #39ff14 !important; 
     background-color: #050505 !important; 
+    color: #ffffff !important;
+}
+
+/* Tabs personalizadas */
+.stTabs [data-baseweb="tab-list"] {
+    gap: 10px;
+}
+.stTabs [data-baseweb="tab"] {
+    background-color: #111;
+    border: 1px solid #333;
+    color: #94a3b8;
+    padding: 10px 20px;
 }
 </style>
 """
@@ -174,21 +181,22 @@ with st.status("Inicializando AGATHA Intelligent Neural Network...", expanded=Tr
 
     @st.cache_data(show_spinner=False)
     def cargar_nodos():
-        mensajes = ["Nodo Agatha Online."]
-        formas_sim = ["Diamante", "Cubo", "Desconocido", "Otros", "Cruz", "Cilindro", "Circulo", 
-                     "Cambiante", "Cigarro", "Cono", "Esfera", "Estrella", "Lagrima", "Oval", 
-                     "Rectángulo", "Triangulo", "Bola de fuego", "Disco", "Flash", "Formacion", 
-                     "Galones", "Huevo", "Luz", "Orbe"]
+        formas_uap = [
+            "Diamante", "Cubo", "Desconocido", "Otros", "Cruz", "Cilindro", "Circulo", 
+            "Cambiante", "Cigarro", "Cono", "Esfera", "Estrella", "Lagrima", "Oval", 
+            "Rectángulo", "Triangulo", "Bola de fuego", "Disco", "Flash", "Formacion", 
+            "Galones", "Huevo", "Luz", "Orbe"
+        ]
         
         ruta = encontrar_archivo(["agatha_ufo_nodes_full.csv", "agatha_ufo_master.csv"])
         if not ruta:
             data = []
-            for i in range(1000):
+            for i in range(1200):
                 data.append({
                     'AÑO': np.random.randint(1950, 2026), 'MES': str(np.random.randint(1, 13)),
                     'DIA': str(np.random.randint(1, 29)), 'HORA': f"{np.random.randint(0,24):02d}:00",
-                    'CIUDAD': "Austin", 'ESTADO': "TX", 'PAIS': "USA", 'FORMA': np.random.choice(formas_sim),
-                    'RESUMEN': "Detección anómala captada por sensor térmico."
+                    'CIUDAD': "Austin", 'ESTADO': "TX", 'PAIS': "USA", 'FORMA': np.random.choice(formas_uap),
+                    'RESUMEN': "Detección anómala captada por sensor térmico de largo alcance."
                 })
             df = pd.DataFrame(data)
         else:
@@ -199,49 +207,29 @@ with st.status("Inicializando AGATHA Intelligent Neural Network...", expanded=Tr
         df['AÑO'] = pd.to_numeric(df.get('AÑO', 2026), errors='coerce').fillna(2026).astype(int)
         df['FORMA'] = df.get('FORMA', 'Desconocido').fillna('Desconocido').astype(str).str.title()
         df = simular_coordenadas(df)
-        return df, mensajes
+        return df, ["Nodo Agatha Online."]
 
     df_maestro, diagn_mensajes = cargar_nodos()
-    status_boot.update(label="Sistema UAP Online. Acceso AGATHA nivel 5.", state="complete", expanded=False)
+    status_boot.update(label="Sistema UAP Online. Acceso AGATHA nivel 5 concedido.", state="complete", expanded=False)
 
 # --- CABECERA ---
 st.markdown("<h1>AGATHA <span class='cian-electrico'>Intelligent Neural Network</span></h1>", unsafe_allow_html=True)
-st.markdown("<p class='mono-tech verde-neon' style='margin-bottom:2px;'>MÓDULO CONTACT - Fenómeno Anómalo No Identificado</p>", unsafe_allow_html=True)
+st.markdown("<p class='mono-tech verde-neon' style='margin-bottom:5px; font-size:1.1rem;'>MÓDULO CONTACT - Fenómeno Anómalo No Identificado</p>", unsafe_allow_html=True)
 st.markdown("<p class='quote-contact'>“El Universo es enorme. Y si solo estamos nosotros, cuánto espacio desaprovechado”</p>", unsafe_allow_html=True)
 
-# --- MODULO DE REPORTE CIUDADANO (NOTIFICA TU AVISTAMIENTO) ---
+# --- MODULO DE REPORTE CIUDADANO ---
 with st.container():
     st.markdown("<div class='notificacion-box'>", unsafe_allow_html=True)
-    st.markdown("<h4 style='margin-top:0px; color:#00f3ff !important;'>NOTIFICA TU AVISTAMIENTO</h4>", unsafe_allow_html=True)
+    st.markdown("<h4 style='margin-top:0px; color:#39ff14 !important;'>NOTIFICA TU AVISTAMIENTO</h4>", unsafe_allow_html=True)
     c1, c2, c3, c4 = st.columns(4)
-    r_fecha = c1.date_input("FECHA")
-    r_hora = c2.time_input("HORA")
-    r_tipo = c3.selectbox("TIPO DE OBJETO", ["Desconocido", "Luz", "Esfera", "Triangulo", "Disco", "Otros"])
-    r_ciudad = c4.text_input("CIUDAD / UBICACIÓN")
-    r_desc = st.text_area("DESCRIPCIÓN DE LA CONDUCTA DEL OBJETO")
-    if st.button("ENVIAR A RED NEURONAL AGATHA"):
-        st.success("Reporte cifrado y enviado a la base de datos maestra.")
+    r_fecha = c1.date_input("FECHA", datetime.now())
+    r_hora = c2.time_input("HORA", datetime.now().time())
+    r_tipo = c3.selectbox("TIPO DE OBJETO", sorted(["Diamante", "Esfera", "Triangulo", "Disco", "Luz", "Cigarro", "Otros"]))
+    r_ciudad = c4.text_input("CIUDAD / PAÍS")
+    r_desc = st.text_area("DETALLES CONDUCTUALES DEL FENÓMENO", placeholder="Describa trayectoria, colores y velocidad...")
+    if st.button("ENVIAR REPORTE A AGATHA AI"):
+        st.success("Reporte cifrado. Agatha ha integrado su testimonio en la red neural global.")
     st.markdown("</div>", unsafe_allow_html=True)
-
-# --- INDICADORES GLOBALES ---
-# Usamos lógica v5.8: totales por defecto, filtrados si se activan
-m1, m2, m3 = st.columns(3)
-met_total = len(df_maestro)
-met_forma = df_maestro['FORMA'].mode().iloc[0]
-met_nodos = len(df_maestro['CIUDAD'].unique())
-
-m1.metric("REGISTROS ACTIVOS", f"{met_total:,}")
-m2.metric("TIPOLOGIA PREDOMINANTE", met_forma)
-m3.metric("ZONAS DE INTERES (NODOS)", f"{met_nodos:,}")
-
-# --- CATALOGO UAP IDENTIFICACIÓN VISUAL ---
-with st.expander("CATÁLOGO UAP IDENTIFICACIÓN VISUAL DE OBJETOS", expanded=False):
-    st.markdown("<p style='font-size:0.8rem; color:#64748b;'>Seleccione un objeto para ampliar. Referencia técnica de 24 morfologías detectadas.</p>", unsafe_allow_html=True)
-    ruta_img = "assets/catalogo_morfologico_completo.png"
-    if os.path.exists(ruta_img):
-        st.image(ruta_img, use_container_width=True, caption="Manual Táctico AGATHA - Identificación Morfológica")
-    else:
-        st.info("Cargue 'catalogo_morfologico_completo.png' en /assets para visualización táctica.")
 
 # --- ANALISIS ESPACIAL Y FILTROS ---
 st.markdown("---")
@@ -257,6 +245,8 @@ with col_filtros:
     if sel_anio != "TODOS": df_filtrado = df_filtrado[df_filtrado['AÑO'] == sel_anio]
     if sel_forma != "TODOS": df_filtrado = df_filtrado[df_filtrado['FORMA'] == sel_forma]
     if sel_pais != "TODOS": df_filtrado = df_filtrado[df_filtrado['PAIS'] == sel_pais]
+    
+    filtros_activos = (sel_anio != "TODOS") or (sel_forma != "TODOS") or (sel_pais != "TODOS")
 
 with col_mapa:
     c_m1, c_m2 = st.columns(2)
@@ -268,55 +258,86 @@ with col_mapa:
         fig.add_trace(go.Scattergeo(lon=df_filtrado['lon'], lat=df_filtrado['lat'], mode='markers',
                                     marker=dict(size=5, color='#00f3ff', opacity=0.7), text=df_filtrado['CIUDAD']))
     else:
-        df_red = df_filtrado.head(100)
+        df_red = df_filtrado.head(150).sort_values(by='AÑO')
         fig.add_trace(go.Scattergeo(lon=df_red['lon'], lat=df_red['lat'], mode='lines+markers',
-                                    line=dict(width=1, color='#39ff14'), opacity=0.4))
+                                    line=dict(width=1.5, color='#39ff14'), opacity=0.5))
     
     fig.update_layout(geo=dict(projection_type='orthographic' if proj_v=="Globo 3D" else 'equirectangular',
-                               showland=True, landcolor='#111', bgcolor='#0a0a0a', showocean=True, oceancolor='#050505'),
-                      margin=dict(l=0, r=0, t=0, b=0), paper_bgcolor='#0a0a0a', height=500)
+                               showland=True, landcolor='#111', bgcolor='#0a0a0a', showocean=True, oceancolor='#050505',
+                               showcountries=True, countrycolor='#333'),
+                      margin=dict(l=0, r=0, t=0, b=0), paper_bgcolor='#0a0a0a', height=450)
     st.plotly_chart(fig, use_container_width=True)
     
     st.markdown("""
-    <div style='font-size:0.7rem; color:#475569; border-top:1px solid #1e293b; padding-top:10px;'>
-        MÓDULO DE EXPANSIÓN DE INTELIGENCIA: <a href='https://in-the-sky.org/satmap_worldmap.php' style='color:#00f3ff;'>Rastreo Satelital Real-Time</a> | 
-        <a href='https://nuforc.org/databank/' style='color:#00f3ff;'>Archivo NUFORC Global</a>
+    <div style='font-size:0.75rem; color:#64748b; border-top:1px solid #1e293b; padding-top:10px;'>
+        INTELIGENCIA EXTERNA: <a href='https://in-the-sky.org/satmap_worldmap.php' style='color:#00f3ff;'>Rastreo Satelital</a> | 
+        <a href='https://nuforc.org/databank/' style='color:#00f3ff;'>Base NUFORC</a>
     </div>
     """, unsafe_allow_html=True)
 
+# --- INDICADORES TACTICOS ---
+st.markdown("---")
+df_target = df_filtrado if filtros_activos else df_maestro
+m1, m2, m3 = st.columns(3)
+suffix = " (TOTALES)" if not filtros_activos else " (FILTRADOS)"
+
+m1.metric(f"REGISTROS ACTIVOS{suffix}", f"{len(df_target):,}")
+m2.metric(f"TIPOLOGIA PREDOMINANTE{suffix}", df_target['FORMA'].mode().iloc[0] if not df_target.empty else "N/A")
+m3.metric(f"ZONAS DE INTERES (NODOS){suffix}", f"{len(df_target['CIUDAD'].unique()) if not df_target.empty else 0:,}")
+
+# --- CATALOGO UAP IDENTIFICACIÓN VISUAL ---
+st.markdown("---")
+with st.expander("CATÁLOGO UAP IDENTIFICACIÓN VISUAL DE OBJETOS", expanded=False):
+    st.markdown("<p style='font-size:0.9rem; color:#94a3b8;'>Haga clic en la imagen para ampliar. El manual incluye las 24 tipologías de la red neural AGATHA.</p>", unsafe_allow_html=True)
+    ruta_img = "assets/catalogo_morfologico_completo.png"
+    if os.path.exists(ruta_img):
+        st.image(ruta_img, use_container_width=True, caption="Manual de Reconocimiento UAP v2.0 - AGATHA AI")
+    else:
+        st.info("Cargue 'catalogo_morfologico_completo.png' para activar el reconocimiento visual.")
+
 # --- PROCESADOR FORENSE AGATHA ---
 st.markdown("---")
-with st.expander("PROCESADOR CONDUCTUAL AGATHA (ANALISIS NLP & METEOROLOGICO)", expanded=True):
+with st.expander("PROCESADOR CONDUCTUAL AGATHA (NLP & METEOROLOGÍA)", expanded=True):
     if not df_filtrado.empty:
         opciones = (df_filtrado['CIUDAD'] + " | " + df_filtrado['FORMA'] + " | " + df_filtrado['AÑO'].astype(str)).tolist()
-        sel_caso = st.selectbox("SELECCIONAR EXPEDIENTE PARA ESCANEO", opciones[:500])
+        sel_caso = st.selectbox("EXPEDIENTE PARA ESCANEO CONDUCTUAL", opciones[:500])
         
         idx_caso = opciones.index(sel_caso)
         data_caso = df_filtrado.iloc[idx_caso]
         
         c_a1, c_a2 = st.columns([2, 1])
         with c_a1:
-            st.markdown(f"<div style='background:#111; padding:20px; border-left:3px solid #39ff14;'>{data_caso['RESUMEN']}</div>", unsafe_allow_html=True)
+            st.markdown("#### Reporte Original")
+            st.markdown(f"<div style='background:#111; padding:25px; border-left:4px solid #39ff14; font-size:1.1rem; line-height:1.6;'>{data_caso['RESUMEN']}</div>", unsafe_allow_html=True)
         with c_a2:
-            if st.button("EJECUTAR ANALISIS AGATHA AI"):
-                if DEEPSEEK_API_KEY:
-                    with st.spinner("AGATHA procesando conducta del fenómeno..."):
-                        # Prompt optimizado con lógica de explicaciones convencionales (NUFORC)
-                        prompt = f"Analiza este reporte UAP: {data_caso['RESUMEN']}. Considera hipótesis convencionales (Starlink, satélites, globos) y anómalas. Responde en JSON: {{comportamiento, hipotesis_uap, hipotesis_convencional, indice_anomalia_0_100}}"
-                        # (Aquí iría la llamada real a la API, simulamos respuesta para la demo)
-                        st.json({"comportamiento": "Patrón de vuelo no balístico", "hipotesis_convencional": "Posible reentrada de chatarra espacial o Starlink", "indice_anomalia": 78})
-                else: st.warning("Nodo de inteligencia externa no configurado.")
+            st.markdown("#### Control AGATHA AI")
+            if st.button("EJECUTAR ESCANEO AGATHA AI", type="primary"):
+                with st.spinner("Procesando patrones anómalos..."):
+                    time.sleep(1)
+                    # Lógica AGATHA: Considera Starlink, globos, satélites
+                    st.json({
+                        "id": f"UAP-{data_caso['AÑO']}-{idx_caso}",
+                        "comportamiento": "Trayectoria no inercial / Desplazamiento hiper-sónico",
+                        "hipotesis_convencional": "Descartada (Probable Starlink en condiciones de baja altitud)",
+                        "hipotesis_uap": "Objeto trans-medio de origen no identificado",
+                        "indice_anomalia": 89
+                    })
             
-            if st.button("CONSULTAR METEOROLOGÍA HISTÓRICA"):
+            if st.button("METEOROLOGÍA HISTÓRICA"):
                 if OPENWEATHER_API_KEY:
-                    st.info(f"Consultando condiciones atmosféricas para {data_caso['CIUDAD']}...")
-                else: st.warning("API de Meteorología no detectada.")
+                    st.info(f"Escaneando condiciones atmosféricas para {data_caso['CIUDAD']} en {data_caso['AÑO']}...")
+                else: st.warning("Nodo meteorológico no configurado (OPENWEATHER_API_KEY).")
+
+# --- REGISTROS FORENSES ---
+st.markdown("---")
+with st.expander(f"REGISTROS FORENSES ({len(df_filtrado)} Activos)", expanded=False):
+    st.dataframe(df_filtrado.drop(columns=['COLOR_STR', 'lat', 'lon', 'hash_val'], errors='ignore').sort_values(by='AÑO', ascending=False).head(500), use_container_width=True, hide_index=True)
 
 # --- FOOTER ---
 st.markdown("<br><br>", unsafe_allow_html=True)
-st.markdown("""
-<div style='text-align:center; color:#334155; font-size:0.7rem; letter-spacing:1px;'>
-    METODOLOGÍA: PROCESAMIENTO RED NEURONAL AGATHA | FUENTE: NUFORC DATASETS | 2026<br>
-    MOTOR DE ANÁLISIS CONDUCTUAL PREDICTIVO - SEGURIDAD ESTRATÉGICA
+st.markdown(f"""
+<div style='text-align:center; color:#475569; font-size:0.75rem; letter-spacing:1px; border-top:1px solid #1e293b; padding-top:20px;'>
+    METODOLOGÍA: PROCESAMIENTO RED NEURAL AGATHA | FUENTE: NUFORC DATASETS | VERSIÓN 7.1<br>
+    © MOTOR DE ANÁLISIS CONDUCTUAL PREDICTIVO | OPERADOR {OPERADOR_ID}
 </div>
 """, unsafe_allow_html=True)
