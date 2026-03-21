@@ -100,7 +100,7 @@ CSS_MATE = """
     background-color: #1a1a1a !important; 
     border: 1px solid #333333 !important; 
     border-left: 3px solid #00d4ff !important; 
-    padding: 15px !important; 
+    padding: 12px !important; 
     border-radius: 2px !important; 
 }
 [data-testid="stMetricLabel"] { 
