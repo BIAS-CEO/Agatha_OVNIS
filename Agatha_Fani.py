@@ -3,7 +3,7 @@
 # SISTEMA: Motor de Analisis Conductual Predictivo
 # MODULO: AGATHA (Intelligent Neural Network)
 # SUB-MODULO: MÓDULO CONTACT (Fenómeno Anómalo No Identificado)
-# VERSION: Opcon Ready v6.1.0 (Paso 1: Identidad Visual y Cabecera)
+# VERSION: Opcon Ready v6.1.1 (Paso 2: Reubicación y Optimización del Catálogo)
 # OPERADOR: DIR-74 | NIVEL 4 - INTELIGENCIA ESTRATEGICA
 # ====================================================================
 
@@ -100,7 +100,7 @@ CSS_MATE = """
     background-color: #1a1a1a !important; 
     border: 1px solid #333333 !important; 
     border-left: 3px solid #00d4ff !important; 
-    padding: 12px !important; 
+    padding: 15px !important; 
     border-radius: 2px !important; 
 }
 [data-testid="stMetricLabel"] { 
@@ -134,6 +134,11 @@ CSS_MATE = """
     color: #ffffff !important; 
     background-color: #0f172a !important; 
     box-shadow: 0 0 20px rgba(0, 212, 255, 0.2);
+}
+
+/* Ajuste para que la imagen del catálogo no tenga márgenes internos y permita zoom */
+[data-testid="stExpander"] img {
+    width: 100% !important;
 }
 </style>
 """
@@ -213,7 +218,7 @@ def cargar_nodos():
 # --- SECUENCIA DE ARRANQUE ---
 with st.status("Inicializando Motor de Inteligencia AGATHA...", expanded=True) as status_boot:
     df_maestro, diagn_mensajes = cargar_nodos()
-    status_boot.update(label="Sistemas AGATHA v6.1.0 Online. MÓDULO CONTACT Activo.", state="complete", expanded=False)
+    status_boot.update(label="Sistemas AGATHA v6.1.1 Online. MÓDULO CONTACT Activo.", state="complete", expanded=False)
 
 # --- CABECERA PRINCIPAL (DISEÑO IKER JIMENEZ) ---
 col_titulo, col_boton = st.columns([3.5, 1.5], gap="medium")
@@ -236,6 +241,19 @@ df_filtrado = df_maestro.copy()
 m1.metric("REGISTROS ACTIVOS", f"{len(df_filtrado):,}")
 m2.metric("TIPOLOGÍA DOMINANTE", df_filtrado['FORMA'].mode().iloc[0] if not df_filtrado.empty else "N/A")
 m3.metric("ZONAS DE INTERÉS", f"{len(df_filtrado['CIUDAD'].unique()) if not df_filtrado.empty else 0:,}")
+
+# --- EL CATÁLOGO UAP: IDENTIFICACIÓN VISUAL (REUBICADO Y OPTIMIZADO) ---
+st.markdown("<br>", unsafe_allow_html=True)
+with st.expander("CATÁLOGO UAP IDENTIFICACIÓN VISUAL DE OBJETOS", expanded=False):
+    st.markdown("<div style='color:#94a3b8; font-size:0.75rem; margin-bottom:10px;'>Archivos clasificados de tipología UAP. Use la imagen para identificación morfológica inmediata. Pinche sobre la imagen para zoom conductual forense.</div>", unsafe_allow_html=True)
+    if not os.path.exists("assets"):
+        os.makedirs("assets")
+    ruta_cat = os.path.join("assets", "catalogo_morfologico_completo.png")
+    if os.path.exists(ruta_cat):
+        # use_container_width=True asegura que ocupe el 100% del ancho del contenedor
+        st.image(ruta_cat, use_container_width=True, caption="Manual Táctico de Identificación UAP")
+    else:
+        st.info("Activo visual 'catalogo_morfologico_completo.png' no detectado en el directorio /assets.")
 
 # --- VISUALIZACION PRINCIPAL: MAPA Y FILTROS ---
 st.markdown("---")
@@ -281,11 +299,8 @@ with col_mapa:
             grafico.plotly_chart(fig, width='stretch')
 
 # --- MODULOS OPERATIVOS ---
-with st.expander("CATÁLOGO UAP IDENTIFICACIÓN VISUAL DE OBJETOS", expanded=False):
-    st.info("Activo visual requerido: assets/catalogo_morfologico_completo.png")
-
 with st.expander("PROCESADOR FORENSE - INTELIGENCIA AGATHA", expanded=False):
-    st.write("Fase de análisis conductual inactiva en v6.1.0")
+    st.write("Fase de análisis conductual inactiva en v6.1.1")
 
 # Pie de página técnico
-st.markdown("<div style='font-family:Share Tech Mono; color:#334155; font-size:0.7rem; text-align:right;'>AGATHA OS v6.1.0 | OP: DIR-74 | ENCRYPTION: AES-256</div>", unsafe_allow_html=True)
+st.markdown("<div style='font-family:Share Tech Mono; color:#334155; font-size:0.7rem; text-align:right;'>AGATHA OS v6.1.1 | OP: DIR-74 | ENCRYPTION: AES-256</div>", unsafe_allow_html=True)
