@@ -3,7 +3,7 @@
 # SISTEMA: Motor de Analisis Conductual Predictivo
 # MODULO: AGATHA (Intelligent Neural Network)
 # SUB-MODULO: MÓDULO CONTACT (Fenómeno Anómalo No Identificado)
-# VERSION: Opcon Ready v6.1.2 (Paso 3: Integración NLP - Identidad AGATHA)
+# VERSION: Opcon Ready v6.1.3 (Lógica NUFORC "Explicación" en NLP)
 # OPERADOR: DIR-74 | NIVEL 4 - INTELIGENCIA ESTRATEGICA
 # ====================================================================
 
@@ -218,7 +218,7 @@ def cargar_nodos():
 # --- SECUENCIA DE ARRANQUE ---
 with st.status("Inicializando Motor de Inteligencia AGATHA...", expanded=True) as status_boot:
     df_maestro, diagn_mensajes = cargar_nodos()
-    status_boot.update(label="Sistemas AGATHA v6.1.2 Online. MÓDULO CONTACT Activo.", state="complete", expanded=False)
+    status_boot.update(label="Sistemas AGATHA v6.1.3 Online. MÓDULO CONTACT Activo.", state="complete", expanded=False)
 
 # --- CABECERA PRINCIPAL (DISEÑO IKER JIMENEZ) ---
 col_titulo, col_boton = st.columns([3.5, 1.5], gap="medium")
@@ -317,10 +317,14 @@ with st.expander("PROCESADO FORENSE - INTELIGENCIA AGATHA", expanded=False):
                                 "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
                                 "Content-Type": "application/json"
                             }
+                            # Actualización del prompt con lógica conductual NUFORC (explicaciones convencionales)
                             payload = {
                                 "model": "deepseek-chat",
                                 "messages": [
-                                    {"role": "system", "content": "Analiza el reporte UAP y responde estrictamente con un JSON: {comportamiento, credibilidad, indice_anomalia, hipotesis}"},
+                                    {
+                                        "role": "system", 
+                                        "content": "Analiza el reporte UAP considerando patrones conductuales de la base de datos NUFORC. Contrasta el testimonio con posibles explicaciones convencionales (satélites, Starlink, globos, fenómenos astronómicos, cohetes o aviones) antes de concluir. Responde estrictamente con un JSON: {comportamiento, credibilidad, indice_anomalia, hipotesis}"
+                                    },
                                     {"role": "user", "content": resumen_txt}
                                 ],
                                 "response_format": {"type": "json_object"}
@@ -343,4 +347,4 @@ with st.expander("PROCESADO FORENSE - INTELIGENCIA AGATHA", expanded=False):
                     st.warning("Error: El motor de inteligencia de AGATHA no tiene acceso a las claves de procesamiento.")
 
 # Pie de página técnico
-st.markdown("<div style='font-family:Share Tech Mono; color:#334155; font-size:0.7rem; text-align:right;'>AGATHA OS v6.1.2 | OP: DIR-74 | ENCRYPTION: AES-256</div>", unsafe_allow_html=True)
+st.markdown("<div style='font-family:Share Tech Mono; color:#334155; font-size:0.7rem; text-align:right;'>AGATHA OS v6.1.3 | OP: DIR-74 | ENCRYPTION: AES-256 | LÓGICA NUFORC ACTIVA</div>", unsafe_allow_html=True)
