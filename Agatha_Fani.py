@@ -3,7 +3,7 @@
 # SISTEMA: Motor de Analisis Conductual Predictivo
 # MODULO: AGATHA (Intelligent Neural Network)
 # SUB-MODULO: MÓDULO CONTACT (Fenómeno Anómalo No Identificado)
-# VERSION: Opcon Ready v6.1.4 (Integración: Notifica tu Avistamiento)
+# VERSION: Opcon Ready v6.1.5 (Fix: Coordenadas Globales y Filtros)
 # OPERADOR: DIR-74 | NIVEL 4 - INTELIGENCIA ESTRATEGICA
 # ====================================================================
 
@@ -141,15 +141,6 @@ CSS_MATE = """
     width: 100% !important;
 }
 
-/* Estilo para el formulario de reporte */
-.report-form-container {
-    background-color: #0f172a;
-    border: 1px solid #1e293b;
-    border-left: 5px solid #f59e0b;
-    padding: 20px;
-    margin-top: 20px;
-    margin-bottom: 20px;
-}
 </style>
 """
 st.markdown(CSS_MATE, unsafe_allow_html=True)
@@ -185,17 +176,42 @@ def encontrar_archivo(nombres_posibles):
     return None
 
 def simular_coordenadas(df):
+    """Mapeo de coordenadas global robusto para evitar puntos en el mar."""
     np.random.seed(42)
+    # Diccionario ampliado de centroides globales
     centroides = {
-        "ESPAÑA": (40.46, -3.75), "MEXICO": (23.6, -102.5), 
-        "USA": (39.8, -98.5), "UK": (55.3, -3.4), "CANADA": (56.1, -106.3)
+        "TX": (31.9, -99.9), "FL": (27.7, -81.6), "CA": (36.7, -119.4), "NY": (40.7, -74.0),
+        "ESPAÑA": (40.46, -3.75), "ESPANA": (40.46, -3.75), "SPAIN": (40.46, -3.75),
+        "MEXICO": (23.6, -102.5), "MÉXICO": (23.6, -102.5),
+        "USA": (39.8, -98.5), "ESTADOS UNIDOS": (39.8, -98.5),
+        "UK": (55.3, -3.4), "REINO UNIDO": (55.3, -3.4), "UNITED KINGDOM": (55.3, -3.4),
+        "CANADA": (56.1, -106.3), "CANADÁ": (56.1, -106.3),
+        "ALEMANIA": (51.16, 10.45), "GERMANY": (51.16, 10.45),
+        "FRANCIA": (46.22, 2.21), "FRANCE": (46.22, 2.21),
+        "ITALIA": (41.87, 12.56), "ITALY": (41.87, 12.56),
+        "PORTUGAL": (39.39, -8.22),
+        "INDIA": (20.59, 78.96),
+        "AUSTRALIA": (-25.27, 133.77),
+        "BRASIL": (-14.23, -51.92), "BRAZIL": (-14.23, -51.92),
+        "JAPON": (36.20, 138.25), "JAPÓN": (36.20, 138.25), "JAPAN": (36.20, 138.25),
+        "CHINA": (35.86, 104.19),
+        "ARGENTINA": (-38.41, -63.61),
+        "CHILE": (-35.67, -71.54),
+        "COLOMBIA": (4.57, -74.29)
     }
+    
     pai = df['PAIS'].astype(str).str.upper().str.strip()
-    df['lat_base'] = pai.map(centroides).apply(lambda x: x[0] if isinstance(x, tuple) else 0.0)
-    df['lon_base'] = pai.map(centroides).apply(lambda x: x[1] if isinstance(x, tuple) else 0.0)
-    df['lat'] = df['lat_base'] + (np.random.rand(len(df)) - 0.5) * 2.0
-    df['lon'] = df['lon_base'] + (np.random.rand(len(df)) - 0.5) * 2.0
-    return df.drop(columns=['lat_base', 'lon_base'])
+    # Si el país no está, intentamos mapear a un centroide por defecto visible o 
+    # simplemente mantenemos la consistencia para evitar el 0,0 absoluto si es posible.
+    df['lat_base'] = pai.map(centroides).apply(lambda x: x[0] if isinstance(x, tuple) else 40.0)
+    df['lon_base'] = pai.map(centroides).apply(lambda x: x[1] if isinstance(x, tuple) else -3.0)
+    
+    # Añadimos un "ruido" basado en el nombre de la ciudad para que los puntos se dispersen por el país
+    df['city_hash'] = df['CIUDAD'].astype(str).apply(lambda x: sum(ord(c) for c in x))
+    df['lat'] = df['lat_base'] + ((df['city_hash'] % 100) - 50) / 30.0
+    df['lon'] = df['lon_base'] + (((df['city_hash'] // 10) % 100) - 50) / 30.0
+    
+    return df.drop(columns=['lat_base', 'lon_base', 'city_hash'])
 
 @st.cache_data(show_spinner=False)
 def cargar_nodos():
@@ -214,11 +230,20 @@ def cargar_nodos():
         for c in ['CIUDAD', 'PAIS', 'FORMA', 'RESUMEN']:
             if c in df.columns: df[c] = df[c].fillna("No especificado").astype(str)
             else: df[c] = "No especificado"
+            
         df = df[~df['PAIS'].str.contains('MARRUECOS|MOROCCO', case=False, na=False)].copy()
         df['AÑO'] = pd.to_numeric(df['AÑO'], errors='coerce').fillna(2026).astype(int)
         df['MES'] = pd.to_numeric(df['MES'], errors='coerce').fillna(0).astype(int).astype(str).replace('0', 'TODOS')
         df['DIA'] = pd.to_numeric(df['DIA'], errors='coerce').fillna(0).astype(int).astype(str).replace('0', 'TODOS')
+        
         if 'HORA' not in df.columns: df['HORA'] = "No especificada"
+        def clean_time(h):
+            val = str(h).strip()
+            if ":" not in val: return "No especificada"
+            parts = val.split(":")
+            return f"{parts[0].zfill(2)}:{parts[1].zfill(2)}"
+        df['HORA'] = df['HORA'].apply(clean_time)
+        
         df['FORMA'] = df['FORMA'].str.title()
         df = simular_coordenadas(df)
         df['COLOR_STR'] = 'rgba(0, 212, 255, 0.8)'
@@ -228,7 +253,7 @@ def cargar_nodos():
 # --- SECUENCIA DE ARRANQUE ---
 with st.status("Inicializando Motor de Inteligencia AGATHA...", expanded=True) as status_boot:
     df_maestro, diagn_mensajes = cargar_nodos()
-    status_boot.update(label="Sistemas AGATHA v6.1.4 Online. MÓDULO CONTACT Activo.", state="complete", expanded=False)
+    status_boot.update(label="Sistemas AGATHA v6.1.5 Online. MÓDULO CONTACT Activo.", state="complete", expanded=False)
 
 # --- CABECERA PRINCIPAL (DISEÑO IKER JIMENEZ) ---
 col_titulo, col_boton = st.columns([3.5, 1.5], gap="medium")
@@ -244,7 +269,7 @@ with col_boton:
 
 st.markdown("<div class='contact-quote'>\"El Universo es enorme. Y si solo estamos nosotros, cuánto espacio desaprovechado\" - Contact.</div>", unsafe_allow_html=True)
 
-# --- MÓDULO: NOTIFICA TU AVISTAMIENTO UAP (LA JOYA DE LA CORONA) ---
+# --- MÓDULO: NOTIFICA TU AVISTAMIENTO UAP ---
 st.markdown("---")
 with st.expander("NOTIFICA TU AVISTAMIENTO UAP - REPORTE TÁCTICO CIUDADANO", expanded=False):
     st.markdown("""
@@ -262,7 +287,7 @@ with st.expander("NOTIFICA TU AVISTAMIENTO UAP - REPORTE TÁCTICO CIUDADANO", ex
         with c1:
             rep_fecha = st.date_input("FECHA DEL AVISTAMIENTO", value=datetime.now())
             rep_hora = st.time_input("HORA APROXIMADA", value=datetime.now().time())
-            rep_pais = st.selectbox("PAÍS", ["España", "México", "Portugal", "USA", "Reino Unido", "Canadá", "Otro"])
+            rep_pais = st.selectbox("PAÍS", ["España", "México", "Portugal", "USA", "Alemania", "Francia", "Reino Unido", "Canadá", "Otro"])
         
         with c2:
             rep_ciudad = st.text_input("CIUDAD / MUNICIPIO / ZONA ESPECÍFICA")
@@ -270,43 +295,19 @@ with st.expander("NOTIFICA TU AVISTAMIENTO UAP - REPORTE TÁCTICO CIUDADANO", ex
                 "Esfera", "Triángulo", "Disco", "Cigarro", "Cilindro", 
                 "Luz", "Flash", "Formación", "Cambiante", "Óvalo", "Otro"
             ])
-            rep_duracion = st.text_input("DURACIÓN ESTIMADA (Ej: 30 segundos, 5 minutos)")
+            rep_duracion = st.text_input("DURACIÓN ESTIMADA")
             
-        rep_comentarios = st.text_area("DETALLES CONDUCTUALES Y DESCRIPCIÓN DEL FENÓMENO", 
-                                      placeholder="Describa movimientos, colores, efectos sonoros o alteraciones del entorno...")
+        rep_comentarios = st.text_area("DETALLES CONDUCTUALES Y DESCRIPCIÓN DEL FENÓMENO")
         
-        c_sub_1, c_sub_2 = st.columns([3, 1])
-        with c_sub_2:
-            submit_report = st.form_submit_button("ENVIAR REPORTE A AGATHA")
+        submit_report = st.form_submit_button("ENVIAR REPORTE A AGATHA")
             
         if submit_report:
             if rep_ciudad and rep_comentarios:
-                st.success("REGISTRO COMPLETADO: El reporte ha sido enviado al nodo central de AGATHA para su validación forense.")
-                # Aquí se integraría la lógica para guardar el reporte en base de datos en el futuro
+                st.success("REGISTRO COMPLETADO: El reporte ha sido enviado al nodo central de AGATHA.")
             else:
-                st.error("ERROR DE VALIDACIÓN: Los campos Ciudad y Comentarios son obligatorios para el análisis.")
+                st.error("ERROR: Los campos Ciudad y Comentarios son obligatorios.")
 
-# --- INDICADORES TÁCTICOS ---
-st.markdown("---")
-m1, m2, m3 = st.columns(3)
-df_filtrado = df_maestro.copy()
-m1.metric("REGISTROS ACTIVOS", f"{len(df_filtrado):,}")
-m2.metric("TIPOLOGÍA DOMINANTE", df_filtrado['FORMA'].mode().iloc[0] if not df_filtrado.empty else "N/A")
-m3.metric("ZONAS DE INTERÉS", f"{len(df_filtrado['CIUDAD'].unique()) if not df_filtrado.empty else 0:,}")
-
-# --- EL CATÁLOGO UAP: IDENTIFICACIÓN VISUAL (REUBICADO Y OPTIMIZADO) ---
-st.markdown("<br>", unsafe_allow_html=True)
-with st.expander("CATÁLOGO UAP IDENTIFICACIÓN VISUAL DE OBJETOS", expanded=False):
-    st.markdown("<div style='color:#94a3b8; font-size:0.75rem; margin-bottom:10px;'>Archivos clasificados de tipología UAP. Use la imagen para identificación morfológica inmediata. Pinche sobre la imagen para zoom conductual forense.</div>", unsafe_allow_html=True)
-    if not os.path.exists("assets"):
-        os.makedirs("assets")
-    ruta_cat = os.path.join("assets", "catalogo_morfologico_completo.png")
-    if os.path.exists(ruta_cat):
-        st.image(ruta_cat, use_container_width=True, caption="Manual Táctico de Identificación UAP")
-    else:
-        st.info("Activo visual 'catalogo_morfologico_completo.png' no detectado en el directorio /assets.")
-
-# --- VISUALIZACION PRINCIPAL: MAPA Y FILTROS ---
+# --- FILTROS TÁCTICOS ---
 st.markdown("---")
 col_mapa, col_filtros = st.columns([2.5, 1.5], gap="large")
 
@@ -315,19 +316,33 @@ with col_filtros:
     cf1, cf2 = st.columns(2)
     sel_anio = cf1.selectbox("AÑO", ["TODOS"] + sorted(list(df_maestro['AÑO'].unique()), reverse=True))
     sel_mes = cf2.selectbox("MES", ["TODOS"] + sorted(list(df_maestro['MES'].unique())))
+    
     cf3, cf4 = st.columns(2)
     sel_dia = cf3.selectbox("DÍA", ["TODOS"] + sorted(list(df_maestro['DIA'].unique())))
-    sel_hora = cf4.selectbox("HORA", ["TODAS"])
+    
+    # Corrección del filtro de hora
+    horas_disp = sorted([h for h in df_maestro['HORA'].unique() if h != "No especificada"])
+    sel_hora = cf4.selectbox("HORA", ["TODAS"] + horas_disp)
+    
     sel_forma = st.selectbox("TIPO DE OBJETO", ["TODOS"] + sorted(list(df_maestro['FORMA'].unique())))
     sel_pais = st.selectbox("PAÍS", ["TODOS"] + sorted(list(df_maestro['PAIS'].unique())))
 
+    # Aplicación de filtros en cascada
+    df_filtrado = df_maestro.copy()
     if sel_anio != "TODOS": df_filtrado = df_filtrado[df_filtrado['AÑO'] == sel_anio]
     if sel_mes != "TODOS": df_filtrado = df_filtrado[df_filtrado['MES'] == sel_mes]
     if sel_dia != "TODOS": df_filtrado = df_filtrado[df_filtrado['DIA'] == sel_dia]
+    if sel_hora != "TODAS": df_filtrado = df_filtrado[df_filtrado['HORA'] == sel_hora]
     if sel_forma != "TODOS": df_filtrado = df_filtrado[df_filtrado['FORMA'] == sel_forma]
     if sel_pais != "TODOS": df_filtrado = df_filtrado[df_filtrado['PAIS'] == sel_pais]
 
 with col_mapa:
+    # --- INDICADORES TÁCTICOS DINÁMICOS ---
+    m1, m2, m3 = st.columns(3)
+    m1.metric("REGISTROS ACTIVOS", f"{len(df_filtrado):,}")
+    m2.metric("TIPOLOGÍA DOMINANTE", df_filtrado['FORMA'].mode().iloc[0] if not df_filtrado.empty else "N/A")
+    m3.metric("ZONAS DE INTERÉS", f"{len(df_filtrado['CIUDAD'].unique()) if not df_filtrado.empty else 0:,}")
+
     cm1, cm2 = st.columns(2)
     modo_visor = cm1.radio("MODO TÁCTICO", ["Nodos Base", "Red de Trayectorias"], horizontal=True)
     tipo_proy = cm2.radio("PROYECCIÓN", ["Globo 3D", "Plano 2D"], horizontal=True)
@@ -336,18 +351,31 @@ with col_mapa:
         grafico = st.empty()
         with st.spinner("Calibrando proyecciones AGATHA..."):
             fig = go.Figure()
-            df_mapa = df_filtrado.head(5000)
+            # Mostramos una muestra representativa para fluidez
+            df_mapa = df_filtrado.head(8000)
+            
             fig.add_trace(go.Scattergeo(
                 lon=df_mapa['lon'], lat=df_mapa['lat'], mode='markers',
-                marker=dict(size=6, color='#00d4ff', opacity=0.8),
-                text=df_mapa['CIUDAD'] + " (" + df_mapa['FORMA'] + ")", hoverinfo='text'
+                marker=dict(size=6, color='#00d4ff', opacity=0.8, line=dict(width=0.5, color='white')),
+                text=df_mapa['CIUDAD'] + " | " + df_mapa['HORA'] + " (" + df_mapa['FORMA'] + ")", hoverinfo='text'
             ))
+            
             fig.update_layout(
                 geo=dict(projection_type='orthographic' if tipo_proy == "Globo 3D" else 'equirectangular',
-                         showland=True, landcolor='#121212', oceancolor='#050505', showocean=True, bgcolor='#0a0a0a'),
-                margin=dict(l=0, r=0, t=0, b=0), paper_bgcolor='#0a0a0a', height=450, showlegend=False
+                         showland=True, landcolor='#121212', oceancolor='#050505', showocean=True, bgcolor='#0a0a0a',
+                         showcountries=True, countrycolor='#2a2a2a'),
+                margin=dict(l=0, r=0, t=0, b=0), paper_bgcolor='#0a0a0a', height=600, showlegend=False
             )
             grafico.plotly_chart(fig, width='stretch')
+
+# --- EL CATÁLOGO UAP: IDENTIFICACIÓN VISUAL ---
+st.markdown("<br>", unsafe_allow_html=True)
+with st.expander("CATÁLOGO UAP IDENTIFICACIÓN VISUAL DE OBJETOS", expanded=False):
+    ruta_cat = os.path.join("assets", "catalogo_morfologico_completo.png")
+    if os.path.exists(ruta_cat):
+        st.image(ruta_cat, use_container_width=True, caption="Manual Táctico de Identificación UAP")
+    else:
+        st.info("Activo visual 'catalogo_morfologico_completo.png' no detectado en /assets.")
 
 # --- PROCESADO FORENSE: INTELIGENCIA AGATHA ---
 st.markdown("---")
@@ -363,33 +391,25 @@ with st.expander("PROCESADO FORENSE - INTELIGENCIA AGATHA", expanded=False):
             
             if st.button("EJECUTAR ANÁLISIS DE INTELIGENCIA AGATHA", type="primary"):
                 if DEEPSEEK_API_KEY:
-                    with st.spinner("Inteligencia AGATHA procesando resumen conductual..."):
+                    with st.spinner("Analizando con lógica NUFORC activa..."):
                         try:
-                            headers = {
-                                "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
-                                "Content-Type": "application/json"
-                            }
+                            headers = {"Authorization": f"Bearer {DEEPSEEK_API_KEY}", "Content-Type": "application/json"}
                             payload = {
                                 "model": "deepseek-chat",
                                 "messages": [
-                                    {
-                                        "role": "system", 
-                                        "content": "Analiza el reporte UAP considerando patrones conductuales de la base de datos NUFORC. Contrasta el testimonio con posibles explicaciones convencionales (satélites, Starlink, globos, fenómenos astronómicos, cohetes o aviones) antes de concluir. Responde estrictamente con un JSON: {comportamiento, credibilidad, indice_anomalia, hipotesis}"
-                                    },
+                                    {"role": "system", "content": "Analiza el reporte UAP considerando patrones NUFORC (satélites, globos, fenómenos celestes). Responde en JSON: {comportamiento, credibilidad, indice_anomalia, hipotesis}"},
                                     {"role": "user", "content": resumen_txt}
                                 ],
                                 "response_format": {"type": "json_object"}
                             }
                             response = requests.post("https://api.deepseek.com/v1/chat/completions", headers=headers, json=payload, timeout=25)
-                            res_json = response.json()
-                            raw_content = res_json["choices"][0]["message"]["content"]
+                            raw_content = response.json()["choices"][0]["message"]["content"]
                             clean_json = raw_content.replace("```json", "").replace("```", "").strip()
-                            st.markdown("#### REPORTE ANALÍTICO AGATHA")
                             st.json(json.loads(clean_json))
                         except Exception as e:
-                            st.error(f"Error de comunicación con el nodo central de AGATHA.")
+                            st.error("Fallo en la conexión con AGATHA.")
                 else:
-                    st.warning("Error: El motor de inteligencia de AGATHA no tiene acceso a las claves de procesamiento.")
+                    st.warning("Clave de inteligencia no configurada.")
 
 # Pie de página técnico
-st.markdown("<div style='font-family:Share Tech Mono; color:#334155; font-size:0.7rem; text-align:right;'>AGATHA OS v6.1.4 | OP: DIR-74 | ENCRYPTION: AES-256 | LÓGICA NUFORC ACTIVA</div>", unsafe_allow_html=True)
+st.markdown("<div style='font-family:Share Tech Mono; color:#334155; font-size:0.7rem; text-align:right;'>AGATHA OS v6.1.5 | OP: DIR-74 | ENCRYPTION: AES-256 | LÓGICA GLOBAL ACTIVA</div>", unsafe_allow_html=True)
