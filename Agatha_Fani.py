@@ -2,7 +2,7 @@
 # ARCHIVO PRINCIPAL: Agatha_Fani.py
 # SISTEMA: AGATHA Intelligent Neural Network
 # MODULO: MODULO CONTACT (Fenomeno Anomalo No Identificado)
-# VERSION: Opcon Ready v9.3 (Fix Textos Botones Catálogo)
+# VERSION: Opcon Ready v9.4 (Alineación Perfecta y Textos Completos)
 # OPERADOR: DIR-74
 # ====================================================================
 
@@ -94,59 +94,58 @@ h2, h3, h4 {
     font-weight: 400 !important;
 }
 
-/* Alineación y estandarización de botones en el catálogo */
-.stButton {
-    display: flex;
-    justify-content: center;
-    width: 100%;
-}
-.stButton > button { 
+/* Forzar que los textos de los botones NUNCA se corten */
+div[data-testid="stButton"] button {
+    height: auto !important;
+    min-height: 50px !important;
+    padding: 5px !important;
     border: 1px solid #333333 !important; 
     background-color: #1a1a1a !important; 
-    color: #00d4ff !important; 
     border-radius: 0px !important; 
+    box-shadow: none !important;
+    transition: all 0.3s ease;
+    width: 100% !important; 
+}
+
+div[data-testid="stButton"] button p {
     font-family: 'Montserrat', sans-serif !important; 
     font-weight: 600 !important; 
     text-transform: uppercase; 
-    font-size: 0.70rem !important;
-    letter-spacing: 0.5px;
-    padding: 0.4rem 0.2rem !important; 
-    box-shadow: none !important;
-    transition: all 0.3s ease;
-    margin: 0 auto !important;
-    width: 95% !important; 
-    min-height: 45px !important; /* Mínimo para que se vean parejos */
-    height: auto !important; /* Permite crecer si el texto es largo */
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    text-align: center !important;
-    line-height: 1.2 !important;
-    white-space: normal !important; /* Obliga al salto de línea en vez de cortar */
+    color: #00d4ff !important; 
+    font-size: 0.65rem !important;
+    letter-spacing: 0.5px !important;
+    white-space: normal !important;
     word-wrap: break-word !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    line-height: 1.2 !important;
+    margin: 0 !important;
+    text-align: center !important;
 }
-.stButton > button:hover { 
+
+div[data-testid="stButton"] button:hover { 
     border-color: #00d4ff !important; 
-    color: #0a0a0a !important; 
     background-color: #00d4ff !important; 
     box-shadow: 0 0 15px rgba(0, 212, 255, 0.5) !important;
 }
+div[data-testid="stButton"] button:hover p {
+    color: #0a0a0a !important; 
+}
 
-/* Estilo específico para el botón de entrada gigante (protegido) */
-.boton-entrada > div > div > button {
+/* Estilo para el botón de la portada */
+.boton-entrada div[data-testid="stButton"] button p {
     font-size: 1.2rem !important;
-    padding: 1.2rem !important;
-    width: 100% !important;
-    height: auto !important;
+    padding: 0.5rem !important;
+}
+.boton-entrada div[data-testid="stButton"] button {
     border-color: #00d4ff !important;
     box-shadow: 0 0 20px rgba(0, 212, 255, 0.4) !important;
-    white-space: normal !important;
 }
 </style>
 """
 st.markdown(CSS_MATE, unsafe_allow_html=True)
 
-# --- INICIALIZACIÓN DE ESTADOS (Manejo de Pantallas) ---
+# --- INICIALIZACIÓN DE ESTADOS ---
 if "pantalla_actual" not in st.session_state:
     st.session_state["pantalla_actual"] = "portada"
 
@@ -173,7 +172,7 @@ def abrir_visor_completo(nombre_forma_archivo):
         try:
             st.image(ruta_completa, use_container_width=True)
         except Exception:
-            st.error("El archivo de imagen detallada está corrupto o no es válido.")
+            st.error("El archivo de imagen detallada esta corrupto o no es valido.")
     else:
         st.error(f"Falta el archivo de detalle: {ruta_completa}")
 
@@ -259,7 +258,7 @@ def cargar_nodos():
         df = pd.concat(dfs, ignore_index=True)
         mensajes.append("Archivos de datos locales unificados y decodificados correctamente.")
     else:
-        return pd.DataFrame(), ["Error: La carpeta de datos no contiene archivos válidos."]
+        return pd.DataFrame(), ["Error: La carpeta de datos no contiene archivos validos."]
 
     try:
         df.columns = df.columns.str.upper().str.strip()
@@ -305,23 +304,21 @@ def cargar_nodos():
 if st.session_state["pantalla_actual"] == "portada":
     st.markdown("<br><br>", unsafe_allow_html=True)
     
-    ruta_dashboard = os.path.join("assets", "dashboard_maestro_global.png")
-    col_img1, col_img2, col_img3 = st.columns([1, 6, 1])
-    with col_img2:
+    col_vacia1, col_centro, col_vacia2 = st.columns([1, 4, 1])
+    
+    with col_centro:
+        ruta_dashboard = os.path.join("assets", "dashboard_maestro_global.png")
         if os.path.exists(ruta_dashboard):
             try:
                 st.image(ruta_dashboard, use_container_width=True)
             except Exception:
-                st.error("La imagen 'dashboard_maestro_global.png' está corrupta y no se puede cargar.")
+                st.error("La imagen 'dashboard_maestro_global.png' esta corrupta y no se puede cargar.")
         else:
-            st.warning("No se encontró la imagen en assets/dashboard_maestro_global.png")
+            st.warning("No se encontro la imagen en assets/dashboard_maestro_global.png")
             
-    st.markdown("<br>", unsafe_allow_html=True)
-    
-    col_btn1, col_btn2, col_btn3 = st.columns([2, 3, 2])
-    with col_btn2:
+        st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
         st.markdown("<div class='boton-entrada'>", unsafe_allow_html=True)
-        if st.button("ACCEDER A AGATHA INTELLIGENT NEURAL NETWORK", type="primary"):
+        if st.button("ACCEDER A AGATHA INTELLIGENT NEURAL NETWORK", type="primary", use_container_width=True):
             st.session_state["pantalla_actual"] = "principal"
             st.rerun()
         st.markdown("</div>", unsafe_allow_html=True)
@@ -331,9 +328,9 @@ if st.session_state["pantalla_actual"] == "portada":
 # ====================================================================
 elif st.session_state["pantalla_actual"] == "principal":
     
-    with st.status("Estableciendo conexión segura con AGATHA...", expanded=False) as status_boot:
+    with st.status("Estableciendo conexion segura con AGATHA...", expanded=False) as status_boot:
         df_maestro, diagn_mensajes = cargar_nodos()
-        status_boot.update(label="Sistema UAP 'Unidentified Anomalous Phenomenon' en línea.", state="complete", expanded=False)
+        status_boot.update(label="Sistema UAP 'Unidentified Anomalous Phenomenon' en linea.", state="complete", expanded=False)
 
     OPERADOR_ID = "DIR-74"
     ROL_ACCESO = "NIVEL 4 - INTELIGENCIA ESTRATEGICA"
@@ -349,8 +346,8 @@ elif st.session_state["pantalla_actual"] == "principal":
     col_titulo, col_boton = st.columns([4, 1])
     with col_titulo:
         st.markdown("<h1>AGATHA Intelligent Neural Network</h1>", unsafe_allow_html=True)
-        st.markdown("<h3>MÓDULO CONTACT - Fenómeno Anómalo No Identificado</h3>", unsafe_allow_html=True)
-        st.markdown("<div class='cita-contact'>«El Universo es enorme. Y si solo estamos nosotros, cuánto espacio desaprovechado»</div>", unsafe_allow_html=True)
+        st.markdown("<h3>MODULO CONTACT - Fenomeno Anomalo No Identificado</h3>", unsafe_allow_html=True)
+        st.markdown("<div class='cita-contact'>«El Universo es enorme. Y si solo estamos nosotros, cuanto espacio desaprovechado»</div>", unsafe_allow_html=True)
     with col_boton:
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("DESCONECTAR", type="primary"):
@@ -358,8 +355,8 @@ elif st.session_state["pantalla_actual"] == "principal":
             st.rerun()
 
     # --- CATÁLOGO UAP ---
-    with st.expander("CATÁLOGO UAP IDENTIFICACIÓN VISUAL DE OBJETOS", expanded=False):
-        st.markdown("<div style='color:#00d4ff; font-size:0.85rem; margin-bottom:15px; line-height:1.4;'>Selecciona la forma en cualquier tipología para abrir el análisis táctico de reconocimiento.</div>", unsafe_allow_html=True)
+    with st.expander("CATALOGO UAP IDENTIFICACION VISUAL DE OBJETOS", expanded=False):
+        st.markdown("<div style='color:#00d4ff; font-size:0.85rem; margin-bottom:15px; line-height:1.4;'>Selecciona la forma en cualquier tipologia para abrir el analisis tactico de reconocimiento.</div>", unsafe_allow_html=True)
         
         lista_archivos_formas = [
             "bola_de_fuego", "cambiante", "cigarro", "cilindro", "circulo", "cono",
@@ -386,13 +383,13 @@ elif st.session_state["pantalla_actual"] == "principal":
                                 if st.button(f"{forma_nombre_ui.upper()}", key=f"btn_{forma_archivo}"):
                                     abrir_visor_completo(forma_archivo)
                             else:
-                                st.markdown(f"<div style='width:100%; aspect-ratio:1/1; border:1px dashed #334155; display:flex; align-items:center; justify-content:center; background:#0f172a; margin-bottom:10px;'><span style='color:#64748b; font-size:0.6rem; text-align:center;'>Error de píxeles</span></div>", unsafe_allow_html=True)
+                                st.markdown("<div style='width:100%; aspect-ratio:1/1; border:1px dashed #334155; display:flex; align-items:center; justify-content:center; background:#0f172a; margin-bottom:10px;'><span style='color:#64748b; font-size:0.6rem; text-align:center;'>Error de pixeles</span></div>", unsafe_allow_html=True)
                         else:
                             st.markdown(f"<div style='width:100%; aspect-ratio:1/1; border:1px dashed #334155; display:flex; align-items:center; justify-content:center; background:#0f172a; margin-bottom:10px;'><span style='color:#64748b; font-size:0.6rem; text-align:center;'>Falta:<br>{forma_archivo}.png</span></div>", unsafe_allow_html=True)
 
     # --- NOTIFICAR AVISTAMIENTO ---
-    with st.expander("NOTIFICA TU AVISTAMIENTO (Red UAP España / Global)", expanded=False):
-        st.markdown("<p style='color: #00d4ff; font-size: 0.9rem;'>Ayuda a alimentar la base de datos de AGATHA. Tu reporte será procesado y cruzado con otros eventos anómalos.</p>", unsafe_allow_html=True)
+    with st.expander("NOTIFICA TU AVISTAMIENTO (Red UAP Espana / Global)", expanded=False):
+        st.markdown("<p style='color: #00d4ff; font-size: 0.9rem;'>Ayuda a alimentar la base de datos de AGATHA. Tu reporte sera procesado y cruzado con otros eventos anomalos.</p>", unsafe_allow_html=True)
         
         with st.form("form_avistamiento", clear_on_submit=True):
             c_f1, c_f2 = st.columns(2)
@@ -401,9 +398,9 @@ elif st.session_state["pantalla_actual"] == "principal":
             
             c_f3, c_f4 = st.columns(2)
             f_forma = c_f3.selectbox("Forma del objeto", ["Luz / Flash", "Esfera / Orbe", "Triángulo / Delta", "Cigarro / Cilindro", "Cambiante", "Desconocido", "Otros"])
-            f_ciudad = c_f4.text_input("Ciudad y País")
+            f_ciudad = c_f4.text_input("Ciudad y Pais")
             
-            f_desc = st.text_area("Descripción detallada del comportamiento")
+            f_desc = st.text_area("Descripcion detallada del comportamiento")
             
             submit_btn = st.form_submit_button("ENVIAR A LA RED NEURAL AGATHA")
             
@@ -413,19 +410,19 @@ elif st.session_state["pantalla_actual"] == "principal":
                         "FECHA": str(f_fecha), "HORA": str(f_hora), "FORMA": f_forma,
                         "UBICACION": f_ciudad, "DESCRIPCION": f_desc
                     })
-                    st.success("Avistamiento registrado correctamente. AGATHA analizará el patrón de correlación.")
+                    st.success("Avistamiento registrado correctamente. AGATHA analizara el patron de correlacion.")
                 else:
-                    st.error("Por favor, completa al menos la ubicación y la descripción para procesar el reporte.")
+                    st.error("Por favor, completa al menos la ubicacion y la descripcion para procesar el reporte.")
 
         if len(st.session_state["reportes_ciudadanos"]) > 0:
-            st.markdown(f"<p style='color: #94a3b8; font-size: 0.8rem; margin-top: 10px;'>Reportes en la sesión actual: {len(st.session_state['reportes_ciudadanos'])}</p>", unsafe_allow_html=True)
+            st.markdown(f"<p style='color: #94a3b8; font-size: 0.8rem; margin-top: 10px;'>Reportes en la sesion actual: {len(st.session_state['reportes_ciudadanos'])}</p>", unsafe_allow_html=True)
 
     # --- VISUALIZACION PRINCIPAL: MAPA Y FILTROS ---
     st.markdown("---")
     col_mapa, col_filtros = st.columns([2.5, 1.5], gap="large")
 
     with col_filtros:
-        st.markdown("#### Parámetros de Filtrado UAP")
+        st.markdown("#### Parametros de Filtrado UAP")
         
         c_f1, c_f2 = st.columns(2)
         anio_disp = sorted(df_maestro['AÑO'].unique(), reverse=True) if not df_maestro.empty else []
@@ -471,8 +468,8 @@ elif st.session_state["pantalla_actual"] == "principal":
 
     with col_mapa:
         c_m1, c_m2 = st.columns(2)
-        modo_visor = c_m1.radio("MODO TÁCTICO", ["Nodos Base", "Red de Trayectorias"], horizontal=True)
-        tipo_proyeccion = c_m2.radio("PROYECCIÓN", ["Globo 3D", "Plano 2D"], horizontal=True)
+        modo_visor = c_m1.radio("MODO TACTICO", ["Nodos Base", "Red de Trayectorias"], horizontal=True)
+        tipo_proyeccion = c_m2.radio("PROYECCION", ["Globo 3D", "Plano 2D"], horizontal=True)
         
         if not df_filtrado.empty:
             grafico_placeholder = st.empty() 
@@ -490,7 +487,7 @@ elif st.session_state["pantalla_actual"] == "principal":
                     ))
                 else:
                     if len(df_filtrado) < 2:
-                        st.warning("Se requieren al menos 2 registros tácticos para trazar corredores de vuelo.")
+                        st.warning("Se requieren al menos 2 registros tacticos para trazar corredores de vuelo.")
                     else:
                         df_red = df_filtrado.sort_values(by=['AÑO', 'MES', 'DIA', 'HORA']).head(200)
                         formas_presentes = df_red['FORMA'].unique()
@@ -548,8 +545,8 @@ elif st.session_state["pantalla_actual"] == "principal":
     # --- INDICADORES RAPIDOS TACTICOS ---
     m1, m2, m3 = st.columns(3)
     m1.metric("Registros UAP Activos", f"{len(df_filtrado):,}")
-    m2.metric("Tipología Predominante", df_filtrado['FORMA'].mode().iloc[0] if not df_filtrado.empty else "N/A")
-    m3.metric("Zonas de Interés", f"{len(df_filtrado['CIUDAD'].unique()) if not df_filtrado.empty else 0:,}")
+    m2.metric("Tipologia Predominante", df_filtrado['FORMA'].mode().iloc[0] if not df_filtrado.empty else "N/A")
+    m3.metric("Zonas de Interes", f"{len(df_filtrado['CIUDAD'].unique()) if not df_filtrado.empty else 0:,}")
     st.markdown("---")
 
     # --- MODULOS OPERATIVOS (DESPLEGABLES) ---
@@ -560,11 +557,11 @@ elif st.session_state["pantalla_actual"] == "principal":
             cols_vis = list(dict.fromkeys([c for c in df_filtrado.columns if c not in cols_excluir]))
             
             if not filtros_activos:
-                st.info("Sistema en reposo. Mostrando previsualización de los 100 registros más recientes. Active los filtros tácticos para una búsqueda específica.")
+                st.info("Sistema en reposo. Mostrando previsualizacion de los 100 registros mas recientes. Active los filtros tacticos para una busqueda especifica.")
                 df_mostrar = df_filtrado.sort_values(by=['AÑO','MES','DIA','HORA'], ascending=[False, False, False, False]).head(100)
             else:
                 if len(df_filtrado) > 1000:
-                    st.warning(f"Búsqueda masiva detectada ({len(df_filtrado)} resultados). Mostrando los 1000 más relevantes para garantizar la estabilidad del sistema.")
+                    st.warning(f"Busqueda masiva detectada ({len(df_filtrado)} resultados). Mostrando los 1000 mas relevantes para garantizar la estabilidad del sistema.")
                     df_mostrar = df_filtrado.sort_values(by=['AÑO','MES','DIA','HORA'], ascending=[False, False, False, False]).head(1000)
                 else:
                     df_mostrar = df_filtrado.sort_values(by=['AÑO','MES','DIA','HORA'], ascending=[False, False, False, False])
@@ -586,7 +583,7 @@ elif st.session_state["pantalla_actual"] == "principal":
             
             opciones_tag = df_nlp['TAG'].unique()
             if len(opciones_tag) > 500:
-                st.caption("Mostrando los 500 expedientes más recientes para análisis NLP.")
+                st.caption("Mostrando los 500 expedientes mas recientes para analisis NLP.")
                 opciones_tag = opciones_tag[:500]
                 
             caso_sel = st.selectbox("Seleccionar Expediente Forense UAP", opciones_tag, key="select_nlp")
@@ -595,15 +592,15 @@ elif st.session_state["pantalla_actual"] == "principal":
                 resumen = str(df_nlp[df_nlp['TAG'] == caso_sel].iloc[0].get('RESUMEN', 'Sin resumen disponible.'))
                 st.markdown(f"<div style='background:#1a1a1a; padding:15px; border-left:3px solid #a855f7; color:#e2e8f0;'>{resumen}</div><br>", unsafe_allow_html=True)
                 
-                if st.button("Ejecutar Análisis de Inteligencia AGATHA", type="primary"):
+                if st.button("Ejecutar Analisis de Inteligencia AGATHA", type="primary"):
                     if DEEPSEEK_API_KEY:
-                        with st.spinner("AGATHA procesando análisis conductual..."):
+                        with st.spinner("AGATHA procesando analisis conductual..."):
                             try:
                                 h = {"Authorization": f"Bearer {DEEPSEEK_API_KEY}", "Content-Type": "application/json"}
                                 p = {
                                     "model": "deepseek-chat",
                                     "messages": [
-                                        {"role": "system", "content": "Analiza el texto de este avistamiento UAP y responde estrictamente con un JSON con esta estructura: {comportamiento: '...', credibilidad: 'ALTA/MEDIA/BAJA', indice_anomalia: '0-100', explicacion_probable: 'ej. Satélites, Starlink, Globo, Cohete, Fenómeno Meteorológico, o Desconocido'}"},
+                                        {"role": "system", "content": "Analiza el texto de este avistamiento UAP y responde estrictamente con un JSON con esta estructura: {comportamiento: '...', credibilidad: 'ALTA/MEDIA/BAJA', indice_anomalia: '0-100', explicacion_probable: 'ej. Satelites, Starlink, Globo, Cohete, Fenomeno Meteorologico, o Desconocido'}"},
                                         {"role": "user", "content": resumen}
                                     ],
                                     "response_format": {"type": "json_object"}
@@ -619,4 +616,4 @@ elif st.session_state["pantalla_actual"] == "principal":
                             except Exception as e:
                                 st.error(f"Error interno en los circuitos de AGATHA: {str(e)}")
                     else:
-                        st.warning("Falta credencial de procesamiento neuronal en la configuración del sistema.")
+                        st.warning("Falta credencial de procesamiento neuronal en la configuracion del sistema.")
