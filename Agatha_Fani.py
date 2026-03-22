@@ -264,16 +264,17 @@ def asignar_color_neon(forma):
 
 def simular_coordenadas(df):
     np.random.seed(42)
+    # Centroides ajustados estrictamente a zonas de interior continental (Deep Inland)
     centroides = {
-        "TX": (31.9, -99.9), "FL": (27.7, -81.6), "CA": (36.7, -119.4), "NY": (40.7, -74.0),
+        "TX": (31.9, -99.9), "FL": (28.5, -81.3), "CA": (36.7, -119.4), "NY": (42.5, -76.0),
         "EEUU": (39.8, -98.5), "ESTADOS UNIDOS": (39.8, -98.5), "USA": (39.8, -98.5),
         "CANADA": (56.1, -106.3), "CANADÁ": (56.1, -106.3),
         "MEXICO": (23.6, -102.5), "MÉXICO": (23.6, -102.5),
-        "UK": (55.3, -3.4), "REINO UNIDO": (55.3, -3.4), "INGLATERRA": (52.3, -1.1),
+        "UK": (52.8, -1.5), "REINO UNIDO": (52.8, -1.5), "INGLATERRA": (52.8, -1.5),
         "ESPAÑA": (40.46, -3.75), "ESPANA": (40.46, -3.75), "SPAIN": (40.46, -3.75),
-        "FRANCIA": (46.22, 2.21), "ALEMANIA": (51.16, 10.45), "ITALIA": (41.87, 12.56),
-        "INDIA": (20.59, 78.96), "CHINA": (35.86, 104.19), "JAPON": (36.20, 138.25), "JAPÓN": (36.20, 138.25),
-        "AUSTRALIA": (-25.27, 133.77), "BRASIL": (-14.23, -51.92), "ARGENTINA": (-38.41, -63.61)
+        "FRANCIA": (46.22, 2.21), "ALEMANIA": (51.16, 10.45), "ITALIA": (42.5, 12.5),
+        "INDIA": (21.0, 79.0), "CHINA": (36.0, 104.0), "JAPON": (36.20, 138.25), "JAPÓN": (36.20, 138.25),
+        "AUSTRALIA": (-25.27, 133.77), "BRASIL": (-14.23, -51.92), "ARGENTINA": (-35.0, -65.0)
     }
     
     est = df.get('ESTADO', pd.Series(index=df.index)).astype(str).str.upper().str.strip()
@@ -284,16 +285,20 @@ def simular_coordenadas(df):
     
     coords_finales = coord_est.combine_first(coord_pai)
     
-    def coords_seguras(row_hash):
-        return (((row_hash % 130) - 60), ((row_hash % 240) - 120))
+    # Generador de respaldo forzado a masas terrestres masivas (Evitar Oceanos)
+    def coords_inland_seguras(row_hash):
+        lat_segura = 35.0 + (row_hash % 10) 
+        lon_segura = -100.0 + (row_hash % 15) if row_hash % 2 == 0 else 10.0 + (row_hash % 15)
+        return (lat_segura, lon_segura)
         
     df['hash_val'] = df['CIUDAD'].astype(str).apply(lambda x: sum(ord(c) for c in x) if pd.notna(x) else 0)
-    coordenadas_respaldo = df['hash_val'].apply(coords_seguras)
+    coordenadas_respaldo = df['hash_val'].apply(coords_inland_seguras)
     
     coords_finales = coords_finales.combine_first(pd.Series([(c[0], c[1]) for c in coordenadas_respaldo], index=df.index))
     
-    df['lat_offset'] = ((df['hash_val'] % 100) - 50) / 100.0 * 1.5
-    df['lon_offset'] = (((df['hash_val'] // 10) % 100) - 50) / 100.0 * 1.5
+    # Reduccion drastica del radio de dispersion (15km maximo) para retener los nodos en tierra
+    df['lat_offset'] = ((df['hash_val'] % 100) - 50) / 100.0 * 0.15
+    df['lon_offset'] = (((df['hash_val'] // 10) % 100) - 50) / 100.0 * 0.15
     
     df['lat'] = coords_finales.apply(lambda x: x[0]) + df['lat_offset']
     df['lon'] = coords_finales.apply(lambda x: x[1]) + df['lon_offset']
