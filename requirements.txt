@@ -1,8 +1,8 @@
-streamlit>=1.30.0
-pandas>=2.0.0
-numpy>=1.24.0
-plotly>=5.18.0
-requests>=2.31.0
-python-dotenv>=1.0.0
-geopy>=2.3.0
-tenacity>=8.2.3
+streamlit>=1.55.0
+pandas>=2.3.3
+numpy>=2.4.3
+plotly>=6.6.0
+requests>=2.32.5
+python-dotenv>=1.2.2
+geopy>=2.4.1
+tenacity>=9.1.4
