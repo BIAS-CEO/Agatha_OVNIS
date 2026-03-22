@@ -561,7 +561,6 @@ elif st.session_state["pantalla_actual"] == "principal":
             horas_disponibles = sorted([h for h in df_maestro['HORA'].unique() if h != 'No especificada']) if not df_maestro.empty else []
             seleccion_hora = c_f4.selectbox("HORA", ["TODAS"] + [str(h) for h in horas_disponibles])
 
-            # --- INICIO DEL BLOQUE A SUSTITUIR ---
             formas_disponibles = sorted(df_maestro['FORMA'].unique()) if not df_maestro.empty else []
             seleccion_forma = st.selectbox("TIPO DE OBJETO", ["TODOS"] + [str(f) for f in formas_disponibles])
             
@@ -571,9 +570,8 @@ elif st.session_state["pantalla_actual"] == "principal":
                 "FRANCIA", "INDIA", "ITALIA", "JAPON", "JAPÓN", "MEXICO", "MÉXICO", 
                 "REINO UNIDO", "UK", "INGLATERRA"
             ]
-            paises_disponibles = sorted([p for p in df_maestro['PAIS'].unique() if p in paises_soportados]) if not df_maestro.empty else []
+            paises_disponibles = sorted([p for p in df_maestro['PAIS'].unique() if str(p).upper() in paises_soportados]) if not df_maestro.empty else []
             seleccion_pais = st.selectbox("PAIS", ["TODOS"] + [str(p) for p in paises_disponibles])
-            # --- FIN DEL BLOQUE A SUSTITUIR ---
 
             if seleccion_año != "TODOS": 
                 datos_filtrados = datos_filtrados[datos_filtrados['AÑO'] == seleccion_año]
@@ -679,6 +677,8 @@ elif st.session_state["pantalla_actual"] == "principal":
         
         with st.spinner("Calibrando proyecciones tacticas..."):
             mapa_visual = go.Figure()
+            # PUNTO DE ANCLAJE: Evita que el mapa desaparezca si el filtro da 0 resultados
+            mapa_visual.add_trace(go.Scattergeo(lon=[0], lat=[0], marker=dict(color='rgba(0,0,0,0)'), hoverinfo='none'))
             
             texto_hover_nodos = (
                 "<b>Ciudad:</b> " + datos_mapa_limpio['CIUDAD'] + "<br>" +
