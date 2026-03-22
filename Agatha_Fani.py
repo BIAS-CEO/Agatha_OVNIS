@@ -487,6 +487,7 @@ elif st.session_state["pantalla_actual"] == "principal":
             st.markdown("</div>", unsafe_allow_html=True)
 
     with columna_mapa:
+        espacio_grafico = st.empty()
         with st.spinner("Calibrando proyección táctica..."):
             mapa_visual = go.Figure()
             
