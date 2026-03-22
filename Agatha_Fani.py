@@ -2,7 +2,7 @@
 # ARCHIVO PRINCIPAL: Agatha_Fani.py
 # SISTEMA: AGATHA Intelligent Neural Network
 # MODULO: MODULO CONTACT (Fenomeno Anomalo No Identificado)
-# VERSION: Opcon Ready v10.6 (IA Predictiva y Motor de Simulacion)
+# VERSION: Opcon Ready v10.7 (Restauracion de Malla de Trayectorias)
 # OPERADOR: DIR-74
 # ====================================================================
 
@@ -509,9 +509,6 @@ elif st.session_state["pantalla_actual"] == "principal":
     datos_filtrados = df_maestro.copy()
     filtros_aplicados = False
     
-    nodos_origen_lon, nodos_origen_lat = [], []
-    nodos_destino_lon, nodos_destino_lat = [], []
-    
     datos_mapa_limpio = df_maestro[
         (df_maestro['PAIS'].str.upper() != 'NO ESPECIFICADO') & 
         (df_maestro['CIUDAD'].str.upper() != 'NO ESPECIFICADO')
@@ -570,7 +567,7 @@ elif st.session_state["pantalla_actual"] == "principal":
             
         elif modo_operacion == "Red de Trayectorias":
             st.markdown("#### Analisis de Correlaciones UAP")
-            st.markdown("<p style='color:#94a3b8; font-size:0.85rem;'>Este modulo analiza vectores de relacion tactica entre fenomenos aislados utilizando la matriz base de conexiones.</p>", unsafe_allow_html=True)
+            st.markdown("<p style='color:#94a3b8; font-size:0.85rem;'>Este modulo analiza vectores de relacion tactica. Al seleccionar TODAS, el sistema agrupa los puentes por morfologia cronologica.</p>", unsafe_allow_html=True)
             
             df_relaciones = cargar_archivo_relaciones()
             
@@ -587,35 +584,22 @@ elif st.session_state["pantalla_actual"] == "principal":
                 
                 if conexion_seleccionada != "TODAS":
                     df_relaciones_filtrado = df_relaciones[df_relaciones['TIPO_RELACION_ES'] == conexion_seleccionada]
-                else:
-                    df_relaciones_filtrado = df_relaciones
+                    ciudades_origen = df_relaciones_filtrado['Source_City'].dropna().astype(str).str.title().str.strip()
+                    ciudades_destino = df_relaciones_filtrado['Target_City'].dropna().astype(str).str.title().str.strip()
+                    todas_ciudades_implicadas = pd.concat([ciudades_origen, ciudades_destino]).unique()
                     
-                ciudades_origen = df_relaciones_filtrado['Source_City'].dropna().astype(str).str.title().str.strip()
-                ciudades_destino = df_relaciones_filtrado['Target_City'].dropna().astype(str).str.title().str.strip()
-                todas_ciudades_implicadas = pd.concat([ciudades_origen, ciudades_destino]).unique()
-                
-                df_maestro_limpio = df_maestro.copy()
-                df_maestro_limpio['CIUDAD_LIMPIA'] = df_maestro_limpio['CIUDAD'].astype(str).str.title().str.strip()
-                datos_filtrados = df_maestro_limpio[df_maestro_limpio['CIUDAD_LIMPIA'].isin(todas_ciudades_implicadas)].copy()
-                filtros_aplicados = True
+                    df_maestro_limpio = df_maestro.copy()
+                    df_maestro_limpio['CIUDAD_LIMPIA'] = df_maestro_limpio['CIUDAD'].astype(str).str.title().str.strip()
+                    datos_filtrados = df_maestro_limpio[df_maestro_limpio['CIUDAD_LIMPIA'].isin(todas_ciudades_implicadas)].copy()
+                    filtros_aplicados = True
+                else:
+                    datos_filtrados = df_maestro.copy()
+                    filtros_aplicados = False
                 
                 datos_mapa_limpio = datos_filtrados[
                     (datos_filtrados['PAIS'].str.upper() != 'NO ESPECIFICADO') & 
                     (datos_filtrados['CIUDAD'].str.upper() != 'NO ESPECIFICADO')
                 ]
-                
-                for _, fila_rel in df_relaciones_filtrado.iterrows():
-                    ciudad_origen = str(fila_rel.get('Source_City', '')).title().strip()
-                    ciudad_destino = str(fila_rel.get('Target_City', '')).title().strip()
-                    
-                    datos_origen = datos_filtrados[datos_filtrados['CIUDAD_LIMPIA'] == ciudad_origen]
-                    datos_destino = datos_filtrados[datos_filtrados['CIUDAD_LIMPIA'] == ciudad_destino]
-                    
-                    if not datos_origen.empty and not datos_destino.empty:
-                        nodos_origen_lon.append(datos_origen.iloc[0]['lon'])
-                        nodos_origen_lat.append(datos_origen.iloc[0]['lat'])
-                        nodos_destino_lon.append(datos_destino.iloc[0]['lon'])
-                        nodos_destino_lat.append(datos_destino.iloc[0]['lat'])
                 
                 st.markdown("---")
                 st.markdown(f"<p style='color: #00d4ff; font-weight: 600;'>NODOS CONECTADOS: {len(datos_filtrados)} registros</p>", unsafe_allow_html=True)
@@ -661,43 +645,41 @@ elif st.session_state["pantalla_actual"] == "principal":
                     ))
                     
                 elif modo_operacion == "Red de Trayectorias":
-                    if len(nodos_origen_lon) > 0:
-                        for i in range(len(nodos_origen_lon)):
-                            mapa_visual.add_trace(go.Scattergeo(
-                                lon=[nodos_origen_lon[i], nodos_destino_lon[i]], 
-                                lat=[nodos_origen_lat[i], nodos_destino_lat[i]], 
-                                mode='lines',
-                                line=dict(width=1.5, color='rgba(0, 212, 255, 0.6)'), 
-                                opacity=0.8, 
-                                hoverinfo='none'
-                            ))
+                    # RESTAURACION DE LA MALLA CRONOLOGICA DE FORMAS PARA EFECTO VISUAL
+                    df_red_cronologica = datos_mapa_limpio.sort_values(by=['AÑO', 'MES', 'DIA', 'HORA']).head(300)
+                    formas_presentes = df_red_cronologica['FORMA'].unique()
+                    formas_validas_malla = [f for f in formas_presentes if len(df_red_cronologica[df_red_cronologica['FORMA'] == f]) > 1]
+                    
+                    for forma in formas_validas_malla:
+                        df_forma_malla = df_red_cronologica[df_red_cronologica['FORMA'] == forma]
+                        mapa_visual.add_trace(go.Scattergeo(
+                            lon=df_forma_malla['lon'].tolist(), lat=df_forma_malla['lat'].tolist(), mode='lines',
+                            line=dict(width=1.5, color=df_forma_malla.iloc[0]['COLOR_STR']), opacity=0.35, hoverinfo='none'
+                        ))
                     
                     mapa_visual.add_trace(go.Scattergeo(
-                        lon=datos_mapa_limpio['lon'], lat=datos_mapa_limpio['lat'], mode='markers',
-                        marker=dict(size=7, color=datos_mapa_limpio['COLOR_STR'], line=dict(width=1, color='rgba(255,255,255,0.9)'), opacity=1.0),
-                        text=datos_mapa_limpio['CIUDAD'] + " | " + datos_mapa_limpio['DIA'].astype(str) + "/" + datos_mapa_limpio['MES'].astype(str) + " " + datos_mapa_limpio['HORA'] + " (" + datos_mapa_limpio['FORMA'] + ")",
+                        lon=df_red_cronologica['lon'], lat=df_red_cronologica['lat'], mode='markers',
+                        marker=dict(size=7, color=df_red_cronologica['COLOR_STR'], line=dict(width=1, color='rgba(255,255,255,0.9)'), opacity=1.0),
+                        text=df_red_cronologica['CIUDAD'] + " | " + df_red_cronologica['DIA'].astype(str) + "/" + df_red_cronologica['MES'].astype(str) + " " + df_red_cronologica['HORA'] + " (" + df_red_cronologica['FORMA'] + ")",
                         hoverinfo='text'
                     ))
                     
                 elif modo_operacion == "IA Predictiva":
-                    # Calcular hotspots agrupando por coordenadas
                     zonas_probabilidad = datos_mapa_limpio.groupby(['CIUDAD', 'PAIS', 'lat', 'lon']).size().reset_index(name='conteo')
                     zonas_probabilidad = zonas_probabilidad.sort_values(by='conteo', ascending=False).head(10)
                     
-                    # Puntos historicos atenuados
                     mapa_visual.add_trace(go.Scattergeo(
                         lon=datos_mapa_limpio['lon'], lat=datos_mapa_limpio['lat'], mode='markers',
                         marker=dict(size=3, color='rgba(100,100,100,0.3)'), hoverinfo='none'
                     ))
                     
-                    # Zonas de Alta Probabilidad (Rojas y grandes)
                     mapa_visual.add_trace(go.Scattergeo(
                         lon=zonas_probabilidad['lon'], lat=zonas_probabilidad['lat'], mode='markers',
                         marker=dict(size=zonas_probabilidad['conteo']*2 + 10, color='rgba(255, 0, 50, 0.4)', line=dict(width=2, color='rgba(255,0,0,0.8)')),
                         text="[PROBABILIDAD ALTA] " + zonas_probabilidad['CIUDAD'] + " | Historico: " + zonas_probabilidad['conteo'].astype(str), hoverinfo='text'
                     ))
 
-                # Inyeccion de Simulaciones Activas en el Mapa (Aparecen en cualquier modo tactico)
+                # Simulaciones en Mapa
                 if len(st.session_state["simulaciones_activas"]) > 0:
                     lon_sims = [s['lon'] for s in st.session_state["simulaciones_activas"]]
                     lat_sims = [s['lat'] for s in st.session_state["simulaciones_activas"]]
@@ -776,7 +758,7 @@ elif st.session_state["pantalla_actual"] == "principal":
             except Exception:
                 st.dataframe(datos_a_mostrar, width='stretch', hide_index=True, height=400)
 
-    # --- PROCESADOR NLP FORENSE DE AGATHA (CON DATOS EXTERNOS) ---
+    # --- PROCESADOR NLP FORENSE DE AGATHA ---
     with st.expander("PROCESADOR NLP FORENSE", expanded=False):
         
         ruta_archivo_testimonios_1 = os.path.join("data", "avistamientos_testimonios.csv")
