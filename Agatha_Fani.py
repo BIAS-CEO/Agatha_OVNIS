@@ -183,13 +183,23 @@ def obtener_meteo(lat, lon):
         return None
 
 # =========================
-# CARGA PRINCIPAL
+# CARGA PRINCIPAL (MODIFICADA PARA DEPURACIÓN)
 # =========================
 with st.spinner("AGATHA cargando base de datos global..."):
     df_maestro = cargar_datos_global()
 
-if not df_maestro.empty:
+if df_maestro.empty:
+    st.error("FALLO DE ORIGEN: No se encontraron datos. Verifica que la carpeta 'data' existe en el directorio de ejecución y contiene archivos CSV.")
+else:
+    st.success(f"CSV cargados correctamente: {len(df_maestro)} registros. Iniciando geolocalización...")
+    
+    if not GOOGLE_MAPS_KEY:
+        st.warning("ADVERTENCIA: No se ha detectado GOOGLE_MAPS_KEY. Las coordenadas serán nulas.")
+        
     df_maestro = aplicar_geolocalizacion(df_maestro)
+    
+    if df_maestro.empty:
+        st.error("FALLO DE GEOLOCALIZACIÓN: Todos los registros fueron descartados al no poder obtener coordenadas. Revisa tu API Key o desactiva la función dropna().")
 
 # ====================================================================
 # INTERFAZ PRINCIPAL — FILTROS + MAPA
