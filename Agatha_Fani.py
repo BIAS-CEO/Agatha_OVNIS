@@ -383,26 +383,31 @@ def cargar_archivo_relaciones():
 # PANTALLA 1: PORTADA / PANTALLA DE ARRANQUE
 # ====================================================================
 if st.session_state["pantalla_actual"] == "portada":
+    # Eliminamos columnas restrictivas de margen laterales ([1, 4, 1]).
+    # La imagen ocupará el máximo ancho permitido por el contenedor global (98%).
     st.markdown("<br><br>", unsafe_allow_html=True)
     
-    col_vacia1, col_centro, col_vacia2 = st.columns([1, 4, 1])
+    ruta_panel_maestro = os.path.join("assets", "dashboard_maestro_global.png")
+    if os.path.exists(ruta_panel_maestro):
+        try:
+            # use_container_width=True expande la imagen al máximo ancho disponible del contenedor padre (98% global)
+            st.image(ruta_panel_maestro, use_container_width=True)
+        except Exception:
+            st.error("[ERROR SISTEMA] La imagen 'dashboard_maestro_global.png' esta corrupta.")
+    else:
+        st.warning("[AVISO] No se encontro la imagen en assets/dashboard_maestro_global.png")
+        
+    st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
+    st.markdown("<div class='boton-entrada'>", unsafe_allow_html=True)
     
-    with col_centro:
-        ruta_panel_maestro = os.path.join("assets", "dashboard_maestro_global.png")
-        if os.path.exists(ruta_panel_maestro):
-            try:
-                st.image(ruta_panel_maestro, use_container_width=True)
-            except Exception:
-                st.error("[ERROR SISTEMA] La imagen 'dashboard_maestro_global.png' esta corrupta.")
-        else:
-            st.warning("[AVISO] No se encontro la imagen en assets/dashboard_maestro_global.png")
-            
-        st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
-        st.markdown("<div class='boton-entrada'>", unsafe_allow_html=True)
+    # Usamos columnas específicas solo para centrar el botón, sin restringir la imagen de arriba
+    col_btn_vacia1, col_btn_centro, col_btn_vacia2 = st.columns([1.5, 3, 1.5]) # Centramos el botón en el 50% central
+    
+    with col_btn_centro:
         if st.button("ACCEDER A AGATHA INTELLIGENT NEURAL NETWORK", type="primary", use_container_width=True):
             st.session_state["pantalla_actual"] = "principal"
             st.rerun()
-        st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
 # ====================================================================
 # PANTALLA 2: INTERFAZ PRINCIPAL TACTICA
