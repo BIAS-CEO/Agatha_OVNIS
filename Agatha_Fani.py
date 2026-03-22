@@ -2,7 +2,7 @@
 # ARCHIVO PRINCIPAL: Agatha_Fani.py
 # SISTEMA: AGATHA Intelligent Neural Network
 # MODULO: MODULO CONTACT (Fenomeno Anomalo No Identificado)
-# VERSION: Opcon Ready v10.1 (DataGrid Forense Exacto)
+# VERSION: Opcon Ready v10.2 (Map Cleansing & NLP Dashboard)
 # OPERADOR: DIR-74
 # ====================================================================
 
@@ -345,9 +345,9 @@ if st.session_state["pantalla_actual"] == "portada":
             try:
                 st.image(ruta_dashboard, use_container_width=True)
             except Exception:
-                st.error("La imagen 'dashboard_maestro_global.png' esta corrupta y no se puede cargar.")
+                st.error("ERROR: La imagen 'dashboard_maestro_global.png' esta corrupta y no se puede cargar.")
         else:
-            st.warning("No se encontro la imagen en assets/dashboard_maestro_global.png")
+            st.warning("AVISO: No se encontro la imagen en assets/dashboard_maestro_global.png")
             
         st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
         st.markdown("<div class='boton-entrada'>", unsafe_allow_html=True)
@@ -389,7 +389,7 @@ elif st.session_state["pantalla_actual"] == "principal":
 
     # --- CATÁLOGO UAP ---
     with st.expander("CATALOGO UAP IDENTIFICACION VISUAL DE OBJETOS", expanded=False):
-        st.markdown("<div style='color:#00d4ff; font-size:0.85rem; margin-bottom:15px; line-height:1.4;'>PISTA: Selecciona la forma para abrir el analisis tactico de reconocimiento.</div>", unsafe_allow_html=True)
+        st.markdown("<div style='color:#00d4ff; font-size:0.85rem; margin-bottom:15px; line-height:1.4;'>INFORMACION TACTICA: Selecciona la forma para abrir el analisis visual de reconocimiento.</div>", unsafe_allow_html=True)
         
         lista_archivos_formas = [
             "bola_de_fuego", "cambiante", "cigarro", "cilindro", "circulo", "cono",
@@ -451,7 +451,7 @@ elif st.session_state["pantalla_actual"] == "principal":
         if len(st.session_state["reportes_ciudadanos"]) > 0:
             st.markdown(f"<p style='color: #94a3b8; font-size: 0.8rem; margin-top: 10px;'>Reportes en la sesion actual: {len(st.session_state['reportes_ciudadanos'])}</p>", unsafe_allow_html=True)
 
-    # --- PANEL TACTICO SUPERIOR (GLOBAL METRICS Y CONTROLES MIGRADOS) ---
+    # --- PANEL TACTICO SUPERIOR (GLOBAL METRICS) ---
     st.markdown("---")
     
     col_met1, col_met2, col_met3, col_met4 = st.columns([1, 1, 1, 1.5])
@@ -534,8 +534,14 @@ elif st.session_state["pantalla_actual"] == "principal":
             with st.spinner("Calibrando proyecciones UAP..."):
                 fig = go.Figure()
                 
+                # EXCLUSION DE NODOS NO ESPECIFICADOS SOLO PARA EL MAPA
+                df_mapa_limpio = df_filtrado[
+                    (df_filtrado['PAIS'].str.upper() != 'NO ESPECIFICADO') & 
+                    (df_filtrado['CIUDAD'].str.upper() != 'NO ESPECIFICADO')
+                ]
+
                 if modo_visor == "Nodos Base":
-                    df_mapa = df_filtrado.head(1000) if filtros_activos else df_filtrado.sample(min(500, len(df_filtrado)))
+                    df_mapa = df_mapa_limpio.head(1000) if filtros_activos else df_mapa_limpio.sample(min(500, len(df_mapa_limpio)))
                     
                     fig.add_trace(go.Scattergeo(
                         lon=df_mapa['lon'], lat=df_mapa['lat'], mode='markers',
@@ -543,10 +549,10 @@ elif st.session_state["pantalla_actual"] == "principal":
                         text=df_mapa['CIUDAD'] + " | " + df_mapa['DIA'].astype(str) + "/" + df_mapa['MES'].astype(str) + " " + df_mapa['HORA'] + " (" + df_mapa['FORMA'] + ")", hoverinfo='text'
                     ))
                 else:
-                    if len(df_filtrado) < 2:
-                        st.warning("Se requieren al menos 2 registros tacticos para trazar corredores de vuelo.")
+                    if len(df_mapa_limpio) < 2:
+                        st.warning("AVISO: Se requieren al menos 2 registros tacticos validos para trazar corredores de vuelo.")
                     else:
-                        df_red = df_filtrado.sort_values(by=['AÑO', 'MES', 'DIA', 'HORA']).head(200)
+                        df_red = df_mapa_limpio.sort_values(by=['AÑO', 'MES', 'DIA', 'HORA']).head(200)
                         formas_presentes = df_red['FORMA'].unique()
                         formas_validas = [f for f in formas_presentes if len(df_red[df_red['FORMA'] == f]) > 1]
                         
@@ -582,7 +588,7 @@ elif st.session_state["pantalla_actual"] == "principal":
                 
                 grafico_placeholder.plotly_chart(fig, width='stretch')
                 
-                if modo_visor == "Red de Trayectorias" and len(df_filtrado) >= 2:
+                if modo_visor == "Red de Trayectorias" and len(df_mapa_limpio) >= 2:
                     if 'formas_validas' in locals() and len(formas_validas) > 0:
                         with st.expander(f"LEYENDA TACTICA: ANALISIS DE CORREDORES ({len(formas_validas)} detectados)", expanded=False):
                             sel_corredor = st.selectbox("Seleccionar vector morfologico para analisis detallado", formas_validas)
@@ -643,6 +649,7 @@ elif st.session_state["pantalla_actual"] == "principal":
             except Exception:
                 st.dataframe(df_mostrar, width='stretch', hide_index=True, height=400)
 
+    # --- PROCESADOR NLP FORENSE DE AGATHA ---
     with st.expander("PROCESADOR NLP FORENSE", expanded=False):
         if not df_filtrado.empty and 'RESUMEN' in df_filtrado.columns:
             df_nlp = df_filtrado.copy()
@@ -667,7 +674,7 @@ elif st.session_state["pantalla_actual"] == "principal":
                                 p = {
                                     "model": "deepseek-chat",
                                     "messages": [
-                                        {"role": "system", "content": "Analiza el texto de este avistamiento UAP y responde estrictamente con un JSON con esta estructura: {comportamiento: '...', credibilidad: 'ALTA/MEDIA/BAJA', indice_anomalia: '0-100', explicacion_probable: 'ej. Satelites, Starlink, Globo, Cohete, Fenomeno Meteorologico, o Desconocido'}"},
+                                        {"role": "system", "content": "Analiza el texto de este avistamiento UAP y responde estrictamente con un JSON con esta estructura exacta: {\"comportamiento\": \"...\", \"credibilidad\": \"ALTA/MEDIA/BAJA\", \"indice_anomalia\": \"0-100\", \"explicacion_probable\": \"ej. Satelites, Starlink, Globo, Cohete, Fenomeno Meteorologico, o Desconocido\"}"},
                                         {"role": "user", "content": resumen}
                                     ],
                                     "response_format": {"type": "json_object"}
@@ -679,7 +686,19 @@ elif st.session_state["pantalla_actual"] == "principal":
                                     content = content.split("```")[1]
                                     if content.startswith("json"): content = content[4:]
                                 
-                                st.json(json.loads(content.strip()))
+                                datos_nlp = json.loads(content.strip())
+                                
+                                # Renderizado Tactico del Panel de Inteligencia NLP
+                                st.markdown("<h4 style='color:#00d4ff; margin-top:20px; border-bottom:1px solid #333; padding-bottom:5px;'>REPORTE TACTICO DE INTELIGENCIA</h4>", unsafe_allow_html=True)
+                                
+                                col_nlp1, col_nlp2, col_nlp3 = st.columns(3)
+                                col_nlp1.metric("INDICE DE ANOMALIA", f"{datos_nlp.get('indice_anomalia', '0')}%")
+                                col_nlp2.metric("CREDIBILIDAD DEL REPORTE", str(datos_nlp.get('credibilidad', 'N/A')).upper())
+                                col_nlp3.metric("EXPLICACION PROBABLE", str(datos_nlp.get('explicacion_probable', 'N/A')).upper())
+                                
+                                st.markdown("<br><span style='color:#94a3b8; font-weight:600; letter-spacing:1px;'>ANALISIS CINEMATICO Y CONDUCTUAL:</span>", unsafe_allow_html=True)
+                                st.markdown(f"<div style='background:#0f172a; padding:15px; border:1px solid #1e293b; color:#cbd5e1; font-family: monospace;'>{datos_nlp.get('comportamiento', 'Sin datos conductuales extraidos.')}</div>", unsafe_allow_html=True)
+
                             except Exception as e:
                                 st.error(f"ERROR: Fallo interno en los circuitos de AGATHA: {str(e)}")
                     else:
