@@ -2,7 +2,7 @@
 # ARCHIVO PRINCIPAL: Agatha_Fani.py
 # SISTEMA: Motor de Analisis Conductual Predictivo
 # MODULO: AGATHA FANI (Fenomenos Anomalos No Identificados)
-# VERSION: Opcon Ready v5.8 (UI Original Restaurada + Data Fix)
+# VERSION: Opcon Ready v5.9 (UI Original + Fix Columnas Duplicadas)
 # OPERADOR: DIR-74
 # ====================================================================
 
@@ -138,9 +138,6 @@ with st.status("Inicializando Motor de Analisis Conductual Predictivo...", expan
 
     OPENAI_API_KEY = obtener_credencial("OPENAI_API_KEY")
     DEEPSEEK_API_KEY = obtener_credencial("DEEPSEEK_API_KEY")
-    MAPBOX_API_KEY = obtener_credencial("MAPBOX_API_KEY")
-    OPENWEATHER_API_KEY = obtener_credencial("OPENWEATHER_API_KEY")
-    GOOGLE_MAPS_KEY = obtener_credencial("GOOGLE_MAPS_KEY")
 
     def asignar_color_neon(forma):
         f = str(forma).lower()
@@ -252,6 +249,9 @@ with st.status("Inicializando Motor de Analisis Conductual Predictivo...", expan
                 'TIME': 'HORA'
             }
             df.rename(columns=col_map, inplace=True)
+            
+            # --- FIX CRITICO: Eliminar columnas duplicadas generadas al renombrar ---
+            df = df.loc[:, ~df.columns.duplicated()]
             
             for c in ['CIUDAD', 'PAIS', 'FORMA']:
                 if c not in df.columns: df[c] = "No especificado"
@@ -481,8 +481,9 @@ with st.expander("MANUAL DE IDENTIFICACION VISUAL (CATALOGO FANI)", expanded=Fal
 
 with st.expander(f"REGISTROS FORENSES ({len(df_filtrado)} Activos)", expanded=True):
     if not df_filtrado.empty:
+        # Se asegura de no usar columnas duplicadas para evitar KeyError en estilos
         cols_excluir = ['COLOR_STR', 'lat', 'lon', 'DECADA', 'ORD.', 'NUM.', 'Source_File']
-        cols_vis = [c for c in df_filtrado.columns if c not in cols_excluir]
+        cols_vis = list(dict.fromkeys([c for c in df_filtrado.columns if c not in cols_excluir]))
         
         if not filtros_activos:
             st.info("Sistema en reposo. Mostrando previsualización de los 100 registros más recientes. Active los filtros tácticos para una búsqueda específica.")
@@ -494,18 +495,16 @@ with st.expander(f"REGISTROS FORENSES ({len(df_filtrado)} Activos)", expanded=Tr
             else:
                 df_mostrar = df_filtrado.sort_values(by=['AÑO','MES','DIA','HORA'], ascending=[False, False, False, False])
         
-        df_estilizado = df_mostrar[cols_vis].style.set_properties(**{
-            'background-color': '#0a0a0a',
-            'color': '#cbd5e1',
-            'border-color': '#333333'
-        })
-        
-        st.dataframe(
-            df_estilizado,
-            width='stretch',
-            hide_index=True,
-            height=400
-        )
+        try:
+            df_estilizado = df_mostrar[cols_vis].style.set_properties(**{
+                'background-color': '#0a0a0a',
+                'color': '#cbd5e1',
+                'border-color': '#333333'
+            })
+            st.dataframe(df_estilizado, width='stretch', hide_index=True, height=400)
+        except Exception:
+            # Plan B: Si falla el CSS de Pandas, dibuja la tabla oscura nativa de Streamlit
+            st.dataframe(df_mostrar[cols_vis], width='stretch', hide_index=True, height=400)
 
 with st.expander("PROCESADOR NLP FORENSE", expanded=False):
     if not df_filtrado.empty and 'RESUMEN' in df_filtrado.columns:
