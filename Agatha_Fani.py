@@ -2,7 +2,7 @@
 # ARCHIVO PRINCIPAL: Agatha_Fani.py
 # SISTEMA: AGATHA Intelligent Neural Network
 # MODULO: MODULO CONTACT (Fenomeno Anomalo No Identificado)
-# VERSION: Opcon Ready v9.2 (Alineación Estricta Grid + PIL Normalizer)
+# VERSION: Opcon Ready v9.3 (Fix Textos Botones Catálogo)
 # OPERADOR: DIR-74
 # ====================================================================
 
@@ -110,17 +110,20 @@ h2, h3, h4 {
     text-transform: uppercase; 
     font-size: 0.70rem !important;
     letter-spacing: 0.5px;
-    padding: 0.2rem 0.5rem !important; 
+    padding: 0.4rem 0.2rem !important; 
     box-shadow: none !important;
     transition: all 0.3s ease;
     margin: 0 auto !important;
-    width: 90% !important; 
-    height: 48px !important; /* Altura estricta para evitar desalineación por texto doble */
+    width: 95% !important; 
+    min-height: 45px !important; /* Mínimo para que se vean parejos */
+    height: auto !important; /* Permite crecer si el texto es largo */
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
     text-align: center !important;
-    line-height: 1.1 !important;
+    line-height: 1.2 !important;
+    white-space: normal !important; /* Obliga al salto de línea en vez de cortar */
+    word-wrap: break-word !important;
 }
 .stButton > button:hover { 
     border-color: #00d4ff !important; 
@@ -129,7 +132,7 @@ h2, h3, h4 {
     box-shadow: 0 0 15px rgba(0, 212, 255, 0.5) !important;
 }
 
-/* Estilo específico para el botón de entrada gigante (protegido de los cambios anteriores) */
+/* Estilo específico para el botón de entrada gigante (protegido) */
 .boton-entrada > div > div > button {
     font-size: 1.2rem !important;
     padding: 1.2rem !important;
@@ -137,6 +140,7 @@ h2, h3, h4 {
     height: auto !important;
     border-color: #00d4ff !important;
     box-shadow: 0 0 20px rgba(0, 212, 255, 0.4) !important;
+    white-space: normal !important;
 }
 </style>
 """
@@ -151,12 +155,11 @@ if "reportes_ciudadanos" not in st.session_state:
 
 # --- FUNCIONES NÚCLEO GLOBALES ---
 
-# Normalizador matemático de miniaturas (Fuerza cuadrado 300x300 sin deformar)
 def normalizar_miniatura(img_path, size=(300, 300)):
     try:
         img = Image.open(img_path).convert("RGBA")
         img.thumbnail(size, Image.Resampling.LANCZOS)
-        background = Image.new('RGBA', size, (10, 10, 10, 0)) # Fondo transparente
+        background = Image.new('RGBA', size, (10, 10, 10, 0)) 
         offset = (int((size[0] - img.width) / 2), int((size[1] - img.height) / 2))
         background.paste(img, offset)
         return background
@@ -354,7 +357,7 @@ elif st.session_state["pantalla_actual"] == "principal":
             st.session_state["pantalla_actual"] = "portada"
             st.rerun()
 
-    # --- CATÁLOGO UAP (GRID 6x4 ALINEADO ESTRICTAMENTE) ---
+    # --- CATÁLOGO UAP ---
     with st.expander("CATÁLOGO UAP IDENTIFICACIÓN VISUAL DE OBJETOS", expanded=False):
         st.markdown("<div style='color:#00d4ff; font-size:0.85rem; margin-bottom:15px; line-height:1.4;'>Selecciona la forma en cualquier tipología para abrir el análisis táctico de reconocimiento.</div>", unsafe_allow_html=True)
         
