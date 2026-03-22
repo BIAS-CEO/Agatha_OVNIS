@@ -3,7 +3,6 @@
 # SISTEMA: AGATHA Intelligent Neural Network
 # MODULO: MODULO CONTACT (Fenomeno Anomalo No Identificado)
 # VERSION: Opcon Ready v10.10 (Malla Deep Black & Tactical Maps)
-# PARTE 1 DE 2
 # OPERADOR: DIR-74
 # ====================================================================
 
@@ -80,7 +79,7 @@ h2, h3, h4 {
     text-shadow: 0 0 10px rgba(168, 85, 247, 0.3);
 }
 
-/* Metric Táctica (Reducida y Oscurecida) */
+/* Metric Tactica (Reducida y Oscurecida) */
 [data-testid="stMetric"] { 
     background-color: #0d1117 !important; 
     border: 1px solid #1e293b !important; 
@@ -119,6 +118,7 @@ div[data-testid="stButton"] button {
     background-color: #0d1117 !important; 
     border-radius: 0px !important; 
     transition: all 0.2s ease;
+    display: block !important;
 }
 div[data-testid="stButton"] button p {
     font-family: 'Montserrat', sans-serif !important; 
@@ -126,8 +126,15 @@ div[data-testid="stButton"] button p {
     text-transform: uppercase; 
     color: #00d4ff !important; 
     font-size: 0.65rem !important;
+    white-space: normal !important; 
+    word-wrap: break-word !important; 
+    overflow: visible !important; 
+    text-overflow: clip !important; 
+    line-height: 1.2 !important; 
+    margin: 0 !important; 
+    text-align: center !important;
 }
-div[data-testid="stButton"] button:hover { border-color: #00d4ff !important; background-color: #00d4ff !important; }
+div[data-testid="stButton"] button:hover { border-color: #00d4ff !important; background-color: #00d4ff !important; border-top: 1px solid #00d4ff !important;}
 div[data-testid="stButton"] button:hover p { color: #000000 !important; }
 
 /* Boton de Portada (Brillante) */
@@ -136,17 +143,17 @@ div[data-testid="stButton"] button:hover p { color: #000000 !important; }
     border-color: #00d4ff !important;
     box-shadow: 0 0 25px rgba(0, 212, 255, 0.4) !important;
 }
-.boton-entrada div[data-testid="stButton"] button p { font-size: 1.1rem !important; }
+.boton-entrada div[data-testid="stButton"] button p { font-size: 1.1rem !important; padding: 0.5rem !important;}
 
 /* Boton Purgar (Rojo Tactico) */
-.boton-purgar div[data-testid="stButton"] button { border-color: #ff3333 !important; }
+.boton-purgar div[data-testid="stButton"] button { border-color: #ff3333 !important; border-top: 1px solid #ff3333 !important;}
 .boton-purgar div[data-testid="stButton"] button p { color: #ff3333 !important; }
 .boton-purgar div[data-testid="stButton"] button:hover { background-color: #ff3333 !important; }
 .boton-purgar div[data-testid="stButton"] button:hover p { color: #000000 !important; }
 
 /* Boton Simular (Verde Tactico) */
-.boton-simular div[data-testid="stButton"] button { border-color: #00ff88 !important; }
-.boton-simular div[data-testid="stButton"] button p { color: #00ff88 !important; }
+.boton-simular div[data-testid="stButton"] button { border-color: #00ff88 !important; border-top: 1px solid #00ff88 !important; box-shadow: 0 0 20px rgba(0, 255, 136, 0.3) !important;}
+.boton-simular div[data-testid="stButton"] button p { color: #00ff88 !important; font-size: 0.9rem !important;}
 .boton-simular div[data-testid="stButton"] button:hover { background-color: #00ff88 !important; }
 .boton-simular div[data-testid="stButton"] button:hover p { color: #000000 !important; }
 
@@ -215,7 +222,6 @@ if "simulaciones_activas" not in st.session_state: st.session_state["simulacione
 if "reportes_ciudadanos" not in st.session_state: st.session_state["reportes_ciudadanos"] = []
 
 # --- FUNCIONES NUCLEO GLOBAL ---
-
 def normalizar_miniatura(ruta_imagen, tamaño=(300, 300)):
     try:
         img = Image.open(ruta_imagen).convert("RGBA")
@@ -229,8 +235,7 @@ def normalizar_miniatura(ruta_imagen, tamaño=(300, 300)):
 @st.dialog("VISOR TACTICO UAP", width="large")
 def abrir_visor_completo(nombre_forma_archivo):
     ruta_completa = os.path.join("assets", f"{nombre_forma_archivo}_completo.png")
-    if os.path.exists(ruta_completa):
-        st.image(ruta_completa, use_container_width=True)
+    if os.path.exists(ruta_completa): st.image(ruta_completa, use_container_width=True)
     else: st.error(f"[ERROR ARCHIVO] Falta el archivo de detalle: {ruta_completa}")
 
 def obtener_credencial(nombre_var):
@@ -260,22 +265,17 @@ def simular_coordenadas(df):
         "EEUU": (39.8, -98.5), "CANADA": (56.1, -106.3), "MEXICO": (23.6, -102.5),
         "ESPAÑA": (40.46, -3.75), "FRANCIA": (46.22, 2.21), "ALEMANIA": (51.16, 10.45)
     }
-    
     pai = df['PAIS'].astype(str).str.upper().str.strip()
     coords_pai = pai.map(centroides)
-    
     def coords_seguras(row_hash): return (((row_hash % 130) - 60), ((row_hash % 240) - 120))
     df['hash_val'] = df['CIUDAD'].astype(str).apply(lambda x: sum(ord(c) for c in x) if pd.notna(x) else 0)
     coordenadas_respaldo = df['hash_val'].apply(coords_seguras)
     coords_finales = coords_pai.combine_first(pd.Series([(c[0], c[1]) for c in coordenadas_respaldo], index=df.index))
-    
     df['lat'] = coords_finales.apply(lambda x: x[0]) + (((df['hash_val'] % 100) - 50) / 100.0 * 1.5)
     df['lon'] = coords_finales.apply(lambda x: x[1]) + ((((df['hash_val'] // 10) % 100) - 50) / 100.0 * 1.5)
-    
     df = df.drop(columns=['hash_val'])
     df['lat'] = pd.to_numeric(df['lat'], errors='coerce').fillna(0.0)
     df['lon'] = pd.to_numeric(df['lon'], errors='coerce').fillna(0.0)
-    
     return df
     
 @st.cache_data(show_spinner=False)
@@ -290,26 +290,31 @@ def cargar_nodos():
                     dfs.append(temp_df)
                 except Exception: pass
     if dfs: df = pd.concat(dfs, ignore_index=True)
-    else: return pd.DataFrame(), ["Error: Datos no encontrados."]
+    else: return pd.DataFrame(), ["[ERROR] Datos no encontrados."]
 
     try:
         df.columns = df.columns.str.upper().str.strip()
-        col_map = {'YEAR': 'AÑO', 'CITY': 'CIUDAD', 'COUNTRY': 'PAIS', 'SHAPE': 'FORMA', 'TIME': 'HORA'}
+        col_map = {'YEAR': 'AÑO', 'CITY': 'CIUDAD', 'COUNTRY': 'PAIS', 'PAÍS': 'PAIS', 'SHAPE': 'FORMA', 'TIME': 'HORA'}
         df.rename(columns=col_map, inplace=True)
         df = df.loc[:, ~df.columns.duplicated()]
-        
         for c in ['CIUDAD', 'PAIS', 'FORMA']: df[c] = df[c].fillna("No especificado").astype(str).str.title().str.strip()
-            
-        df['AÑO'] = pd.to_numeric(df['AÑO'], errors='coerce').fillna(2026).astype(int)
-        df['DIA'] = pd.to_numeric(df.get('DIA', 0), errors='coerce').fillna(0).astype(int)
-        df['MES'] = pd.to_numeric(df.get('MES', 0), errors='coerce').fillna(0).astype(int)
-        df['HORA'] = df['HORA'].astype(str).str.strip().replace('nan', 'No especificada')
+        df['AÑO'] = pd.to_numeric(df.get('AÑO', 2026), errors='coerce').fillna(2026).astype(int)
+        df['DIA'] = pd.to_numeric(df.get('DIA', 0), errors='coerce').fillna(0).astype(int).astype(str).replace('0', 'No especificado')
+        df['MES'] = pd.to_numeric(df.get('MES', 0), errors='coerce').fillna(0).astype(int).astype(str).replace('0', 'No especificado')
         
+        def formatear_hora(h):
+            val = str(h).strip()
+            if val.lower() in ['nan', 'nat', 'none', 'null', '', 'no especificada']: return "No especificada"
+            if ':' in val:
+                partes = val.split(':')
+                if len(partes) >= 2: return f"{partes[0].zfill(2)}:{partes[1].zfill(2)}"
+            return "No especificada"
+
+        df['HORA'] = df.get('HORA', pd.Series(["No especificada"]*len(df))).apply(formatear_hora)
         df = simular_coordenadas(df)
         df['COLOR_STR'] = df['FORMA'].apply(asignar_color_neon)
-        
-        return df, ["Sincronizacion de nodos completa."]
-    except Exception as e: return pd.DataFrame(), [f"Error de proceso: {str(e)}"]
+        return df, ["[INFO] Sincronización de nodos completa."]
+    except Exception as e: return pd.DataFrame(), [f"[ERROR] Proceso interrumpido: {str(e)}"]
 
 @st.cache_data(show_spinner=False)
 def cargar_archivo_relaciones():
@@ -319,26 +324,6 @@ def cargar_archivo_relaciones():
             try: return pd.read_csv(r, sep=None, engine='python', encoding='utf-8-sig', on_bad_lines='skip')
             except Exception: pass
     return pd.DataFrame()
-
-# ====================================================================
-# PANTALLA 1: PORTADA / PANTALLA DE ARRANQUE
-# ====================================================================
-if st.session_state["pantalla_actual"] == "portada":
-    st.markdown("<br><br>", unsafe_allow_html=True)
-    col_vacia1, col_centro, col_vacia2 = st.columns([1, 4, 1])
-    
-    with col_centro:
-        ruta_panel_maestro = os.path.join("assets", "dashboard_maestro_global.png")
-        if os.path.exists(ruta_panel_maestro):
-            st.image(ruta_panel_maestro, use_container_width=True)
-            
-        st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
-        st.markdown("<div class='boton-entrada'>", unsafe_allow_html=True)
-        if st.button("ACCEDER A AGATHA INTELLIGENT NEURAL NETWORK", type="primary", use_container_width=True):
-            st.session_state["pantalla_actual"] = "principal"
-            st.rerun()
-        st.markdown("</div>", unsafe_allow_html=True)
-
 }
 div.row-widget.stRadio > div > div label p { 
     color: #e2e8f0; 
