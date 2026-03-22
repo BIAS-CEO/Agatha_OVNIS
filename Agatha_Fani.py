@@ -692,53 +692,27 @@ elif st.session_state["pantalla_actual"] == "principal":
                 if not datos_mapa_limpio.empty:
                     df_red_cronologica = datos_mapa_limpio.sort_values(by=['AÑO', 'MES', 'DIA', 'HORA']).head(300)
                     
-                    # 1. FORZAR LOS PUENTES ENTRE NODOS
-                    try:
-                        # Diccionario rapido para emparejar Ciudad -> Coordenadas
-                        dict_coords = dict(zip(datos_mapa_limpio['CIUDAD'].astype(str).str.upper().str.strip(), zip(datos_mapa_limpio['lon'], datos_mapa_limpio['lat'])))
+                    if len(nodos_origen_lon) > 0:
+                        for i in range(len(nodos_origen_lon)):
+                            mapa_visual.add_trace(go.Scattergeo(
+                                lon=[nodos_origen_lon[i], nodos_destino_lon[i]], 
+                                lat=[nodos_origen_lat[i], nodos_destino_lat[i]], 
+                                mode='lines',
+                                line=dict(width=1.5, color='rgba(0, 212, 255, 0.6)'), 
+                                opacity=0.8, 
+                                hoverinfo='none'
+                            ))
+                    else:
+                        formas_presentes = df_red_cronologica['FORMA'].unique()
+                        formas_validas_malla = [f for f in formas_presentes if len(df_red_cronologica[df_red_cronologica['FORMA'] == f]) > 1]
                         
-                        if 'conexion_seleccionada' in locals() and conexion_seleccionada != "TODAS" and 'df_relaciones_filtrado' in locals():
-                            for _, row in df_relaciones_filtrado.iterrows():
-                                c_origen = str(row.get('Source_City', '')).upper().strip()
-                                c_destino = str(row.get('Target_City', '')).upper().strip()
-                                
-                                if c_origen in dict_coords and c_destino in dict_coords:
-                                    mapa_visual.add_trace(go.Scattergeo(
-                                        lon=[dict_coords[c_origen][0], dict_coords[c_destino][0]],
-                                        lat=[dict_coords[c_origen][1], dict_coords[c_destino][1]],
-                                        mode='lines',
-                                        line=dict(width=2.5, color='rgba(0, 212, 255, 0.9)'),
-                                        opacity=0.9,
-                                        hoverinfo='none'
-                                    ))
-                        elif 'df_relaciones' in locals() and not df_relaciones.empty:
-                            for _, row in df_relaciones.iterrows():
-                                c_origen = str(row.get('Source_City', '')).upper().strip()
-                                c_destino = str(row.get('Target_City', '')).upper().strip()
-                                
-                                if c_origen in dict_coords and c_destino in dict_coords:
-                                    mapa_visual.add_trace(go.Scattergeo(
-                                        lon=[dict_coords[c_origen][0], dict_coords[c_destino][0]],
-                                        lat=[dict_coords[c_origen][1], dict_coords[c_destino][1]],
-                                        mode='lines',
-                                        line=dict(width=1.5, color='rgba(255, 51, 51, 0.5)'),
-                                        opacity=0.6,
-                                        hoverinfo='none'
-                                    ))
-                        else:
-                            # Fallback por defecto: Traza cronologica por forma
-                            formas_malla = df_red_cronologica['FORMA'].unique()
-                            for forma in formas_malla:
-                                df_f = df_red_cronologica[df_red_cronologica['FORMA'] == forma]
-                                if len(df_f) > 1:
-                                    mapa_visual.add_trace(go.Scattergeo(
-                                        lon=df_f['lon'].tolist(), lat=df_f['lat'].tolist(), mode='lines',
-                                        line=dict(width=1.5, color=df_f.iloc[0]['COLOR_STR']), opacity=0.35, hoverinfo='none'
-                                    ))
-                    except Exception as e:
-                        pass # Ignorar fallos de cruce para no detener el renderizado del mapa
+                        for forma in formas_validas_malla:
+                            df_forma_malla = df_red_cronologica[df_red_cronologica['FORMA'] == forma]
+                            mapa_visual.add_trace(go.Scattergeo(
+                                lon=df_forma_malla['lon'].tolist(), lat=df_forma_malla['lat'].tolist(), mode='lines',
+                                line=dict(width=1.5, color=df_forma_malla.iloc[0]['COLOR_STR']), opacity=0.35, hoverinfo='none'
+                            ))
                     
-                    # 2. DIBUJAR LOS NODOS (Superpuestos a las lineas)
                     texto_hover_red = (
                         "<b>Ciudad:</b> " + df_red_cronologica['CIUDAD'] + "<br>" +
                         "<b>País:</b> " + df_red_cronologica['PAIS'] + "<br>" +
