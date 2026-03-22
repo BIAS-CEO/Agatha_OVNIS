@@ -2,7 +2,7 @@
 # ARCHIVO PRINCIPAL: Agatha_Fani.py
 # SISTEMA: AGATHA Intelligent Neural Network
 # MODULO: MODULO CONTACT (Fenomeno Anomalo No Identificado)
-# VERSION: Opcon Ready v10.0 (Metrics Engine + Clean UI)
+# VERSION: Opcon Ready v10.1 (DataGrid Forense Exacto)
 # OPERADOR: DIR-74
 # ====================================================================
 
@@ -345,9 +345,9 @@ if st.session_state["pantalla_actual"] == "portada":
             try:
                 st.image(ruta_dashboard, use_container_width=True)
             except Exception:
-                st.error("ERROR: La imagen 'dashboard_maestro_global.png' esta corrupta y no se puede cargar.")
+                st.error("La imagen 'dashboard_maestro_global.png' esta corrupta y no se puede cargar.")
         else:
-            st.warning("ERROR: No se encontro la imagen en assets/dashboard_maestro_global.png")
+            st.warning("No se encontro la imagen en assets/dashboard_maestro_global.png")
             
         st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
         st.markdown("<div class='boton-entrada'>", unsafe_allow_html=True)
@@ -457,7 +457,6 @@ elif st.session_state["pantalla_actual"] == "principal":
     col_met1, col_met2, col_met3, col_met4 = st.columns([1, 1, 1, 1.5])
     
     total_activos = len(df_maestro) if not df_maestro.empty else 0
-    # Ignorar Desconocido, Otros y No especificado para forzar un resultado impactante
     formas_validas_global = df_maestro[~df_maestro['FORMA'].str.upper().isin(['DESCONOCIDO', 'OTROS', 'NO ESPECIFICADO', 'UNKNOWN', 'OTHER', 'N/A', ''])] if not df_maestro.empty else pd.DataFrame()
     tipo_predominante = formas_validas_global['FORMA'].mode().iloc[0] if not formas_validas_global.empty else "NO DETECTADO"
     zonas_interes = len(df_maestro['CIUDAD'].unique()) if not df_maestro.empty else 0
@@ -617,8 +616,8 @@ elif st.session_state["pantalla_actual"] == "principal":
 
     with st.expander(f"REGISTROS FORENSES ({len(df_filtrado)} Activos filtrados)", expanded=True):
         if not df_filtrado.empty:
-            cols_excluir = ['COLOR_STR', 'lat', 'lon', 'DECADA', 'ORD.', 'NUM.', 'Source_File']
-            cols_vis = list(dict.fromkeys([c for c in df_filtrado.columns if c not in cols_excluir]))
+            cols_vis = ['DIA', 'MES', 'AÑO', 'HORA', 'CIUDAD', 'PAIS', 'FORMA']
+            cols_vis_existentes = [c for c in cols_vis if c in df_filtrado.columns]
             
             if not filtros_activos:
                 st.info("INFO: Sistema en reposo. Mostrando previsualizacion de los 100 registros mas recientes. Active los filtros tacticos para una busqueda especifica.")
@@ -630,15 +629,19 @@ elif st.session_state["pantalla_actual"] == "principal":
                 else:
                     df_mostrar = df_filtrado.sort_values(by=['AÑO','MES','DIA','HORA'], ascending=[False, False, False, False])
             
+            df_mostrar = df_mostrar[cols_vis_existentes].copy()
+            rename_ui = {'DIA': 'DÍA', 'PAIS': 'PAÍS'}
+            df_mostrar.rename(columns=rename_ui, inplace=True)
+            
             try:
-                df_estilizado = df_mostrar[cols_vis].style.set_properties(**{
+                df_estilizado = df_mostrar.style.set_properties(**{
                     'background-color': '#0a0a0a',
                     'color': '#cbd5e1',
                     'border-color': '#333333'
                 })
                 st.dataframe(df_estilizado, width='stretch', hide_index=True, height=400)
             except Exception:
-                st.dataframe(df_mostrar[cols_vis], width='stretch', hide_index=True, height=400)
+                st.dataframe(df_mostrar, width='stretch', hide_index=True, height=400)
 
     with st.expander("PROCESADOR NLP FORENSE", expanded=False):
         if not df_filtrado.empty and 'RESUMEN' in df_filtrado.columns:
