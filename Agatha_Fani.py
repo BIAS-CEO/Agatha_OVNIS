@@ -1,5 +1,5 @@
 # ====================================================================
-# AGATHA v8.2 — CORE SYSTEM (DATA + GEO NOMINATIM)
+# AGATHA v8.3 — CORE SYSTEM (DATA + GEO NOMINATIM + STREAMLIT UPDATE)
 # ====================================================================
 
 import streamlit as st
@@ -37,7 +37,7 @@ OPENWEATHER_API_KEY = get_secret("OPENWEATHER_API_KEY")
 @st.cache_data(show_spinner=False)
 def geocode_cache(ciudad, pais):
     try:
-        # Agente de usuario personalizado
+        # Agente de usuario personalizado para Motor de Análisis Conductual Predictivo
         geolocator = Nominatim(user_agent="motor_analisis_conductual_predictivo")
         query = f"{ciudad}, {pais}"
         
@@ -228,7 +228,8 @@ with col_mapa:
                 paper_bgcolor="#0a0a0a"
             )
 
-            st.plotly_chart(fig, use_container_width=True)
+            # Actualizado a la nueva sintaxis de Streamlit
+            st.plotly_chart(fig, width="stretch")
             st.caption("Nota: El mapa muestra una muestra representativa geolocalizada para optimizar el rendimiento.")
         else:
             st.warning("No se pudieron obtener las coordenadas geográficas de los puntos filtrados.")
@@ -312,7 +313,8 @@ with st.expander("ANÁLISIS DE CORRELACIÓN", expanded=False):
             .sort_values(by="conteo", ascending=False)
             .head(10)
         )
-        st.dataframe(corr, use_container_width=True)
+        # Actualizado a la nueva sintaxis de Streamlit
+        st.dataframe(corr, width="stretch")
     else:
         st.info("Datos insuficientes para correlación.")
 
