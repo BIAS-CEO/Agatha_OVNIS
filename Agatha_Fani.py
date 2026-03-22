@@ -1,8 +1,8 @@
 # ====================================================================
 # ARCHIVO PRINCIPAL: Agatha_Fani.py
-# SISTEMA: Motor de Analisis Conductual Predictivo
-# MODULO: AGATHA FANI (Fenomenos Anomalos No Identificados)
-# VERSION: Opcon Ready v6.0 (DELIMITER FIX + NULL ISLAND FIX)
+# SISTEMA: AGATHA Intelligent Neural Network
+# MODULO: MODULO CONTACT (Fenomeno Anomalo No Identificado)
+# VERSION: Opcon Ready v7.0 (CONTACT UI + UAP + Formulario Notificación)
 # OPERADOR: DIR-74
 # ====================================================================
 
@@ -18,12 +18,12 @@ import time
 
 # --- CONFIGURACION DE PAGINA ---
 st.set_page_config(
-    page_title="AGATHA - Inteligencia Predictiva",
+    page_title="AGATHA - Intelligent Neural Network",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-# --- CSS CORPORATIVO MATE (Flat Corporate) ---
+# --- CSS CORPORATIVO MATE (Flat Corporate + Colores Eléctricos) ---
 CSS_MATE = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Titillium+Web:wght@300;400;600;700&family=Montserrat:wght@700&family=Share+Tech+Mono&display=swap');
@@ -44,20 +44,31 @@ h1 {
     font-family: 'Montserrat', sans-serif !important; 
     text-transform: uppercase; 
     letter-spacing: -0.5px; 
-    font-size: 2rem !important; 
-    color: #ffffff !important; 
+    font-size: 2.5rem !important; 
+    color: #00d4ff !important; 
+    text-shadow: 0 0 15px rgba(0, 212, 255, 0.4);
     border-bottom: 1px solid #334155; 
     padding-bottom: 8px; 
-    margin-bottom: 0.5rem !important;
+    margin-bottom: 0.2rem !important;
 }
 h2, h3, h4 { 
-    color: #94a3b8 !important; 
+    color: #e2e8f0 !important; 
     text-transform: uppercase; 
     letter-spacing: 1.5px; 
     font-family: 'Montserrat', sans-serif !important; 
     font-weight: 600 !important; 
-    font-size: 0.95rem !important;
-    margin-top: 1.5rem !important;
+    font-size: 1.1rem !important;
+    margin-top: 0.5rem !important;
+}
+
+.cita-contact {
+    font-family: 'Titillium Web', sans-serif;
+    font-style: italic;
+    color: #a855f7;
+    font-size: 1.1rem;
+    letter-spacing: 0.5px;
+    margin-bottom: 2rem;
+    text-shadow: 0 0 10px rgba(168, 85, 247, 0.3);
 }
 
 [data-testid="stMetric"] { 
@@ -85,7 +96,7 @@ h2, h3, h4 {
 .stButton > button { 
     border: 1px solid #333333 !important; 
     background-color: #1a1a1a !important; 
-    color: #e2e8f0 !important; 
+    color: #00d4ff !important; 
     border-radius: 0px !important; 
     font-family: 'Montserrat', sans-serif !important; 
     font-weight: 600 !important; 
@@ -94,13 +105,14 @@ h2, h3, h4 {
     letter-spacing: 0.5px;
     padding: 0.6rem 1.2rem !important; 
     box-shadow: none !important;
-    transition: all 0.2s ease;
+    transition: all 0.3s ease;
     width: 100%;
 }
 .stButton > button:hover { 
     border-color: #00d4ff !important; 
-    color: #ffffff !important; 
-    background-color: #0f172a !important; 
+    color: #0a0a0a !important; 
+    background-color: #00d4ff !important; 
+    box-shadow: 0 0 15px rgba(0, 212, 255, 0.5) !important;
 }
 </style>
 """
@@ -120,7 +132,7 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # --- SECUENCIA DE CARGA PROGRESIVA ---
-with st.status("Inicializando Motor de Analisis Conductual Predictivo...", expanded=True) as status_boot:
+with st.status("Inicializando AGATHA Intelligent Neural Network...", expanded=True) as status_boot:
     
     status_boot.write("Verificando CSS y estructura visual...")
     time.sleep(0.1)
@@ -136,7 +148,7 @@ with st.status("Inicializando Motor de Analisis Conductual Predictivo...", expan
         if valor: return valor
         return None
 
-    OPENAI_API_KEY = obtener_credencial("OPENAI_API_KEY")
+    # Las claves se extraen, pero en la UI solo hablaremos de AGATHA
     DEEPSEEK_API_KEY = obtener_credencial("DEEPSEEK_API_KEY")
 
     def asignar_color_neon(forma):
@@ -152,8 +164,6 @@ with st.status("Inicializando Motor de Analisis Conductual Predictivo...", expan
     def simular_coordenadas(df):
         """Asignación de coordenadas determinista y ultra-robusta."""
         np.random.seed(42)
-        
-        # Mapeo global exhaustivo
         centroides = {
             "TX": (31.9, -99.9), "FL": (27.7, -81.6), "CA": (36.7, -119.4), "NY": (40.7, -74.0),
             "SC": (33.8, -81.1), "PA": (41.2, -77.1), "LA": (30.9, -91.9), "CO": (39.5, -105.7),
@@ -199,7 +209,6 @@ with st.status("Inicializando Motor de Analisis Conductual Predictivo...", expan
         
         coords_finales = coord_est.combine_first(coord_pai)
         
-        # Eliminar el bloque de Null Island. Si no tiene coordenadas, generamos un valor seguro.
         def coords_seguras(row_hash):
             return (((row_hash % 130) - 60), ((row_hash % 240) - 120))
             
@@ -231,8 +240,6 @@ with st.status("Inicializando Motor de Analisis Conductual Predictivo...", expan
             for archivo in os.listdir(ruta_carpeta):
                 if archivo.endswith(".csv"):
                     try:
-                        # FIX CRITICO: sep=None y engine='python' detecta automáticamente el tabulador o espacio.
-                        # utf-8-sig limpia la basura inicial del archivo.
                         temp_df = pd.read_csv(os.path.join(ruta_carpeta, archivo), sep=None, engine='python', encoding='utf-8-sig', on_bad_lines='skip')
                         dfs.append(temp_df)
                     except Exception:
@@ -304,30 +311,64 @@ with st.status("Inicializando Motor de Analisis Conductual Predictivo...", expan
     status_boot.write("Extrayendo matrices de datos locales...")
     df_maestro, diagn_mensajes = cargar_nodos()
     
-    status_boot.update(label="Sistemas FANI en línea. Análisis de datos estructural corregido.", state="complete", expanded=False)
+    status_boot.update(label="Sistema UAP 'Unidentified Anomalous Phenomenon' en línea.", state="complete", expanded=False)
 
+# Inicializar almacenamiento de reportes en sesión
+if "reportes_ciudadanos" not in st.session_state:
+    st.session_state["reportes_ciudadanos"] = []
 
 # --- INTERFAZ PRINCIPAL ---
 
 col_titulo, col_boton = st.columns([4, 1])
 with col_titulo:
-    st.markdown("<h1>Motor de Analisis Conductual Predictivo</h1>", unsafe_allow_html=True)
-    st.markdown("<h3>Modulo FANI: Fenomenos Anomalos No Identificados</h3>", unsafe_allow_html=True)
+    st.markdown("<h1>AGATHA Intelligent Neural Network</h1>", unsafe_allow_html=True)
+    st.markdown("<h3>MÓDULO CONTACT - Fenómeno Anómalo No Identificado</h3>", unsafe_allow_html=True)
+    st.markdown("<div class='cita-contact'>«El Universo es enorme. Y si solo estamos nosotros, cuánto espacio desaprovechado»</div>", unsafe_allow_html=True)
 with col_boton:
     st.markdown("<br>", unsafe_allow_html=True)
-    if st.button("FORZAR RECARGA DE MATRICES", type="primary"):
+    if st.button("RECARGAR RED NEURONAL", type="primary"):
         st.cache_data.clear()
         st.rerun()
 
-with st.expander("DIAGNOSTICO DEL SISTEMA", expanded=False):
-    for m in diagn_mensajes: st.write(f"- {m}")
+# --- NOTIFICAR AVISTAMIENTO (NUEVO MÓDULO) ---
+with st.expander("🛸 NOTIFICA TU AVISTAMIENTO (Red UAP España / Global)", expanded=False):
+    st.markdown("<p style='color: #00d4ff; font-size: 0.9rem;'>Ayuda a alimentar la base de datos de AGATHA. Tu reporte será procesado y cruzado con otros eventos anómalos.</p>", unsafe_allow_html=True)
+    
+    with st.form("form_avistamiento", clear_on_submit=True):
+        c_f1, c_f2 = st.columns(2)
+        f_fecha = c_f1.date_input("Fecha del contacto")
+        f_hora = c_f2.time_input("Hora aproximada")
+        
+        c_f3, c_f4 = st.columns(2)
+        f_forma = c_f3.selectbox("Forma del objeto", ["Luz / Flash", "Esfera / Orbe", "Triángulo / Delta", "Cigarro / Cilindro", "Cambiante", "Desconocido", "Otros"])
+        f_ciudad = c_f4.text_input("Ciudad y País")
+        
+        f_desc = st.text_area("Descripción detallada del comportamiento")
+        
+        submit_btn = st.form_submit_button("ENVIAR A LA RED NEURAL AGATHA")
+        
+        if submit_btn:
+            if f_ciudad and f_desc:
+                st.session_state["reportes_ciudadanos"].append({
+                    "FECHA": str(f_fecha),
+                    "HORA": str(f_hora),
+                    "FORMA": f_forma,
+                    "UBICACION": f_ciudad,
+                    "DESCRIPCION": f_desc
+                })
+                st.success("✅ Avistamiento registrado correctamente. AGATHA analizará el patrón de correlación.")
+            else:
+                st.error("Por favor, completa al menos la ubicación y la descripción para procesar el reporte.")
+
+    if len(st.session_state["reportes_ciudadanos"]) > 0:
+        st.markdown(f"<p style='color: #94a3b8; font-size: 0.8rem; margin-top: 10px;'>Reportes en la sesión actual: {len(st.session_state['reportes_ciudadanos'])}</p>", unsafe_allow_html=True)
 
 # --- VISUALIZACION PRINCIPAL: MAPA Y FILTROS ---
 st.markdown("---")
 col_mapa, col_filtros = st.columns([2.5, 1.5], gap="large")
 
 with col_filtros:
-    st.markdown("#### Parametros de Filtrado")
+    st.markdown("#### Parámetros de Filtrado UAP")
     
     c_f1, c_f2 = st.columns(2)
     anio_disp = sorted(df_maestro['AÑO'].unique(), reverse=True) if not df_maestro.empty else []
@@ -379,7 +420,7 @@ with col_mapa:
     if not df_filtrado.empty:
         grafico_placeholder = st.empty() 
         
-        with st.spinner("Calibrando proyecciones..."):
+        with st.spinner("Calibrando proyecciones UAP..."):
             fig = go.Figure()
             
             if modo_visor == "Nodos Base":
@@ -458,15 +499,15 @@ with col_mapa:
 
 # --- INDICADORES RAPIDOS TACTICOS ---
 m1, m2, m3 = st.columns(3)
-m1.metric("Registros Activos", f"{len(df_filtrado):,}")
-m2.metric("Tipologia Predominante", df_filtrado['FORMA'].mode().iloc[0] if not df_filtrado.empty else "N/A")
-m3.metric("Zonas de Interes (Nodos)", f"{len(df_filtrado['CIUDAD'].unique()) if not df_filtrado.empty else 0:,}")
+m1.metric("Registros UAP Activos", f"{len(df_filtrado):,}")
+m2.metric("Tipología Predominante", df_filtrado['FORMA'].mode().iloc[0] if not df_filtrado.empty else "N/A")
+m3.metric("Zonas de Interés", f"{len(df_filtrado['CIUDAD'].unique()) if not df_filtrado.empty else 0:,}")
 st.markdown("---")
 
 # --- MODULOS OPERATIVOS (DESPLEGABLES) ---
 
-with st.expander("MANUAL DE IDENTIFICACION VISUAL (CATALOGO FANI)", expanded=False):
-    st.markdown("<div style='color:#94a3b8; font-size:0.75rem; margin-bottom:10px; line-height:1.4;'>Archivos clasificados de tipología FANI. Cargue el manual táctico completo en el directorio /assets.</div>", unsafe_allow_html=True)
+with st.expander("CATÁLOGO UAP IDENTIFICACIÓN VISUAL DE OBJETOS", expanded=False):
+    st.markdown("<div style='color:#00d4ff; font-size:0.85rem; margin-bottom:10px; line-height:1.4;'>🔍 Pista: Haz clic en las flechas de la esquina superior derecha de la imagen para ampliar a pantalla completa. Existen hasta 24 tipologías registradas.</div>", unsafe_allow_html=True)
     
     if not os.path.exists("assets"):
         os.makedirs("assets")
@@ -474,11 +515,11 @@ with st.expander("MANUAL DE IDENTIFICACION VISUAL (CATALOGO FANI)", expanded=Fal
     ruta_img_catalogo = os.path.join("assets", "catalogo_morfologico_completo.png")
     
     if os.path.exists(ruta_img_catalogo):
-        st.image(ruta_img_catalogo, caption="Manual de Identificación de Tipos FANI")
+        st.image(ruta_img_catalogo, caption="Manual de Identificación de Tipos FANI / UAP")
     else:
         st.markdown(f"""
-        <div style='width:100%; height:150px; border:1px dashed #334155; display:flex; align-items:center; justify-content:center; background:#0f172a; margin-bottom:15px;'>
-            <span style='color:#64748b; font-size:0.65rem; font-family:monospace; text-align:center;'>
+        <div style='width:100%; height:150px; border:1px dashed #a855f7; display:flex; align-items:center; justify-content:center; background:#0f172a; margin-bottom:15px;'>
+            <span style='color:#e2e8f0; font-size:0.75rem; font-family:monospace; text-align:center;'>
                 [ACTIVO VISUAL REQUERIDO]<br>Asegurese de guardar la imagen como: catalogo_morfologico_completo.png en la carpeta /assets
             </span>
         </div>
@@ -519,21 +560,21 @@ with st.expander("PROCESADOR NLP FORENSE", expanded=False):
             st.caption("Mostrando los 500 expedientes más recientes para análisis NLP.")
             opciones_tag = opciones_tag[:500]
             
-        caso_sel = st.selectbox("Seleccionar Expediente Forense", opciones_tag, key="select_nlp")
+        caso_sel = st.selectbox("Seleccionar Expediente Forense UAP", opciones_tag, key="select_nlp")
         
         if caso_sel:
             resumen = str(df_nlp[df_nlp['TAG'] == caso_sel].iloc[0].get('RESUMEN', 'Sin resumen disponible.'))
-            st.markdown(f"<div style='background:#1a1a1a; padding:15px; border-left:3px solid #64748b; color:#e2e8f0;'>{resumen}</div><br>", unsafe_allow_html=True)
+            st.markdown(f"<div style='background:#1a1a1a; padding:15px; border-left:3px solid #a855f7; color:#e2e8f0;'>{resumen}</div><br>", unsafe_allow_html=True)
             
-            if st.button("Ejecutar Analisis de Inteligencia (DeepSeek)", type="primary"):
+            if st.button("Ejecutar Análisis de Inteligencia AGATHA", type="primary"):
                 if DEEPSEEK_API_KEY:
-                    with st.spinner("Consultando nodo NLP externo..."):
+                    with st.spinner("AGATHA procesando análisis conductual..."):
                         try:
                             h = {"Authorization": f"Bearer {DEEPSEEK_API_KEY}", "Content-Type": "application/json"}
                             p = {
                                 "model": "deepseek-chat",
                                 "messages": [
-                                    {"role": "system", "content": "Analiza el texto y responde solo con un JSON: {comportamiento, credibilidad (ALTA/MEDIA/BAJA), indice (0-100), hipotesis}"},
+                                    {"role": "system", "content": "Analiza el texto de este avistamiento UAP y responde estrictamente con un JSON con esta estructura: {comportamiento: '...', credibilidad: 'ALTA/MEDIA/BAJA', indice_anomalia: '0-100', explicacion_probable: 'ej. Satélites, Starlink, Globo, Cohete, Fenómeno Meteorológico, o Desconocido'}"},
                                     {"role": "user", "content": resumen}
                                 ],
                                 "response_format": {"type": "json_object"}
@@ -547,6 +588,6 @@ with st.expander("PROCESADOR NLP FORENSE", expanded=False):
                             
                             st.json(json.loads(content.strip()))
                         except Exception as e:
-                            st.error(f"Error de comunicación NLP: {str(e)}")
+                            st.error(f"Error interno en los circuitos de AGATHA: {str(e)}")
                 else:
-                    st.warning("Falta credencial DEEPSEEK_API_KEY en configuración del sistema.")
+                    st.warning("Falta credencial de procesamiento neuronal en la configuración del sistema.")
