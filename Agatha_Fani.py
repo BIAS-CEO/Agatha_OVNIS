@@ -751,7 +751,7 @@ elif st.session_state["pantalla_actual"] == "principal":
                         lon=df_red_cronologica['lon'], lat=df_red_cronologica['lat'], mode='markers',
                         marker=dict(size=12, color=df_red_cronologica['COLOR_STR'], line=dict(width=1.5, color='rgba(255,255,255,0.8)'), opacity=1.0),
                         text=texto_hover_red, hoverinfo='text'
-                    )
+                    ))
                 
             elif modo_operacion == "IA Predictiva":
                 if not datos_mapa_limpio.empty:
