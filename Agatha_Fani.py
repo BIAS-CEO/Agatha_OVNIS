@@ -287,6 +287,10 @@ def simular_coordenadas(df):
 def cargar_nodos():
     ruta_carpeta = "data"
     dfs = []
+    
+    # Columnas base de supervivencia
+    columnas_seguras = ['AÑO', 'MES', 'DIA', 'HORA', 'CIUDAD', 'PAIS', 'FORMA', 'lat', 'lon', 'COLOR_STR']
+    
     if os.path.exists(ruta_carpeta):
         for archivo in os.listdir(ruta_carpeta):
             if archivo.endswith(".csv") and "avistamientos_testimonios" not in archivo.lower() and "relationships" not in archivo.lower():
@@ -294,8 +298,11 @@ def cargar_nodos():
                     temp_df = pd.read_csv(os.path.join(ruta_carpeta, archivo), sep=None, engine='python', encoding='utf-8-sig', on_bad_lines='skip')
                     dfs.append(temp_df)
                 except Exception: pass
-    if dfs: df = pd.concat(dfs, ignore_index=True)
-    else: return pd.DataFrame(), ["[ERROR] Datos no encontrados."]
+                
+    if dfs: 
+        df = pd.concat(dfs, ignore_index=True)
+    else: 
+        return pd.DataFrame(columns=columnas_seguras), ["[ERROR] Datos no encontrados. Motor en reposo."]
 
     try:
         df.columns = df.columns.str.upper().str.strip()
@@ -303,7 +310,10 @@ def cargar_nodos():
         df.rename(columns=col_map, inplace=True)
         df = df.loc[:, ~df.columns.duplicated()]
         
-        for c in ['CIUDAD', 'PAIS', 'FORMA']: df[c] = df[c].fillna("No especificado").astype(str).str.title().str.strip()
+        # Supervivencia: Si el CSV no tiene la columna, se crea vacía para que no explote
+        for c in ['CIUDAD', 'PAIS', 'FORMA']: 
+            if c not in df.columns: df[c] = "No especificado"
+            df[c] = df[c].fillna("No especificado").astype(str).str.title().str.strip()
             
         df['AÑO'] = pd.to_numeric(df.get('AÑO', 2026), errors='coerce').fillna(2026).astype(int)
         df['DIA'] = pd.to_numeric(df.get('DIA', 0), errors='coerce').fillna(0).astype(int).astype(str).replace('0', 'No especificado')
@@ -322,8 +332,9 @@ def cargar_nodos():
         df['COLOR_STR'] = df['FORMA'].apply(asignar_color_neon)
         
         return df, ["[INFO] Sincronización de nodos completa."]
-    except Exception as e: return pd.DataFrame(), [f"[ERROR] Proceso interrumpido: {str(e)}"]
-
+    except Exception as e: 
+        return pd.DataFrame(columns=columnas_seguras), [f"[ERROR] Proceso interrumpido: {str(e)}"]
+        
 @st.cache_data(show_spinner=False)
 def cargar_archivo_relaciones():
     rutas_posibles = ["agatha_ufo_relationships.csv", os.path.join("data", "agatha_ufo_relationships.csv")]
