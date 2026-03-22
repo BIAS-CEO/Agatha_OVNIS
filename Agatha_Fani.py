@@ -2,7 +2,7 @@
 # ARCHIVO PRINCIPAL: Agatha_Fani.py
 # SISTEMA: Motor de Analisis Conductual Predictivo
 # MODULO: AGATHA FANI (Fenomenos Anomalos No Identificados)
-# VERSION: Opcon Ready v5.9 (UI Original + Fix Columnas Duplicadas)
+# VERSION: Opcon Ready v6.0 (DELIMITER FIX + NULL ISLAND FIX)
 # OPERADOR: DIR-74
 # ====================================================================
 
@@ -198,10 +198,15 @@ with st.status("Inicializando Motor de Analisis Conductual Predictivo...", expan
         coord_pai = pai.map(centroides)
         
         coords_finales = coord_est.combine_first(coord_pai)
-        coords_defecto = pd.Series([(0.0, 0.0)] * len(df), index=df.index)
-        coords_finales = coords_finales.combine_first(coords_defecto)
         
+        # Eliminar el bloque de Null Island. Si no tiene coordenadas, generamos un valor seguro.
+        def coords_seguras(row_hash):
+            return (((row_hash % 130) - 60), ((row_hash % 240) - 120))
+            
         df['hash_val'] = df['CIUDAD'].astype(str).apply(lambda x: sum(ord(c) for c in x) if pd.notna(x) else 0)
+        fallback_coords = df['hash_val'].apply(coords_seguras)
+        
+        coords_finales = coords_finales.combine_first(pd.Series([(c[0], c[1]) for c in fallback_coords], index=df.index))
         
         df['lat_offset'] = ((df['hash_val'] % 100) - 50) / 100.0 * 1.5
         df['lon_offset'] = (((df['hash_val'] // 10) % 100) - 50) / 100.0 * 1.5
@@ -226,14 +231,16 @@ with st.status("Inicializando Motor de Analisis Conductual Predictivo...", expan
             for archivo in os.listdir(ruta_carpeta):
                 if archivo.endswith(".csv"):
                     try:
-                        temp_df = pd.read_csv(os.path.join(ruta_carpeta, archivo), encoding='utf-8', on_bad_lines='skip')
+                        # FIX CRITICO: sep=None y engine='python' detecta automáticamente el tabulador o espacio.
+                        # utf-8-sig limpia la basura inicial del archivo.
+                        temp_df = pd.read_csv(os.path.join(ruta_carpeta, archivo), sep=None, engine='python', encoding='utf-8-sig', on_bad_lines='skip')
                         dfs.append(temp_df)
                     except Exception:
                         pass
                         
             if dfs:
                 df = pd.concat(dfs, ignore_index=True)
-                mensajes.append("Archivos de datos locales unificados correctamente.")
+                mensajes.append("Archivos de datos locales unificados y decodificados correctamente.")
             else:
                 return pd.DataFrame(), ["Error: La carpeta de datos no contiene archivos válidos."]
         else:
@@ -249,8 +256,6 @@ with st.status("Inicializando Motor de Analisis Conductual Predictivo...", expan
                 'TIME': 'HORA'
             }
             df.rename(columns=col_map, inplace=True)
-            
-            # --- FIX CRITICO: Eliminar columnas duplicadas generadas al renombrar ---
             df = df.loc[:, ~df.columns.duplicated()]
             
             for c in ['CIUDAD', 'PAIS', 'FORMA']:
@@ -291,7 +296,7 @@ with st.status("Inicializando Motor de Analisis Conductual Predictivo...", expan
             df = simular_coordenadas(df)
             df['COLOR_STR'] = df['FORMA'].apply(asignar_color_neon)
             
-            mensajes.append(f"Registros operativos: {len(df)}")
+            mensajes.append(f"Registros operativos decodificados: {len(df)}")
             return df, mensajes
         except Exception as e:
             return pd.DataFrame(), [f"Error de proceso: {str(e)}"]
@@ -299,7 +304,7 @@ with st.status("Inicializando Motor de Analisis Conductual Predictivo...", expan
     status_boot.write("Extrayendo matrices de datos locales...")
     df_maestro, diagn_mensajes = cargar_nodos()
     
-    status_boot.update(label="Sistemas FANI en línea. Acceso concedido.", state="complete", expanded=False)
+    status_boot.update(label="Sistemas FANI en línea. Análisis de datos estructural corregido.", state="complete", expanded=False)
 
 
 # --- INTERFAZ PRINCIPAL ---
@@ -481,7 +486,6 @@ with st.expander("MANUAL DE IDENTIFICACION VISUAL (CATALOGO FANI)", expanded=Fal
 
 with st.expander(f"REGISTROS FORENSES ({len(df_filtrado)} Activos)", expanded=True):
     if not df_filtrado.empty:
-        # Se asegura de no usar columnas duplicadas para evitar KeyError en estilos
         cols_excluir = ['COLOR_STR', 'lat', 'lon', 'DECADA', 'ORD.', 'NUM.', 'Source_File']
         cols_vis = list(dict.fromkeys([c for c in df_filtrado.columns if c not in cols_excluir]))
         
@@ -503,7 +507,6 @@ with st.expander(f"REGISTROS FORENSES ({len(df_filtrado)} Activos)", expanded=Tr
             })
             st.dataframe(df_estilizado, width='stretch', hide_index=True, height=400)
         except Exception:
-            # Plan B: Si falla el CSS de Pandas, dibuja la tabla oscura nativa de Streamlit
             st.dataframe(df_mostrar[cols_vis], width='stretch', hide_index=True, height=400)
 
 with st.expander("PROCESADOR NLP FORENSE", expanded=False):
