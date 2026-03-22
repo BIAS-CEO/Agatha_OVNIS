@@ -3,6 +3,7 @@
 # SISTEMA: AGATHA Intelligent Neural Network
 # MODULO: MODULO CONTACT (Fenomeno Anomalo No Identificado)
 # VERSION: Opcon Ready v10.10 (Malla Deep Black & Tactical Maps)
+# PARTE 1 DE 2
 # OPERADOR: DIR-74
 # ====================================================================
 
@@ -79,7 +80,7 @@ h2, h3, h4 {
     text-shadow: 0 0 10px rgba(168, 85, 247, 0.3);
 }
 
-/* Metric Táctica (Reducida y Oscurecida) */
+/* Metric Tactica (Reducida y Oscurecida) */
 [data-testid="stMetric"] { 
     background-color: #0d1117 !important; 
     border: 1px solid #1e293b !important; 
@@ -138,10 +139,16 @@ div[data-testid="stButton"] button:hover p { color: #000000 !important; }
 .boton-entrada div[data-testid="stButton"] button p { font-size: 1.1rem !important; }
 
 /* Boton Purgar (Rojo Tactico) */
-.boton-purgar div[data-testid="stButton"] button { border-color: #ff3333 !important; }
+.boton-purgar div[data-testid="stButton"] button { border-color: #ff3333 !important; border-top: 1px solid #ff3333 !important;}
 .boton-purgar div[data-testid="stButton"] button p { color: #ff3333 !important; }
 .boton-purgar div[data-testid="stButton"] button:hover { background-color: #ff3333 !important; }
 .boton-purgar div[data-testid="stButton"] button:hover p { color: #000000 !important; }
+
+/* Boton Simular (Verde Tactico) */
+.boton-simular div[data-testid="stButton"] button { border-color: #00ff88 !important; border-top: 1px solid #00ff88 !important;}
+.boton-simular div[data-testid="stButton"] button p { color: #00ff88 !important; }
+.boton-simular div[data-testid="stButton"] button:hover { background-color: #00ff88 !important; }
+.boton-simular div[data-testid="stButton"] button:hover p { color: #000000 !important; }
 
 /* --- REFACTORIZACION DE RADIO BUTTONS TACTICOS --- */
 div[data-testid="stRadio"] { 
@@ -205,6 +212,7 @@ st.markdown(CSS_TACTICO, unsafe_allow_html=True)
 # --- INICIALIZACION DE ESTADOS ---
 if "pantalla_actual" not in st.session_state: st.session_state["pantalla_actual"] = "portada"
 if "simulaciones_activas" not in st.session_state: st.session_state["simulaciones_activas"] = []
+if "reportes_ciudadanos" not in st.session_state: st.session_state["reportes_ciudadanos"] = []
 
 # --- FUNCIONES NUCLEO GLOBAL ---
 
@@ -282,7 +290,157 @@ def cargar_nodos():
                     dfs.append(temp_df)
                 except Exception: pass
     if dfs: df = pd.concat(dfs, ignore_index=True)
-    else: return pd.DataFrame(), ["Error: Datos no encontrados."]
+    else: return pd.DataFrame(), ["[ERROR] Datos no encontrados."]
+
+    try:
+        df.columns = df.columns.str.upper().str.strip()
+        col_map = {'YEAR': 'AÑO', 'DÍA': 'DIA', 'DAY': 'DIA', 'MONTH': 'MES', 'CITY': 'CIUDAD', 'COUNTRY': 'PAIS', 'PAÍS': 'PAIS', 'SHAPE': 'FORMA', 'TIME': 'HORA'}
+        df.rename(columns=col_map, inplace=True)
+        df = df.loc[:, ~df.columns.duplicated()]
+        
+        for c in ['CIUDAD', 'PAIS', 'FORMA']: df[c] = df[c].fillna("No especificado").astype(str).str.title().str.strip()
+            
+        df['AÑO'] = pd.to_numeric(df.get('AÑO', 2026), errors='coerce').fillna(2026).astype(int)
+        df['DIA'] = pd.to_numeric(df.get('DIA', 0), errors='coerce').fillna(0).astype(int).astype(str).replace('0', 'No especificado')
+        df['MES'] = pd.to_numeric(df.get('MES', 0), errors='coerce').fillna(0).astype(int).astype(str).replace('0', 'No especificado')
+        
+        def formatear_hora(h):
+            val = str(h).strip()
+            if val.lower() in ['nan', 'nat', 'none', 'null', '', 'no especificada']: return "No especificada"
+            if ':' in val:
+                partes = val.split(':')
+                if len(partes) >= 2: return f"{partes[0].zfill(2)}:{partes[1].zfill(2)}"
+            return "No especificada"
+
+        df['HORA'] = df.get('HORA', pd.Series(["No especificada"]*len(df))).apply(formatear_hora)
+        
+        df = simular_coordenadas(df)
+        df['COLOR_STR'] = df['FORMA'].apply(asignar_color_neon)
+        
+        return df, ["[INFO] Sincronizacion de nodos completa."]
+    except Exception as e: return pd.DataFrame(), [f"[ERROR] Proceso interrumpido: {str(e)}"]
+
+@st.cache_data(show_spinner=False)
+def cargar_archivo_relaciones():
+    rutas_posibles = ["agatha_ufo_relationships.csv", os.path.join("data", "agatha_ufo_relationships.csv")]
+    for r in rutas_posibles:
+        if os.path.exists(r):
+            try: return pd.read_csv(r, sep=None, engine='python', encoding='utf-8-sig', on_bad_lines='skip')
+            except Exception: pass
+    return pd.DataFrame()
+
+}
+div.row-widget.stRadio > div > div label p { 
+    color: #e2e8f0; 
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.75rem;
+}
+div.row-widget.stRadio > div > div:has(input[checked]) label p { 
+    color: #00d4ff; 
+    font-weight: 700;
+}
+/* Ocultar los circulos nativos */
+div.row-widget.stRadio div[data-testid="stMarkdownContainer"] { margin-left: 0; }
+div.row-widget.stRadio input { display: none; }
+
+/* --- TABLA FORENSE --- */
+div[data-testid="stDataFrame"] { background-color: #000000; }
+div[data-testid="stDataFrame"] table { color: #cbd5e1; background-color: #000000; }
+div[data-testid="stDataFrame"] th {
+    text-transform: uppercase;
+    color: #00d4ff;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 0.75rem;
+    background-color: #0d1117 !important;
+}
+div[data-testid="stDataFrame"] td { font-family: 'Share Tech Mono', monospace; }
+div[data-testid="stDataFrame"] tr:hover td { background-color: rgba(0, 212, 255, 0.1) !important; }
+</style>
+"""
+st.markdown(CSS_TACTICO, unsafe_allow_html=True)
+
+# --- INICIALIZACION DE ESTADOS ---
+if "pantalla_actual" not in st.session_state: st.session_state["pantalla_actual"] = "portada"
+if "simulaciones_activas" not in st.session_state: st.session_state["simulaciones_activas"] = []
+if "reportes_ciudadanos" not in st.session_state: st.session_state["reportes_ciudadanos"] = []
+
+# --- FUNCIONES NUCLEO GLOBAL ---
+
+def normalizar_miniatura(ruta_imagen, tamaño=(300, 300)):
+    try:
+        img = Image.open(ruta_imagen).convert("RGBA")
+        img.thumbnail(tamaño, Image.Resampling.LANCZOS)
+        fondo = Image.new('RGBA', tamaño, (10, 10, 10, 0)) 
+        desplazamiento = (int((tamaño[0] - img.width) / 2), int((tamaño[1] - img.height) / 2))
+        fondo.paste(img, desplazamiento)
+        return fondo
+    except Exception: return None
+
+@st.dialog("VISOR TACTICO UAP", width="large")
+def abrir_visor_completo(nombre_forma_archivo):
+    ruta_completa = os.path.join("assets", f"{nombre_forma_archivo}_completo.png")
+    if os.path.exists(ruta_completa):
+        st.image(ruta_completa, use_container_width=True)
+    else: st.error(f"[ERROR ARCHIVO] Falta el archivo de detalle: {ruta_completa}")
+
+def obtener_credencial(nombre_var):
+    try:
+        if hasattr(st, "secrets") and nombre_var in st.secrets: return st.secrets[nombre_var]
+    except Exception: pass
+    valor = os.environ.get(nombre_var)
+    if valor: return valor
+    return None
+
+DEEPSEEK_API_KEY = obtener_credencial("DEEPSEEK_API_KEY")
+
+def asignar_color_neon(forma):
+    f = str(forma).lower()
+    if any(x in f for x in ["triangulo", "triangular", "delta", "tri"]): return 'rgba(0, 255, 128, 0.9)'
+    elif any(x in f for x in ["esfera", "orb", "circular", "redondo", "disco", "disk"]): return 'rgba(255, 0, 128, 0.9)'
+    elif any(x in f for x in ["cigarro", "cilindro", "tubo", "cigar"]): return 'rgba(255, 128, 0, 0.9)'
+    elif any(x in f for x in ["luz", "cambiante", "pulsante", "flash", "light"]): return 'rgba(255, 255, 0, 0.9)'
+    elif any(x in f for x in ["diamante", "rombo", "cuadrado", "diamond"]): return 'rgba(128, 0, 255, 0.9)'
+    elif any(x in f for x in ["rectangulo", "plataforma", "rectangle"]): return 'rgba(0, 128, 255, 0.9)'
+    else: return 'rgba(0, 212, 255, 0.9)'
+
+def simular_coordenadas(df):
+    np.random.seed(42)
+    centroides = {
+        "TX": (31.9, -99.9), "FL": (27.7, -81.6), "CA": (36.7, -119.4), "NY": (40.7, -74.0),
+        "EEUU": (39.8, -98.5), "CANADA": (56.1, -106.3), "MEXICO": (23.6, -102.5),
+        "ESPAÑA": (40.46, -3.75), "FRANCIA": (46.22, 2.21), "ALEMANIA": (51.16, 10.45)
+    }
+    
+    pai = df['PAIS'].astype(str).str.upper().str.strip()
+    coords_pai = pai.map(centroides)
+    
+    def coords_seguras(row_hash): return (((row_hash % 130) - 60), ((row_hash % 240) - 120))
+    df['hash_val'] = df['CIUDAD'].astype(str).apply(lambda x: sum(ord(c) for c in x) if pd.notna(x) else 0)
+    coordenadas_respaldo = df['hash_val'].apply(coords_seguras)
+    coords_finales = coords_pai.combine_first(pd.Series([(c[0], c[1]) for c in coordenadas_respaldo], index=df.index))
+    
+    df['lat'] = coords_finales.apply(lambda x: x[0]) + (((df['hash_val'] % 100) - 50) / 100.0 * 1.5)
+    df['lon'] = coords_finales.apply(lambda x: x[1]) + ((((df['hash_val'] // 10) % 100) - 50) / 100.0 * 1.5)
+    
+    df = df.drop(columns=['hash_val'])
+    df['lat'] = pd.to_numeric(df['lat'], errors='coerce').fillna(0.0)
+    df['lon'] = pd.to_numeric(df['lon'], errors='coerce').fillna(0.0)
+    
+    return df
+    
+@st.cache_data(show_spinner=False)
+def cargar_nodos():
+    ruta_carpeta = "data"
+    dfs = []
+    if os.path.exists(ruta_carpeta):
+        for archivo in os.listdir(ruta_carpeta):
+            if archivo.endswith(".csv") and "avistamientos_testimonios" not in archivo.lower() and "relationships" not in archivo.lower():
+                try:
+                    temp_df = pd.read_csv(os.path.join(ruta_carpeta, archivo), sep=None, engine='python', encoding='utf-8-sig', on_bad_lines='skip')
+                    dfs.append(temp_df)
+                except Exception: pass
+    if dfs: df = pd.concat(dfs, ignore_index=True)
+    else: return pd.DataFrame(), ["[ERROR] Datos no encontrados."]
 
     try:
         df.columns = df.columns.str.upper().str.strip()
@@ -300,7 +458,7 @@ def cargar_nodos():
         df = simular_coordenadas(df)
         df['COLOR_STR'] = df['FORMA'].apply(asignar_color_neon)
         
-        return df, ["Sincronización de nodos completa."]
+        return df, ["Sincronizacion de nodos completa."]
     except Exception as e: return pd.DataFrame(), [f"Error de proceso: {str(e)}"]
 
 @st.cache_data(show_spinner=False)
@@ -336,9 +494,9 @@ if st.session_state["pantalla_actual"] == "portada":
 # ====================================================================
 elif st.session_state["pantalla_actual"] == "principal":
     
-    with st.status("Estableciendo conexión segura con AGATHA...", expanded=False) as status_arranque:
+    with st.status("Estableciendo conexion segura con AGATHA...", expanded=False) as status_arranque:
         df_maestro, mensajes_diagnostico = cargar_nodos()
-        status_arranque.update(label="Sistema UAP 'Opcon Ready' en línea.", state="complete")
+        status_arranque.update(label="Sistema UAP 'Opcon Ready' en linea.", state="complete")
 
     IDENTIFICACION_OPERADOR = "DIR-74"
     NIVEL_ACCESO = "NIVEL 4 - INTELIGENCIA ESTRATEGICA"
@@ -354,7 +512,7 @@ elif st.session_state["pantalla_actual"] == "principal":
     columna_titulo, columna_desconexion = st.columns([4, 1])
     with columna_titulo:
         st.markdown("<h1>AGATHA Intelligent Neural Network</h1>", unsafe_allow_html=True)
-        st.markdown("<h3>MODULO CONTACT - Fenómeno Anómalo No Identificado</h3>", unsafe_allow_html=True)
+        st.markdown("<h3>MODULO CONTACT - Fenomeno Anomalo No Identificado</h3>", unsafe_allow_html=True)
         st.markdown("<div class='cita-contact'>«El Universo es enorme. Y si solo estamos nosotros, cuanto espacio desaprovechado»</div>", unsafe_allow_html=True)
     with columna_desconexion:
         st.markdown("<br>", unsafe_allow_html=True)
@@ -409,18 +567,17 @@ elif st.session_state["pantalla_actual"] == "principal":
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # --- VISUALIZACION PRINCIPAL (MAPA TACTICO REDISEÑADO) ---
+    # --- VISUALIZACION PRINCIPAL (MAPA TACTICO REDISENADO) ---
     columna_mapa, columna_filtros = st.columns([3, 1], gap="medium")
 
     datos_filtrados = df_maestro.copy()
     filtros_aplicados = False
     nodos_malla_lon, nodos_malla_lat = [], []
     
-    # Base limpia para mapa (sin paises nulos)
     datos_mapa_tactico = df_maestro[ (df_maestro['PAIS'].str.upper() != 'NO ESPECIFICADO') ].copy()
 
     with columna_filtros:
-        st.markdown("#### Parámetros de Filtrado")
+        st.markdown("#### Parametros de Filtrado")
         
         c_f1, c_f2 = st.columns(2)
         años_disponibles = sorted(df_maestro['AÑO'].unique(), reverse=True)
@@ -446,11 +603,10 @@ elif st.session_state["pantalla_actual"] == "principal":
         st.markdown("---")
         st.markdown(f"<p style='color: #00d4ff; font-weight: 700; font-family:Share Tech Mono;'>NODOS FILTRADOS: {len(datos_filtrados)}</p>", unsafe_allow_html=True)
         
-        # SIMULACION
         st.markdown("<br>", unsafe_allow_html=True)
         col_s1, col_s2 = st.columns(2)
         with col_s1:
-            st.markdown("<div class='boton-entrada'>", unsafe_allow_html=True)
+            st.markdown("<div class='boton-simular'>", unsafe_allow_html=True)
             if st.button("SIMULAR APARICION"):
                 lat_s = np.random.uniform(25, 55); lon_s = np.random.uniform(-125, 30)
                 st.session_state["simulaciones_activas"].append({'lat': lat_s, 'lon': lon_s, 'txt': f"[SIMULACRO] CONTACTO | {datetime.now().strftime('%H:%M')} UTC"})
@@ -461,10 +617,9 @@ elif st.session_state["pantalla_actual"] == "principal":
             st.markdown("</div>", unsafe_allow_html=True)
 
     with columna_mapa:
-        with st.spinner("Calibrando proyección táctica..."):
+        with st.spinner("Calibrando proyeccion tactica..."):
             mapa_visual = go.Figure()
             
-            # Formato de Tooltip Técnico (Hover)
             def generar_tooltip(df):
                 return (
                     "<b>Ciudad:</b> " + df['CIUDAD'] + "<br>" +
@@ -474,7 +629,6 @@ elif st.session_state["pantalla_actual"] == "principal":
                     "<b>Hora:</b> " + df['HORA']
                 )
             
-            # --- MODOS DE MAPA ---
             if modo_operacion == "Nodos Base":
                 if not datos_mapa_tactico.empty:
                     df_render = datos_mapa_tactico.head(1000) if filtros_aplicados else datos_mapa_tactico.sample(min(800, len(datos_mapa_tactico)))
@@ -486,7 +640,6 @@ elif st.session_state["pantalla_actual"] == "principal":
                 
             elif modo_operacion == "Red de Trayectorias":
                 if not datos_mapa_tactico.empty:
-                    # Malla cronológica de formas
                     df_malla = datos_mapa_tactico.sort_values(by=['AÑO', 'MES', 'DIA']).head(300)
                     for forma in df_malla['FORMA'].unique():
                         df_f = df_malla[df_malla['FORMA'] == forma]
@@ -507,20 +660,17 @@ elif st.session_state["pantalla_actual"] == "principal":
                     zonas_probabilidad = datos_mapa_tactico.groupby(['CIUDAD', 'lat', 'lon']).size().reset_index(name='conteo')
                     zonas_probabilidad = zonas_probabilidad.sort_values(by='conteo', ascending=False).head(15)
                     
-                    # Nodos históricos atenuados
                     mapa_visual.add_trace(go.Scattergeo(
                         lon=datos_mapa_tactico['lon'], lat=datos_mapa_tactico['lat'], mode='markers',
                         marker=dict(size=5, color='rgba(60,60,60,0.3)'), hoverinfo='none'
                     ))
                     
-                    # Hotspots (Rojos)
                     mapa_visual.add_trace(go.Scattergeo(
                         lon=zonas_probabilidad['lon'], lat=zonas_probabilidad['lat'], mode='markers',
                         marker=dict(size=zonas_probabilidad['conteo']*2.5 + 15, color='rgba(255, 0, 50, 0.4)', line=dict(width=2, color='rgba(255,0,0,0.8)')),
                         text="<b>[ZONA CALIENTE]</b><br>" + zonas_probabilidad['CIUDAD'] + "<br>Eventos: " + zonas_probabilidad['conteo'].astype(str), hoverinfo='text'
                     ))
 
-            # --- CAPA DE SIMULACION (SIEMPRE VISIBLE) ---
             if st.session_state["simulaciones_activas"]:
                 lon_s = [s['lon'] for s in st.session_state["simulaciones_activas"]]
                 lat_s = [s['lat'] for s in st.session_state["simulaciones_activas"]]
@@ -531,20 +681,18 @@ elif st.session_state["pantalla_actual"] == "principal":
                     marker=dict(size=16, color='rgba(0, 255, 136, 1)', symbol='cross', line=dict(width=2, color='rgba(255,255,255,1)')),
                     text=txt_s, hoverinfo='text'
                 ))
-                # Anillo de expansión
                 mapa_visual.add_trace(go.Scattergeo(
                     lon=lon_s, lat=lat_s, mode='markers',
                     marker=dict(size=40, color='rgba(0, 255, 136, 0.15)', line=dict(width=2, color='rgba(0, 255, 136, 0.6)')), hoverinfo='none'
                 ))
 
-            # --- CONFIGURACION DEL MAPA TACTICO ---
             proyeccion = 'orthographic' if tipo_camara == "Globo 3D" else 'equirectangular'
             
             mapa_visual.update_layout(
                 geo=dict(
                     projection_type=proyeccion,
-                    showland=True, landcolor='#0d1117', # Tono acorazado
-                    showocean=True, oceancolor='#000000', # Deep black
+                    showland=True, landcolor='#0d1117', 
+                    showocean=True, oceancolor='#000000', 
                     showcountries=True, countrycolor='#1e293b', countrywidth=0.8,
                     showcoastlines=True, coastlinecolor='#1e293b', coastlinewidth=0.8,
                     bgcolor='rgba(0,0,0,0)', resolution=50
@@ -555,7 +703,7 @@ elif st.session_state["pantalla_actual"] == "principal":
             
             espacio_grafico.plotly_chart(mapa_visual, width='stretch', use_container_width=True)
 
-    # --- INDICADORES INFERIORES TACTICOS (FILTRADOS) ---
+    # --- INDICADORES INFERIORES TACTICOS ---
     columna_filtro1, columna_filtro2, columna_filtro3 = st.columns(3)
     total_filtrados = len(datos_filtrados)
     df_formas_filt = datos_filtrados[~datos_filtrados['FORMA'].str.upper().isin(['DESCONOCIDO', 'NO ESPECIFICADO'])] if not datos_filtrados.empty else pd.DataFrame()
@@ -573,48 +721,62 @@ elif st.session_state["pantalla_actual"] == "principal":
             columnas_tabla = ['DIA', 'MES', 'AÑO', 'HORA', 'CIUDAD', 'PAIS', 'FORMA']
             columnas_ok = [c for c in columnas_tabla if c in datos_filtrados.columns]
             
-            # Ordenar por fecha reciente y limitar si es masivo
             df_tabla = datos_filtrados.sort_values(by=['AÑO','MES','DIA'], ascending=False)
             if not filtros_aplicados:
-                st.info("[SISTEMA] Modo reposo. Mostrando previsualización de 100 registros recientes.")
+                st.info("[SISTEMA] Modo reposo. Mostrando previsualizacion de 100 registros recientes.")
                 df_tabla = df_tabla.head(100)
             elif len(df_tabla) > 1000:
-                st.warning(f"[ALERTA] Búsqueda masiva ({len(df_tabla)} resultados). Limitando visualización a 1000.")
+                st.warning(f"[ALERTA] Busqueda masiva ({len(df_tabla)} resultados). Limitando visualizacion a 1000.")
                 df_tabla = df_tabla.head(1000)
             
             st.dataframe(df_tabla[columnas_ok], use_container_width=True, hide_index=True, height=400)
 
-    # --- PROCESADOR NLP AGATHA (Solo si hay API Key) ---
-    if DEEPSEEK_API_KEY:
-        with st.expander("PROCESADOR DE TESTIMONIOS INTELIGENTE (NLP AGATHA)", expanded=False):
-            ruta_testimonios = os.path.join("data", "avistamientos_testimonios.csv")
-            if os.path.exists(ruta_testimonios):
-                try:
-                    df_nlp = pd.read_csv(ruta_testimonios, sep=None, engine='python', encoding='utf-8-sig', on_bad_lines='skip')
-                    df_nlp.columns = df_nlp.columns.str.strip()
-                    df_nlp['TAG'] = df_nlp['ID de Caso'].astype(str) + " | " + df_nlp['Ubicación'].astype(str)
+    # --- PROCESADOR NLP AGATHA ---
+    with st.expander("PROCESADOR DE TESTIMONIOS INTELIGENTE (NLP AGATHA)", expanded=False):
+        ruta_testimonios = os.path.join("data", "avistamientos_testimonios.csv")
+        if os.path.exists(ruta_testimonios):
+            try:
+                df_nlp = pd.read_csv(ruta_testimonios, sep=None, engine='python', encoding='utf-8-sig', on_bad_lines='skip')
+                df_nlp.columns = df_nlp.columns.str.strip()
+                df_nlp['TAG'] = df_nlp['ID de Caso'].astype(str) + " | " + df_nlp['Ubicación'].astype(str)
+                
+                st.caption(f"Cargados {len(df_nlp)} testimonios detallados.")
+                caso_sel = st.selectbox("Seleccionar Expediente Testifical", df_nlp['TAG'].unique())
+                
+                if caso_sel:
+                    fila = df_nlp[df_nlp['TAG'] == caso_sel].iloc[0]
+                    texto_analisis = f"TESTIMONIO: {fila.get('Descripción del Fenómeno', '')}\n\nCONCLUSION PREVIA: {fila.get('Conclusión del Investigador', 'N/A')}"
+                    st.markdown(f"<div style='background:#0d1117; padding:15px; border-left:3px solid #a855f7; color:#cbd5e1; white-space: pre-wrap; font-size:0.9rem;'>{texto_analisis}</div>", unsafe_allow_html=True)
                     
-                    st.caption(f"Cargados {len(df_nlp)} testimonios detallados.")
-                    caso_sel = st.selectbox("Seleccionar Expediente Testifical", df_nlp['TAG'].unique())
-                    
-                    if caso_sel:
-                        fila = df_nlp[df_nlp['TAG'] == caso_sel].iloc[0]
-                        texto_analisis = f"TESTIMONIO: {fila.get('Descripción del Fenómeno', '')}\n\nCONCLUSIÓN PREVIA: {fila.get('Conclusión del Investigador', 'N/A')}"
-                        st.markdown(f"<div style='background:#0d1117; padding:15px; border-left:3px solid #a855f7; color:#cbd5e1; white-space: pre-wrap; font-size:0.9rem;'>{texto_analisis}</div>", unsafe_allow_html=True)
-                        
-                        if st.button("EJECUTAR ANALISIS DE INTELIGENCIA", type="primary"):
-                            with st.spinner("AGATHA procesando análisis conductual..."):
+                    if st.button("EJECUTAR ANALISIS DE INTELIGENCIA", type="primary"):
+                        if DEEPSEEK_API_KEY:
+                            with st.spinner("AGATHA procesando analisis conductual..."):
                                 try:
-                                    # Simulación de respuesta NLP para evitar latencia API en demo
-                                    # En produccion, usar requests.post a API Deepseek
-                                    time.sleep(1.5)
-                                    mock_response = '{"anomalia":"75%","comportamiento":"Cinemática no balística detectada. Evasión activa de radar.","explicacion":"DESCONOCIDO - ALTA PRIORIDAD"}'
-                                    datos_ia = json.loads(mock_response)
+                                    cabeceras = {"Authorization": f"Bearer {DEEPSEEK_API_KEY}", "Content-Type": "application/json"}
+                                    parametros = {
+                                        "model": "deepseek-chat",
+                                        "messages": [
+                                            {"role": "system", "content": "Analiza el texto de este avistamiento UAP y responde estrictamente con un JSON con esta estructura exacta: {\"comportamiento\": \"...\", \"credibilidad\": \"ALTA/MEDIA/BAJA\", \"indice_anomalia\": \"0-100\", \"explicacion_probable\": \"ej. Satelites, Starlink, Globo, Cohete, Fenomeno Meteorologico, o Desconocido\"}"},
+                                            {"role": "user", "content": texto_analisis}
+                                        ],
+                                        "response_format": {"type": "json_object"}
+                                    }
+                                    respuesta = requests.post("https://api.deepseek.com/v1/chat/completions", headers=cabeceras, json=parametros, timeout=25)
+                                    contenido_respuesta = respuesta.json()["choices"][0]["message"]["content"]
+                                    
+                                    if contenido_respuesta.startswith("```"):
+                                        contenido_respuesta = contenido_respuesta.split("```")[1]
+                                        if contenido_respuesta.startswith("json"): contenido_respuesta = contenido_respuesta[4:]
+                                    
+                                    datos_ia = json.loads(contenido_respuesta.strip())
                                     
                                     st.markdown("<h4 style='color:#00d4ff; margin-top:15px;'>REPORTE DE INTELIGENCIA AGATHA</h4>", unsafe_allow_html=True)
                                     c1, c2, c3 = st.columns(3)
-                                    c1.metric("INDICE ANOMALIA", datos_ia['anomalia'])
-                                    c2.metric("CONDUCTA", "NIVEL 4 (HOSTIL)")
-                                    c3.metric("CONCLUSION", datos_ia['explicacion'])
-                                except Exception as e: st.error(f"Error NLP: {str(e)}")
-                except Exception as e: st.error(f"Error cargando testimonios: {str(e)}")
+                                    c1.metric("INDICE ANOMALIA", f"{datos_ia.get('indice_anomalia', '0')}%")
+                                    c2.metric("CONDUCTA", str(datos_ia.get('credibilidad', 'N/A')).upper())
+                                    c3.metric("CONCLUSION", str(datos_ia.get('explicacion_probable', 'N/A')).upper())
+                                    st.markdown(f"<div style='background:#0f172a; padding:15px; border:1px solid #1e293b; color:#cbd5e1; font-family: monospace;'>{datos_ia.get('comportamiento', 'Sin datos conductuales')}</div>", unsafe_allow_html=True)
+                                except Exception as e: st.error(f"[ERROR] API: {str(e)}")
+                        else:
+                            st.warning("[AVISO] Falta credencial API.")
+            except Exception as e: st.error(f"Error cargando testimonios: {str(e)}")
