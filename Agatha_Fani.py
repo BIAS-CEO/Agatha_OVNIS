@@ -2,7 +2,7 @@
 # ARCHIVO PRINCIPAL: Agatha_Fani.py
 # SISTEMA: AGATHA Intelligent Neural Network
 # MODULO: MODULO CONTACT (Fenomeno Anomalo No Identificado)
-# VERSION: Opcon Ready v9.6 (Panel Tactico Superior + Grid Soldado)
+# VERSION: Opcon Ready v10.0 (Metrics Engine + Clean UI)
 # OPERADOR: DIR-74
 # ====================================================================
 
@@ -115,7 +115,6 @@ div[data-testid="stButton"] {
     margin-top: 0px !important;
 }
 
-/* Forzar que los textos de los botones NUNCA se corten y el ancho sea exacto */
 div[data-testid="stButton"] button {
     width: 100% !important; 
     height: auto !important;
@@ -206,9 +205,9 @@ def abrir_visor_completo(nombre_forma_archivo):
         try:
             st.image(ruta_completa, use_container_width=True)
         except Exception:
-            st.error("El archivo de imagen detallada esta corrupto o no es valido.")
+            st.error("ERROR: El archivo de imagen detallada esta corrupto o no es valido.")
     else:
-        st.error(f"Falta el archivo de detalle: {ruta_completa}")
+        st.error(f"ERROR: Falta el archivo de detalle: {ruta_completa}")
 
 def obtener_credencial(nombre_var):
     try:
@@ -290,9 +289,9 @@ def cargar_nodos():
                     pass
     if dfs:
         df = pd.concat(dfs, ignore_index=True)
-        mensajes.append("Archivos de datos unificados.")
+        mensajes.append("Archivos de datos locales unificados y decodificados correctamente.")
     else:
-        return pd.DataFrame(), ["Error: Datos no encontrados."]
+        return pd.DataFrame(), ["Error: La carpeta de datos no contiene archivos validos."]
 
     try:
         df.columns = df.columns.str.upper().str.strip()
@@ -346,9 +345,9 @@ if st.session_state["pantalla_actual"] == "portada":
             try:
                 st.image(ruta_dashboard, use_container_width=True)
             except Exception:
-                st.error("La imagen 'dashboard_maestro_global.png' esta corrupta.")
+                st.error("ERROR: La imagen 'dashboard_maestro_global.png' esta corrupta y no se puede cargar.")
         else:
-            st.warning("No se encontro la imagen en assets/dashboard_maestro_global.png")
+            st.warning("ERROR: No se encontro la imagen en assets/dashboard_maestro_global.png")
             
         st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
         st.markdown("<div class='boton-entrada'>", unsafe_allow_html=True)
@@ -390,7 +389,7 @@ elif st.session_state["pantalla_actual"] == "principal":
 
     # --- CATÁLOGO UAP ---
     with st.expander("CATALOGO UAP IDENTIFICACION VISUAL DE OBJETOS", expanded=False):
-        st.markdown("<div style='color:#00d4ff; font-size:0.85rem; margin-bottom:15px; line-height:1.4;'>Selecciona la forma para abrir el analisis tactico de reconocimiento.</div>", unsafe_allow_html=True)
+        st.markdown("<div style='color:#00d4ff; font-size:0.85rem; margin-bottom:15px; line-height:1.4;'>PISTA: Selecciona la forma para abrir el analisis tactico de reconocimiento.</div>", unsafe_allow_html=True)
         
         lista_archivos_formas = [
             "bola_de_fuego", "cambiante", "cigarro", "cilindro", "circulo", "cono",
@@ -417,7 +416,7 @@ elif st.session_state["pantalla_actual"] == "principal":
                                 if st.button(f"{forma_nombre_ui.upper()}", key=f"btn_{forma_archivo}", use_container_width=True):
                                     abrir_visor_completo(forma_archivo)
                             else:
-                                st.markdown("<div style='width:100%; aspect-ratio:1/1; border:1px dashed #334155; display:flex; align-items:center; justify-content:center; background:#0f172a;'><span style='color:#64748b; font-size:0.6rem;'>Error</span></div>", unsafe_allow_html=True)
+                                st.markdown("<div style='width:100%; aspect-ratio:1/1; border:1px dashed #334155; display:flex; align-items:center; justify-content:center; background:#0f172a;'><span style='color:#64748b; font-size:0.6rem;'>Error de pixeles</span></div>", unsafe_allow_html=True)
                         else:
                             st.markdown(f"<div style='width:100%; aspect-ratio:1/1; border:1px dashed #334155; display:flex; align-items:center; justify-content:center; background:#0f172a;'><span style='color:#64748b; font-size:0.6rem;'>Falta:<br>{forma_archivo}.png</span></div>", unsafe_allow_html=True)
             st.markdown("<div style='margin-bottom: 10px;'></div>", unsafe_allow_html=True) 
@@ -445,26 +444,30 @@ elif st.session_state["pantalla_actual"] == "principal":
                         "FECHA": str(f_fecha), "HORA": str(f_hora), "FORMA": f_forma,
                         "UBICACION": f_ciudad, "DESCRIPCION": f_desc
                     })
-                    st.success("Avistamiento registrado. AGATHA analizara el patron.")
+                    st.success("INFO: Avistamiento registrado correctamente. AGATHA analizara el patron de correlacion.")
                 else:
-                    st.error("Por favor, completa al menos la ubicacion y la descripcion.")
+                    st.error("ERROR: Por favor, completa al menos la ubicacion y la descripcion.")
 
-    # --- PANEL TACTICO SUPERIOR (METRICAS Y CONTROLES MIGRADOS) ---
+        if len(st.session_state["reportes_ciudadanos"]) > 0:
+            st.markdown(f"<p style='color: #94a3b8; font-size: 0.8rem; margin-top: 10px;'>Reportes en la sesion actual: {len(st.session_state['reportes_ciudadanos'])}</p>", unsafe_allow_html=True)
+
+    # --- PANEL TACTICO SUPERIOR (GLOBAL METRICS Y CONTROLES MIGRADOS) ---
     st.markdown("---")
     
     col_met1, col_met2, col_met3, col_met4 = st.columns([1, 1, 1, 1.5])
     
-    # Preparación de datos base para métricas globales
     total_activos = len(df_maestro) if not df_maestro.empty else 0
-    tipo_predominante = df_maestro['FORMA'].mode().iloc[0] if not df_maestro.empty else "N/A"
+    # Ignorar Desconocido, Otros y No especificado para forzar un resultado impactante
+    formas_validas_global = df_maestro[~df_maestro['FORMA'].str.upper().isin(['DESCONOCIDO', 'OTROS', 'NO ESPECIFICADO', 'UNKNOWN', 'OTHER', 'N/A', ''])] if not df_maestro.empty else pd.DataFrame()
+    tipo_predominante = formas_validas_global['FORMA'].mode().iloc[0] if not formas_validas_global.empty else "NO DETECTADO"
     zonas_interes = len(df_maestro['CIUDAD'].unique()) if not df_maestro.empty else 0
 
     with col_met1:
-        st.metric("REGISTROS ACTIVOS (TOTALES)", f"{total_activos:,}")
+        st.metric("REGISTROS ACTIVOS (TOTALES)", f"{total_activos:,}".replace(",", "."))
     with col_met2:
-        st.metric("TIPOLOGIA PREDOMINANTE", tipo_predominante.upper())
+        st.metric("TIPOLOGIA PREDOMINANTE (GLOBAL)", tipo_predominante.upper())
     with col_met3:
-        st.metric("ZONAS DE INTERES (NODOS)", f"{zonas_interes:,}")
+        st.metric("ZONAS DE INTERES (NODOS GLOBAL)", f"{zonas_interes:,}".replace(",", "."))
     with col_met4:
         st.markdown("<div style='background-color: #1a1a1a; padding: 12px; border: 1px solid #333; height: 100%;'>", unsafe_allow_html=True)
         c_rad1, c_rad2 = st.columns(2)
@@ -597,6 +600,17 @@ elif st.session_state["pantalla_actual"] == "principal":
                             
                             st.info(f"Reporte Conductual: Se ha detectado un desplazamiento a traves de {paises_cruzados} fronteras nacionales. La correlacion temporal sugiere un barrido topografico o una ruta de observacion secuencial.")
 
+    # --- INDICADORES RAPIDOS TACTICOS (RESULTADOS FILTRADOS) ---
+    m_f1, m_f2, m_f3 = st.columns(3)
+    
+    total_filtrados = len(df_filtrado)
+    formas_validas_filt = df_filtrado[~df_filtrado['FORMA'].str.upper().isin(['DESCONOCIDO', 'OTROS', 'NO ESPECIFICADO', 'UNKNOWN', 'OTHER', 'N/A', ''])] if not df_filtrado.empty else pd.DataFrame()
+    tipo_predominante_filt = formas_validas_filt['FORMA'].mode().iloc[0] if not formas_validas_filt.empty else "NO DETECTADO"
+    zonas_interes_filt = len(df_filtrado['CIUDAD'].unique()) if not df_filtrado.empty else 0
+
+    m_f1.metric("REGISTROS UAP (FILTRADOS)", f"{total_filtrados:,}".replace(",", "."))
+    m_f2.metric("TIPOLOGIA (FILTRADA)", tipo_predominante_filt.upper())
+    m_f3.metric("ZONAS AFECTADAS (FILTRADAS)", f"{zonas_interes_filt:,}".replace(",", "."))
     st.markdown("---")
 
     # --- MODULOS OPERATIVOS (DESPLEGABLES) ---
@@ -607,11 +621,11 @@ elif st.session_state["pantalla_actual"] == "principal":
             cols_vis = list(dict.fromkeys([c for c in df_filtrado.columns if c not in cols_excluir]))
             
             if not filtros_activos:
-                st.info("Sistema en reposo. Mostrando previsualizacion de los 100 registros mas recientes. Active los filtros tacticos para una busqueda especifica.")
+                st.info("INFO: Sistema en reposo. Mostrando previsualizacion de los 100 registros mas recientes. Active los filtros tacticos para una busqueda especifica.")
                 df_mostrar = df_filtrado.sort_values(by=['AÑO','MES','DIA','HORA'], ascending=[False, False, False, False]).head(100)
             else:
                 if len(df_filtrado) > 1000:
-                    st.warning(f"Busqueda masiva detectada ({len(df_filtrado)} resultados). Mostrando los 1000 mas relevantes para garantizar la estabilidad del sistema.")
+                    st.warning(f"AVISO: Busqueda masiva detectada ({len(df_filtrado)} resultados). Mostrando los 1000 mas relevantes para garantizar la estabilidad del sistema.")
                     df_mostrar = df_filtrado.sort_values(by=['AÑO','MES','DIA','HORA'], ascending=[False, False, False, False]).head(1000)
                 else:
                     df_mostrar = df_filtrado.sort_values(by=['AÑO','MES','DIA','HORA'], ascending=[False, False, False, False])
@@ -664,6 +678,6 @@ elif st.session_state["pantalla_actual"] == "principal":
                                 
                                 st.json(json.loads(content.strip()))
                             except Exception as e:
-                                st.error(f"Error interno en los circuitos de AGATHA: {str(e)}")
+                                st.error(f"ERROR: Fallo interno en los circuitos de AGATHA: {str(e)}")
                     else:
-                        st.warning("Falta credencial de procesamiento neuronal en la configuracion del sistema.")
+                        st.warning("ERROR: Falta credencial de procesamiento neuronal en la configuracion del sistema.")
