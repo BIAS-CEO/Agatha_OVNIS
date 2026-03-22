@@ -2,7 +2,7 @@
 # ARCHIVO PRINCIPAL: Agatha_Fani.py
 # SISTEMA: AGATHA Intelligent Neural Network
 # MODULO: MODULO CONTACT (Fenomeno Anomalo No Identificado)
-# VERSION: Opcon Ready v10.7 (Restauracion de Malla de Trayectorias)
+# VERSION: Opcon Ready v10.8 (Marcadores Brillantes y Ficha Hover)
 # OPERADOR: DIR-74
 # ====================================================================
 
@@ -509,6 +509,9 @@ elif st.session_state["pantalla_actual"] == "principal":
     datos_filtrados = df_maestro.copy()
     filtros_aplicados = False
     
+    nodos_origen_lon, nodos_origen_lat = [], []
+    nodos_destino_lon, nodos_destino_lat = [], []
+    
     datos_mapa_limpio = df_maestro[
         (df_maestro['PAIS'].str.upper() != 'NO ESPECIFICADO') & 
         (df_maestro['CIUDAD'].str.upper() != 'NO ESPECIFICADO')
@@ -622,7 +625,7 @@ elif st.session_state["pantalla_actual"] == "principal":
             st.session_state["simulaciones_activas"].append({
                 'lat': lat_simulada, 
                 'lon': lon_simulada, 
-                'texto': f"[SIMULACRO] CONTACTO DETECTADO | {datetime.now().strftime('%H:%M:%S')} UTC"
+                'texto': f"<b>[SIMULACRO] CONTACTO DETECTADO</b><br>Hora: {datetime.now().strftime('%H:%M:%S')} UTC"
             })
         st.markdown("</div>", unsafe_allow_html=True)
         if len(st.session_state["simulaciones_activas"]) > 0:
@@ -635,33 +638,68 @@ elif st.session_state["pantalla_actual"] == "principal":
             with st.spinner("Calibrando proyecciones tacticas..."):
                 mapa_visual = go.Figure()
                 
+                # Configurar el texto interactivo del marcador tactico (Tooltip)
+                texto_hover_nodos = (
+                    "<b>Ciudad:</b> " + datos_mapa_limpio['CIUDAD'] + "<br>" +
+                    "<b>País:</b> " + datos_mapa_limpio['PAIS'] + "<br>" +
+                    "<b>Forma:</b> " + datos_mapa_limpio['FORMA'] + "<br>" +
+                    "<b>Fecha:</b> " + datos_mapa_limpio['DIA'].astype(str) + "/" + datos_mapa_limpio['MES'].astype(str) + "/" + datos_mapa_limpio['AÑO'].astype(str) + "<br>" +
+                    "<b>Hora:</b> " + datos_mapa_limpio['HORA']
+                )
+                
                 if modo_operacion == "Nodos Base":
                     datos_renderizados = datos_mapa_limpio.head(1000) if filtros_aplicados else datos_mapa_limpio.sample(min(500, len(datos_mapa_limpio)))
                     
+                    texto_hover_renderizados = (
+                        "<b>Ciudad:</b> " + datos_renderizados['CIUDAD'] + "<br>" +
+                        "<b>País:</b> " + datos_renderizados['PAIS'] + "<br>" +
+                        "<b>Forma:</b> " + datos_renderizados['FORMA'] + "<br>" +
+                        "<b>Fecha:</b> " + datos_renderizados['DIA'].astype(str) + "/" + datos_renderizados['MES'].astype(str) + "/" + datos_renderizados['AÑO'].astype(str) + "<br>" +
+                        "<b>Hora:</b> " + datos_renderizados['HORA']
+                    )
+                    
                     mapa_visual.add_trace(go.Scattergeo(
                         lon=datos_renderizados['lon'], lat=datos_renderizados['lat'], mode='markers',
-                        marker=dict(size=6, color=datos_renderizados['COLOR_STR'], line=dict(width=0.5, color='rgba(255,255,255,0.3)'), opacity=0.9),
-                        text=datos_renderizados['CIUDAD'] + " | " + datos_renderizados['DIA'].astype(str) + "/" + datos_renderizados['MES'].astype(str) + " " + datos_renderizados['HORA'] + " (" + datos_renderizados['FORMA'] + ")", hoverinfo='text'
+                        marker=dict(size=12, color=datos_renderizados['COLOR_STR'], line=dict(width=1.5, color='rgba(255,255,255,0.8)'), opacity=0.9),
+                        text=texto_hover_renderizados, hoverinfo='text'
                     ))
                     
                 elif modo_operacion == "Red de Trayectorias":
-                    # RESTAURACION DE LA MALLA CRONOLOGICA DE FORMAS PARA EFECTO VISUAL
                     df_red_cronologica = datos_mapa_limpio.sort_values(by=['AÑO', 'MES', 'DIA', 'HORA']).head(300)
-                    formas_presentes = df_red_cronologica['FORMA'].unique()
-                    formas_validas_malla = [f for f in formas_presentes if len(df_red_cronologica[df_red_cronologica['FORMA'] == f]) > 1]
                     
-                    for forma in formas_validas_malla:
-                        df_forma_malla = df_red_cronologica[df_red_cronologica['FORMA'] == forma]
-                        mapa_visual.add_trace(go.Scattergeo(
-                            lon=df_forma_malla['lon'].tolist(), lat=df_forma_malla['lat'].tolist(), mode='lines',
-                            line=dict(width=1.5, color=df_forma_malla.iloc[0]['COLOR_STR']), opacity=0.35, hoverinfo='none'
-                        ))
+                    if len(nodos_origen_lon) > 0:
+                        for i in range(len(nodos_origen_lon)):
+                            mapa_visual.add_trace(go.Scattergeo(
+                                lon=[nodos_origen_lon[i], nodos_destino_lon[i]], 
+                                lat=[nodos_origen_lat[i], nodos_destino_lat[i]], 
+                                mode='lines',
+                                line=dict(width=1.5, color='rgba(0, 212, 255, 0.6)'), 
+                                opacity=0.8, 
+                                hoverinfo='none'
+                            ))
+                    else:
+                        formas_presentes = df_red_cronologica['FORMA'].unique()
+                        formas_validas_malla = [f for f in formas_presentes if len(df_red_cronologica[df_red_cronologica['FORMA'] == f]) > 1]
+                        
+                        for forma in formas_validas_malla:
+                            df_forma_malla = df_red_cronologica[df_red_cronologica['FORMA'] == forma]
+                            mapa_visual.add_trace(go.Scattergeo(
+                                lon=df_forma_malla['lon'].tolist(), lat=df_forma_malla['lat'].tolist(), mode='lines',
+                                line=dict(width=1.5, color=df_forma_malla.iloc[0]['COLOR_STR']), opacity=0.35, hoverinfo='none'
+                            ))
+                    
+                    texto_hover_red = (
+                        "<b>Ciudad:</b> " + df_red_cronologica['CIUDAD'] + "<br>" +
+                        "<b>País:</b> " + df_red_cronologica['PAIS'] + "<br>" +
+                        "<b>Forma:</b> " + df_red_cronologica['FORMA'] + "<br>" +
+                        "<b>Fecha:</b> " + df_red_cronologica['DIA'].astype(str) + "/" + df_red_cronologica['MES'].astype(str) + "/" + df_red_cronologica['AÑO'].astype(str) + "<br>" +
+                        "<b>Hora:</b> " + df_red_cronologica['HORA']
+                    )
                     
                     mapa_visual.add_trace(go.Scattergeo(
                         lon=df_red_cronologica['lon'], lat=df_red_cronologica['lat'], mode='markers',
-                        marker=dict(size=7, color=df_red_cronologica['COLOR_STR'], line=dict(width=1, color='rgba(255,255,255,0.9)'), opacity=1.0),
-                        text=df_red_cronologica['CIUDAD'] + " | " + df_red_cronologica['DIA'].astype(str) + "/" + df_red_cronologica['MES'].astype(str) + " " + df_red_cronologica['HORA'] + " (" + df_red_cronologica['FORMA'] + ")",
-                        hoverinfo='text'
+                        marker=dict(size=12, color=df_red_cronologica['COLOR_STR'], line=dict(width=1.5, color='rgba(255,255,255,0.8)'), opacity=1.0),
+                        text=texto_hover_red, hoverinfo='text'
                     ))
                     
                 elif modo_operacion == "IA Predictiva":
@@ -670,13 +708,13 @@ elif st.session_state["pantalla_actual"] == "principal":
                     
                     mapa_visual.add_trace(go.Scattergeo(
                         lon=datos_mapa_limpio['lon'], lat=datos_mapa_limpio['lat'], mode='markers',
-                        marker=dict(size=3, color='rgba(100,100,100,0.3)'), hoverinfo='none'
+                        marker=dict(size=6, color='rgba(100,100,100,0.5)', line=dict(width=0.5, color='rgba(255,255,255,0.2)')), hoverinfo='none'
                     ))
                     
                     mapa_visual.add_trace(go.Scattergeo(
                         lon=zonas_probabilidad['lon'], lat=zonas_probabilidad['lat'], mode='markers',
-                        marker=dict(size=zonas_probabilidad['conteo']*2 + 10, color='rgba(255, 0, 50, 0.4)', line=dict(width=2, color='rgba(255,0,0,0.8)')),
-                        text="[PROBABILIDAD ALTA] " + zonas_probabilidad['CIUDAD'] + " | Historico: " + zonas_probabilidad['conteo'].astype(str), hoverinfo='text'
+                        marker=dict(size=zonas_probabilidad['conteo']*2 + 15, color='rgba(255, 0, 50, 0.4)', line=dict(width=2, color='rgba(255,0,0,0.8)')),
+                        text="<b>[PROBABILIDAD ALTA]</b><br>Ciudad: " + zonas_probabilidad['CIUDAD'] + "<br>Histórico: " + zonas_probabilidad['conteo'].astype(str) + " eventos", hoverinfo='text'
                     ))
 
                 # Simulaciones en Mapa
@@ -687,12 +725,12 @@ elif st.session_state["pantalla_actual"] == "principal":
                     
                     mapa_visual.add_trace(go.Scattergeo(
                         lon=lon_sims, lat=lat_sims, mode='markers',
-                        marker=dict(size=14, color='rgba(0, 255, 136, 1)', symbol='cross', line=dict(width=2, color='rgba(255,255,255,1)')),
+                        marker=dict(size=16, color='rgba(0, 255, 136, 1)', symbol='cross', line=dict(width=2, color='rgba(255,255,255,1)')),
                         text=txt_sims, hoverinfo='text'
                     ))
                     mapa_visual.add_trace(go.Scattergeo(
                         lon=lon_sims, lat=lat_sims, mode='markers',
-                        marker=dict(size=35, color='rgba(0, 255, 136, 0.3)', line=dict(width=1, color='rgba(0, 255, 136, 0.8)')),
+                        marker=dict(size=40, color='rgba(0, 255, 136, 0.3)', line=dict(width=2, color='rgba(0, 255, 136, 0.8)')),
                         hoverinfo='none'
                     ))
 
