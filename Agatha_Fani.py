@@ -80,7 +80,7 @@ h2, h3, h4 {
     text-shadow: 0 0 10px rgba(168, 85, 247, 0.3);
 }
 
-/* Metric Tactica (Reducida y Oscurecida) */
+/* Metric Táctica (Reducida y Oscurecida) */
 [data-testid="stMetric"] { 
     background-color: #0d1117 !important; 
     border: 1px solid #1e293b !important; 
@@ -139,13 +139,13 @@ div[data-testid="stButton"] button:hover p { color: #000000 !important; }
 .boton-entrada div[data-testid="stButton"] button p { font-size: 1.1rem !important; }
 
 /* Boton Purgar (Rojo Tactico) */
-.boton-purgar div[data-testid="stButton"] button { border-color: #ff3333 !important; border-top: 1px solid #ff3333 !important;}
+.boton-purgar div[data-testid="stButton"] button { border-color: #ff3333 !important; }
 .boton-purgar div[data-testid="stButton"] button p { color: #ff3333 !important; }
 .boton-purgar div[data-testid="stButton"] button:hover { background-color: #ff3333 !important; }
 .boton-purgar div[data-testid="stButton"] button:hover p { color: #000000 !important; }
 
 /* Boton Simular (Verde Tactico) */
-.boton-simular div[data-testid="stButton"] button { border-color: #00ff88 !important; border-top: 1px solid #00ff88 !important;}
+.boton-simular div[data-testid="stButton"] button { border-color: #00ff88 !important; }
 .boton-simular div[data-testid="stButton"] button p { color: #00ff88 !important; }
 .boton-simular div[data-testid="stButton"] button:hover { background-color: #00ff88 !important; }
 .boton-simular div[data-testid="stButton"] button:hover p { color: #000000 !important; }
@@ -290,35 +290,26 @@ def cargar_nodos():
                     dfs.append(temp_df)
                 except Exception: pass
     if dfs: df = pd.concat(dfs, ignore_index=True)
-    else: return pd.DataFrame(), ["[ERROR] Datos no encontrados."]
+    else: return pd.DataFrame(), ["Error: Datos no encontrados."]
 
     try:
         df.columns = df.columns.str.upper().str.strip()
-        col_map = {'YEAR': 'AÑO', 'DÍA': 'DIA', 'DAY': 'DIA', 'MONTH': 'MES', 'CITY': 'CIUDAD', 'COUNTRY': 'PAIS', 'PAÍS': 'PAIS', 'SHAPE': 'FORMA', 'TIME': 'HORA'}
+        col_map = {'YEAR': 'AÑO', 'CITY': 'CIUDAD', 'COUNTRY': 'PAIS', 'SHAPE': 'FORMA', 'TIME': 'HORA'}
         df.rename(columns=col_map, inplace=True)
         df = df.loc[:, ~df.columns.duplicated()]
         
         for c in ['CIUDAD', 'PAIS', 'FORMA']: df[c] = df[c].fillna("No especificado").astype(str).str.title().str.strip()
             
-        df['AÑO'] = pd.to_numeric(df.get('AÑO', 2026), errors='coerce').fillna(2026).astype(int)
-        df['DIA'] = pd.to_numeric(df.get('DIA', 0), errors='coerce').fillna(0).astype(int).astype(str).replace('0', 'No especificado')
-        df['MES'] = pd.to_numeric(df.get('MES', 0), errors='coerce').fillna(0).astype(int).astype(str).replace('0', 'No especificado')
-        
-        def formatear_hora(h):
-            val = str(h).strip()
-            if val.lower() in ['nan', 'nat', 'none', 'null', '', 'no especificada']: return "No especificada"
-            if ':' in val:
-                partes = val.split(':')
-                if len(partes) >= 2: return f"{partes[0].zfill(2)}:{partes[1].zfill(2)}"
-            return "No especificada"
-
-        df['HORA'] = df.get('HORA', pd.Series(["No especificada"]*len(df))).apply(formatear_hora)
+        df['AÑO'] = pd.to_numeric(df['AÑO'], errors='coerce').fillna(2026).astype(int)
+        df['DIA'] = pd.to_numeric(df.get('DIA', 0), errors='coerce').fillna(0).astype(int)
+        df['MES'] = pd.to_numeric(df.get('MES', 0), errors='coerce').fillna(0).astype(int)
+        df['HORA'] = df['HORA'].astype(str).str.strip().replace('nan', 'No especificada')
         
         df = simular_coordenadas(df)
         df['COLOR_STR'] = df['FORMA'].apply(asignar_color_neon)
         
-        return df, ["[INFO] Sincronizacion de nodos completa."]
-    except Exception as e: return pd.DataFrame(), [f"[ERROR] Proceso interrumpido: {str(e)}"]
+        return df, ["Sincronizacion de nodos completa."]
+    except Exception as e: return pd.DataFrame(), [f"Error de proceso: {str(e)}"]
 
 @st.cache_data(show_spinner=False)
 def cargar_archivo_relaciones():
@@ -328,6 +319,25 @@ def cargar_archivo_relaciones():
             try: return pd.read_csv(r, sep=None, engine='python', encoding='utf-8-sig', on_bad_lines='skip')
             except Exception: pass
     return pd.DataFrame()
+
+# ====================================================================
+# PANTALLA 1: PORTADA / PANTALLA DE ARRANQUE
+# ====================================================================
+if st.session_state["pantalla_actual"] == "portada":
+    st.markdown("<br><br>", unsafe_allow_html=True)
+    col_vacia1, col_centro, col_vacia2 = st.columns([1, 4, 1])
+    
+    with col_centro:
+        ruta_panel_maestro = os.path.join("assets", "dashboard_maestro_global.png")
+        if os.path.exists(ruta_panel_maestro):
+            st.image(ruta_panel_maestro, use_container_width=True)
+            
+        st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
+        st.markdown("<div class='boton-entrada'>", unsafe_allow_html=True)
+        if st.button("ACCEDER A AGATHA INTELLIGENT NEURAL NETWORK", type="primary", use_container_width=True):
+            st.session_state["pantalla_actual"] = "principal"
+            st.rerun()
+        st.markdown("</div>", unsafe_allow_html=True)
 
 }
 div.row-widget.stRadio > div > div label p { 
@@ -444,22 +454,30 @@ def cargar_nodos():
 
     try:
         df.columns = df.columns.str.upper().str.strip()
-        col_map = {'YEAR': 'AÑO', 'CITY': 'CIUDAD', 'COUNTRY': 'PAIS', 'SHAPE': 'FORMA', 'TIME': 'HORA'}
+        col_map = {'YEAR': 'AÑO', 'CITY': 'CIUDAD', 'COUNTRY': 'PAIS', 'PAÍS': 'PAIS', 'SHAPE': 'FORMA', 'TIME': 'HORA'}
         df.rename(columns=col_map, inplace=True)
         df = df.loc[:, ~df.columns.duplicated()]
         
         for c in ['CIUDAD', 'PAIS', 'FORMA']: df[c] = df[c].fillna("No especificado").astype(str).str.title().str.strip()
             
-        df['AÑO'] = pd.to_numeric(df['AÑO'], errors='coerce').fillna(2026).astype(int)
-        df['DIA'] = pd.to_numeric(df.get('DIA', 0), errors='coerce').fillna(0).astype(int)
-        df['MES'] = pd.to_numeric(df.get('MES', 0), errors='coerce').fillna(0).astype(int)
-        df['HORA'] = df['HORA'].astype(str).str.strip().replace('nan', 'No especificada')
+        df['AÑO'] = pd.to_numeric(df.get('AÑO', 2026), errors='coerce').fillna(2026).astype(int)
+        df['DIA'] = pd.to_numeric(df.get('DIA', 0), errors='coerce').fillna(0).astype(int).astype(str).replace('0', 'No especificado')
+        df['MES'] = pd.to_numeric(df.get('MES', 0), errors='coerce').fillna(0).astype(int).astype(str).replace('0', 'No especificado')
         
+        def formatear_hora(h):
+            val = str(h).strip()
+            if val.lower() in ['nan', 'nat', 'none', 'null', '', 'no especificada']: return "No especificada"
+            if ':' in val:
+                partes = val.split(':')
+                if len(partes) >= 2: return f"{partes[0].zfill(2)}:{partes[1].zfill(2)}"
+            return "No especificada"
+
+        df['HORA'] = df.get('HORA', pd.Series(["No especificada"]*len(df))).apply(formatear_hora)
         df = simular_coordenadas(df)
         df['COLOR_STR'] = df['FORMA'].apply(asignar_color_neon)
         
-        return df, ["Sincronizacion de nodos completa."]
-    except Exception as e: return pd.DataFrame(), [f"Error de proceso: {str(e)}"]
+        return df, ["[INFO] Sincronización de nodos completa."]
+    except Exception as e: return pd.DataFrame(), [f"[ERROR] Proceso interrumpido: {str(e)}"]
 
 @st.cache_data(show_spinner=False)
 def cargar_archivo_relaciones():
@@ -494,9 +512,9 @@ if st.session_state["pantalla_actual"] == "portada":
 # ====================================================================
 elif st.session_state["pantalla_actual"] == "principal":
     
-    with st.status("Estableciendo conexion segura con AGATHA...", expanded=False) as status_arranque:
+    with st.status("Estableciendo conexión segura con AGATHA...", expanded=False) as status_arranque:
         df_maestro, mensajes_diagnostico = cargar_nodos()
-        status_arranque.update(label="Sistema UAP 'Opcon Ready' en linea.", state="complete")
+        status_arranque.update(label="Sistema UAP 'Opcon Ready' en línea.", state="complete")
 
     IDENTIFICACION_OPERADOR = "DIR-74"
     NIVEL_ACCESO = "NIVEL 4 - INTELIGENCIA ESTRATEGICA"
@@ -512,7 +530,7 @@ elif st.session_state["pantalla_actual"] == "principal":
     columna_titulo, columna_desconexion = st.columns([4, 1])
     with columna_titulo:
         st.markdown("<h1>AGATHA Intelligent Neural Network</h1>", unsafe_allow_html=True)
-        st.markdown("<h3>MODULO CONTACT - Fenomeno Anomalo No Identificado</h3>", unsafe_allow_html=True)
+        st.markdown("<h3>MODULO CONTACT - Fenómeno Anómalo No Identificado</h3>", unsafe_allow_html=True)
         st.markdown("<div class='cita-contact'>«El Universo es enorme. Y si solo estamos nosotros, cuanto espacio desaprovechado»</div>", unsafe_allow_html=True)
     with columna_desconexion:
         st.markdown("<br>", unsafe_allow_html=True)
@@ -523,21 +541,18 @@ elif st.session_state["pantalla_actual"] == "principal":
     # --- CATALOGO UAP ---
     with st.expander("CATALOGO UAP - IDENTIFICACION VISUAL", expanded=False):
         st.markdown("<div style='color:#00d4ff; font-size:0.8rem; margin-bottom:15px; line-height:1.4;'>INFORMACION TACTICA: Selecciona la forma para abrir el analisis visual de reconocimiento.</div>", unsafe_allow_html=True)
-        
         lista_archivos_morfologicos = [
             "bola_de_fuego", "cambiante", "cigarro", "cilindro", "circulo", "cono",
             "cruz", "cubo", "desconocido", "diamante", "disco", "esfera",
             "estrella", "flash", "formacion", "galones", "huevo", "lagrima",
             "luz", "orbe", "otros", "oval", "rectangulo", "triangulo"
         ]
-        
         for i in range(0, 24, 6):
             columnas_cuadricula = st.columns(6, gap="small")
             for j in range(6):
                 indice = i + j
                 if indice < len(lista_archivos_morfologicos):
                     forma_archivo = lista_archivos_morfologicos[indice]
-                    
                     with columnas_cuadricula[j]:
                         ruta_miniatura = os.path.join("assets", f"{forma_archivo}.png")
                         if os.path.exists(ruta_miniatura):
@@ -550,7 +565,6 @@ elif st.session_state["pantalla_actual"] == "principal":
 
     # --- PANEL TACTICO SUPERIOR ---
     st.markdown("---")
-    
     columna_metrica1, columna_metrica2, columna_controles = st.columns([1, 1, 3])
     
     total_activos = len(df_maestro) if not df_maestro.empty else 0
@@ -567,17 +581,16 @@ elif st.session_state["pantalla_actual"] == "principal":
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # --- VISUALIZACION PRINCIPAL (MAPA TACTICO REDISENADO) ---
+    # --- VISUALIZACION PRINCIPAL (MAPA TACTICO REDISEÑADO) ---
     columna_mapa, columna_filtros = st.columns([3, 1], gap="medium")
 
     datos_filtrados = df_maestro.copy()
     filtros_aplicados = False
-    nodos_malla_lon, nodos_malla_lat = [], []
     
     datos_mapa_tactico = df_maestro[ (df_maestro['PAIS'].str.upper() != 'NO ESPECIFICADO') ].copy()
 
     with columna_filtros:
-        st.markdown("#### Parametros de Filtrado")
+        st.markdown("#### Parámetros de Filtrado")
         
         c_f1, c_f2 = st.columns(2)
         años_disponibles = sorted(df_maestro['AÑO'].unique(), reverse=True)
@@ -603,6 +616,7 @@ elif st.session_state["pantalla_actual"] == "principal":
         st.markdown("---")
         st.markdown(f"<p style='color: #00d4ff; font-weight: 700; font-family:Share Tech Mono;'>NODOS FILTRADOS: {len(datos_filtrados)}</p>", unsafe_allow_html=True)
         
+        # SIMULACION
         st.markdown("<br>", unsafe_allow_html=True)
         col_s1, col_s2 = st.columns(2)
         with col_s1:
@@ -617,7 +631,7 @@ elif st.session_state["pantalla_actual"] == "principal":
             st.markdown("</div>", unsafe_allow_html=True)
 
     with columna_mapa:
-        with st.spinner("Calibrando proyeccion tactica..."):
+        with st.spinner("Calibrando proyección táctica..."):
             mapa_visual = go.Figure()
             
             def generar_tooltip(df):
@@ -703,7 +717,7 @@ elif st.session_state["pantalla_actual"] == "principal":
             
             espacio_grafico.plotly_chart(mapa_visual, width='stretch', use_container_width=True)
 
-    # --- INDICADORES INFERIORES TACTICOS ---
+    # --- INDICADORES INFERIORES TACTICOS (FILTRADOS) ---
     columna_filtro1, columna_filtro2, columna_filtro3 = st.columns(3)
     total_filtrados = len(datos_filtrados)
     df_formas_filt = datos_filtrados[~datos_filtrados['FORMA'].str.upper().isin(['DESCONOCIDO', 'NO ESPECIFICADO'])] if not datos_filtrados.empty else pd.DataFrame()
@@ -723,34 +737,34 @@ elif st.session_state["pantalla_actual"] == "principal":
             
             df_tabla = datos_filtrados.sort_values(by=['AÑO','MES','DIA'], ascending=False)
             if not filtros_aplicados:
-                st.info("[SISTEMA] Modo reposo. Mostrando previsualizacion de 100 registros recientes.")
+                st.info("[SISTEMA] Modo reposo. Mostrando previsualización de 100 registros recientes.")
                 df_tabla = df_tabla.head(100)
             elif len(df_tabla) > 1000:
-                st.warning(f"[ALERTA] Busqueda masiva ({len(df_tabla)} resultados). Limitando visualizacion a 1000.")
+                st.warning(f"[ALERTA] Búsqueda masiva ({len(df_tabla)} resultados). Limitando visualización a 1000.")
                 df_tabla = df_tabla.head(1000)
             
             st.dataframe(df_tabla[columnas_ok], use_container_width=True, hide_index=True, height=400)
 
     # --- PROCESADOR NLP AGATHA ---
-    with st.expander("PROCESADOR DE TESTIMONIOS INTELIGENTE (NLP AGATHA)", expanded=False):
-        ruta_testimonios = os.path.join("data", "avistamientos_testimonios.csv")
-        if os.path.exists(ruta_testimonios):
-            try:
-                df_nlp = pd.read_csv(ruta_testimonios, sep=None, engine='python', encoding='utf-8-sig', on_bad_lines='skip')
-                df_nlp.columns = df_nlp.columns.str.strip()
-                df_nlp['TAG'] = df_nlp['ID de Caso'].astype(str) + " | " + df_nlp['Ubicación'].astype(str)
-                
-                st.caption(f"Cargados {len(df_nlp)} testimonios detallados.")
-                caso_sel = st.selectbox("Seleccionar Expediente Testifical", df_nlp['TAG'].unique())
-                
-                if caso_sel:
-                    fila = df_nlp[df_nlp['TAG'] == caso_sel].iloc[0]
-                    texto_analisis = f"TESTIMONIO: {fila.get('Descripción del Fenómeno', '')}\n\nCONCLUSION PREVIA: {fila.get('Conclusión del Investigador', 'N/A')}"
-                    st.markdown(f"<div style='background:#0d1117; padding:15px; border-left:3px solid #a855f7; color:#cbd5e1; white-space: pre-wrap; font-size:0.9rem;'>{texto_analisis}</div>", unsafe_allow_html=True)
+    if DEEPSEEK_API_KEY:
+        with st.expander("PROCESADOR DE TESTIMONIOS INTELIGENTE (NLP AGATHA)", expanded=False):
+            ruta_testimonios = os.path.join("data", "avistamientos_testimonios.csv")
+            if os.path.exists(ruta_testimonios):
+                try:
+                    df_nlp = pd.read_csv(ruta_testimonios, sep=None, engine='python', encoding='utf-8-sig', on_bad_lines='skip')
+                    df_nlp.columns = df_nlp.columns.str.strip()
+                    df_nlp['TAG'] = df_nlp['ID de Caso'].astype(str) + " | " + df_nlp['Ubicación'].astype(str)
                     
-                    if st.button("EJECUTAR ANALISIS DE INTELIGENCIA", type="primary"):
-                        if DEEPSEEK_API_KEY:
-                            with st.spinner("AGATHA procesando analisis conductual..."):
+                    st.caption(f"Cargados {len(df_nlp)} testimonios detallados.")
+                    caso_sel = st.selectbox("Seleccionar Expediente Testifical", df_nlp['TAG'].unique())
+                    
+                    if caso_sel:
+                        fila = df_nlp[df_nlp['TAG'] == caso_sel].iloc[0]
+                        texto_analisis = f"TESTIMONIO: {fila.get('Descripción del Fenómeno', '')}\n\nCONCLUSIÓN PREVIA: {fila.get('Conclusión del Investigador', 'N/A')}"
+                        st.markdown(f"<div style='background:#0d1117; padding:15px; border-left:3px solid #a855f7; color:#cbd5e1; white-space: pre-wrap; font-size:0.9rem;'>{texto_analisis}</div>", unsafe_allow_html=True)
+                        
+                        if st.button("EJECUTAR ANALISIS DE INTELIGENCIA", type="primary"):
+                            with st.spinner("AGATHA procesando análisis conductual..."):
                                 try:
                                     cabeceras = {"Authorization": f"Bearer {DEEPSEEK_API_KEY}", "Content-Type": "application/json"}
                                     parametros = {
@@ -777,6 +791,4 @@ elif st.session_state["pantalla_actual"] == "principal":
                                     c3.metric("CONCLUSION", str(datos_ia.get('explicacion_probable', 'N/A')).upper())
                                     st.markdown(f"<div style='background:#0f172a; padding:15px; border:1px solid #1e293b; color:#cbd5e1; font-family: monospace;'>{datos_ia.get('comportamiento', 'Sin datos conductuales')}</div>", unsafe_allow_html=True)
                                 except Exception as e: st.error(f"[ERROR] API: {str(e)}")
-                        else:
-                            st.warning("[AVISO] Falta credencial API.")
-            except Exception as e: st.error(f"Error cargando testimonios: {str(e)}")
+                except Exception as e: st.error(f"Error cargando testimonios: {str(e)}")
