@@ -2,7 +2,7 @@
 # ARCHIVO PRINCIPAL: Agatha_Fani.py
 # SISTEMA: AGATHA Intelligent Neural Network
 # MODULO: MODULO CONTACT (Fenomeno Anomalo No Identificado)
-# VERSION: Opcon Ready v8.0 (Dashboard Maestro + Grid UAP Dinámico)
+# VERSION: Opcon Ready v8.1 (Dashboard Maestro + Blindaje de Imágenes)
 # OPERADOR: DIR-74
 # ====================================================================
 
@@ -123,7 +123,10 @@ st.markdown(CSS_MATE, unsafe_allow_html=True)
 def abrir_visor_completo(nombre_forma):
     ruta_completa = os.path.join("assets", f"{nombre_forma}_completo.png")
     if os.path.exists(ruta_completa):
-        st.image(ruta_completa, use_container_width=True)
+        try:
+            st.image(ruta_completa, use_container_width=True)
+        except Exception:
+            st.error("⚠️ El archivo de imagen detallada está corrupto o no es válido.")
     else:
         st.error(f"Falta el archivo de detalle: {ruta_completa}")
 
@@ -337,16 +340,18 @@ with col_boton:
         st.cache_data.clear()
         st.rerun()
 
-# --- DASHBOARD MAESTRO ---
+# --- DASHBOARD MAESTRO (CON BLINDAJE) ---
 ruta_dashboard = os.path.join("assets", "dashboard_maestro_global.png")
 if os.path.exists(ruta_dashboard):
-    st.image(ruta_dashboard, use_container_width=True)
+    try:
+        st.image(ruta_dashboard, use_container_width=True)
+    except Exception:
+        st.error("⚠️ La imagen 'dashboard_maestro_global.png' está corrupta y no se puede cargar.")
 
 # --- CATÁLOGO UAP (GRID 6x4 INTERACTIVO) ---
 with st.expander("CATÁLOGO UAP IDENTIFICACIÓN VISUAL DE OBJETOS", expanded=False):
     st.markdown("<div style='color:#00d4ff; font-size:0.85rem; margin-bottom:15px; line-height:1.4;'>🔍 Selecciona 'AMPLIAR FICHA' en cualquier tipología para abrir el análisis táctico de reconocimiento.</div>", unsafe_allow_html=True)
     
-    # Las 24 formas ordenadas
     lista_formas = [
         "bola de fuego", "cambiante", "cigarro", "cilindro", "circulo", "cono",
         "cruz", "cubo", "desconocido", "diamante", "disco", "esfera",
@@ -354,7 +359,6 @@ with st.expander("CATÁLOGO UAP IDENTIFICACIÓN VISUAL DE OBJETOS", expanded=Fal
         "luz", "orbe", "otros", "oval", "rectangulo", "triangulo"
     ]
     
-    # Generar la cuadrícula de 4 filas x 6 columnas
     for i in range(0, 24, 6):
         cols = st.columns(6)
         for j in range(6):
@@ -365,17 +369,14 @@ with st.expander("CATÁLOGO UAP IDENTIFICACIÓN VISUAL DE OBJETOS", expanded=Fal
                     ruta_thumb = os.path.join("assets", f"{forma_actual}.png")
                     
                     if os.path.exists(ruta_thumb):
-                        st.image(ruta_thumb, use_container_width=True)
-                        # Botón que invoca el @st.dialog
-                        if st.button("AMPLIAR FICHA", key=f"btn_{forma_actual}"):
-                            abrir_visor_completo(forma_actual)
+                        try:
+                            st.image(ruta_thumb, use_container_width=True)
+                            if st.button("AMPLIAR FICHA", key=f"btn_{forma_actual}"):
+                                abrir_visor_completo(forma_actual)
+                        except Exception:
+                            st.markdown(f"<div style='width:100%; aspect-ratio:1/1; border:1px dashed #334155; display:flex; align-items:center; justify-content:center; background:#0f172a; margin-bottom:10px;'><span style='color:#64748b; font-size:0.6rem; text-align:center;'>Error formato:<br>{forma_actual}.png</span></div>", unsafe_allow_html=True)
                     else:
-                        # Placeholder oscuro si falta alguna imagen base
-                        st.markdown(f"""
-                        <div style='width:100%; aspect-ratio:1/1; border:1px dashed #334155; display:flex; align-items:center; justify-content:center; background:#0f172a; margin-bottom:10px;'>
-                            <span style='color:#64748b; font-size:0.6rem; text-align:center;'>Falta:<br>{forma_actual}.png</span>
-                        </div>
-                        """, unsafe_allow_html=True)
+                        st.markdown(f"<div style='width:100%; aspect-ratio:1/1; border:1px dashed #334155; display:flex; align-items:center; justify-content:center; background:#0f172a; margin-bottom:10px;'><span style='color:#64748b; font-size:0.6rem; text-align:center;'>Falta:<br>{forma_actual}.png</span></div>", unsafe_allow_html=True)
 
 # --- NOTIFICAR AVISTAMIENTO (NUEVO MÓDULO) ---
 with st.expander("🛸 NOTIFICA TU AVISTAMIENTO (Red UAP España / Global)", expanded=False):
