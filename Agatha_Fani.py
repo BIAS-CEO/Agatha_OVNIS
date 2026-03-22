@@ -1,5 +1,5 @@
 # ====================================================================
-# AGATHA v8.3 — CORE SYSTEM (DATA + GEO NOMINATIM + STREAMLIT UPDATE)
+# AGATHA v8.4 — CORE SYSTEM (OFFLINE GEO)
 # ====================================================================
 
 import streamlit as st
@@ -8,14 +8,12 @@ import numpy as np
 import plotly.graph_objects as go
 import os
 import requests
-import time
-from geopy.geocoders import Nominatim
 
 # =========================
 # CONFIG
 # =========================
 st.set_page_config(
-    page_title="AGATHA - Inteligencia Predictiva",
+    page_title="Motor de Análisis - Inteligencia Predictiva",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
@@ -32,27 +30,6 @@ def get_secret(key):
 OPENWEATHER_API_KEY = get_secret("OPENWEATHER_API_KEY")
 
 # =========================
-# CACHE GEO (NOMINATIM)
-# =========================
-@st.cache_data(show_spinner=False)
-def geocode_cache(ciudad, pais):
-    try:
-        # Agente de usuario personalizado para Motor de Análisis Conductual Predictivo
-        geolocator = Nominatim(user_agent="motor_analisis_conductual_predictivo")
-        query = f"{ciudad}, {pais}"
-        
-        location = geolocator.geocode(query, timeout=10)
-        
-        if location:
-            time.sleep(1.1) # Pausa obligatoria por políticas de Nominatim
-            return location.latitude, location.longitude
-            
-    except Exception:
-        pass
-
-    return None, None
-
-# =========================
 # CARGA DE TODOS LOS CSV
 # =========================
 @st.cache_data(show_spinner=False)
@@ -67,7 +44,6 @@ def cargar_datos_global():
 
     for archivo in archivos:
         try:
-            # Corrección del error de tokenización
             df = pd.read_csv(
                 os.path.join(ruta, archivo), 
                 on_bad_lines="skip", 
@@ -82,7 +58,9 @@ def cargar_datos_global():
                 "AÑO": "AÑO", "YEAR": "AÑO",
                 "PAÍS": "PAIS", "COUNTRY": "PAIS",
                 "CITY": "CIUDAD", "SHAPE": "FORMA",
-                "TIME": "HORA"
+                "TIME": "HORA",
+                "LATITUDE": "LAT", "LATITUD": "LAT",
+                "LONGITUDE": "LON", "LONGITUD": "LON", "LNG": "LON"
             }
 
             df.rename(columns=rename_map, inplace=True)
@@ -97,39 +75,19 @@ def cargar_datos_global():
 
             dfs.append(df)
 
-        except Exception as e:
-            pass # Silenciamos los errores de archivos individuales para no ensuciar la interfaz
+        except Exception:
+            pass 
 
     if not dfs:
         return pd.DataFrame()
 
-    df_total = pd.concat(dfs, ignore_index=True)
-    return df_total
-
-# =========================
-# GEOLOCALIZACIÓN BAJO DEMANDA
-# =========================
-def geolocalizar_muestra(df_muestra):
-    latitudes = []
-    longitudes = []
-
-    for i, row in df_muestra.iterrows():
-        lat, lon = geocode_cache(row["CIUDAD"], row["PAIS"])
-        latitudes.append(lat)
-        longitudes.append(lon)
-
-    df_muestra = df_muestra.copy()
-    df_muestra["lat"] = latitudes
-    df_muestra["lon"] = longitudes
-    
-    # Eliminamos solo los puntos que no se pudieron ubicar, manteniendo el resto
-    return df_muestra.dropna(subset=["lat","lon"])
+    return pd.concat(dfs, ignore_index=True)
 
 # =========================
 # METEOROLOGÍA REAL
 # =========================
 def obtener_meteo(lat, lon):
-    if not OPENWEATHER_API_KEY:
+    if not OPENWEATHER_API_KEY or pd.isna(lat) or pd.isna(lon):
         return None
     try:
         url = "https://api.openweathermap.org/data/2.5/weather"
@@ -138,7 +96,7 @@ def obtener_meteo(lat, lon):
             "appid": OPENWEATHER_API_KEY,
             "units": "metric", "lang": "es"
         }
-        data = requests.get(url, params=params, timeout=10).json()
+        data = requests.get(url, params=params, timeout=5).json()
         return {
             "temp": data["main"]["temp"],
             "nubes": data["clouds"]["all"],
@@ -150,7 +108,7 @@ def obtener_meteo(lat, lon):
 # =========================
 # CARGA PRINCIPAL
 # =========================
-with st.spinner("Motor de Análisis cargando base de datos global..."):
+with st.spinner("Motor de Análisis Conductual Predictivo cargando base de datos..."):
     df_maestro = cargar_datos_global()
 
 # ====================================================================
@@ -188,29 +146,59 @@ with col_filtros:
             df_filtrado = df_filtrado[df_filtrado["PAIS"] == sel_pais]
 
 # =========================
-# CONTROL DE PUNTOS Y MAPA
+# MAPA (SIN DEPENDENCIAS EXTERNAS)
 # =========================
 with col_mapa:
     if not df_filtrado.empty:
         
-        # Tomamos una muestra máxima de 60 para no bloquear la API de Nominatim
-        muestra_size = min(60, len(df_filtrado))
-        df_mostrar = df_filtrado.sample(muestra_size)
-        
-        with st.spinner("Calculando coordenadas geográficas de la muestra..."):
-            df_mostrar = geolocalizar_muestra(df_mostrar)
+        if "LAT" not in df_filtrado.columns:
+            df_filtrado["LAT"] = np.nan
+        if "LON" not in df_filtrado.columns:
+            df_filtrado["LON"] = np.nan
+
+        df_filtrado["LAT"] = pd.to_numeric(df_filtrado["LAT"], errors="coerce")
+        df_filtrado["LON"] = pd.to_numeric(df_filtrado["LON"], errors="coerce")
+
+        muestra_size = min(1500, len(df_filtrado))
+        df_mostrar = df_filtrado.sample(muestra_size).copy()
+
+        fallback_coords = {
+            "us": (37.0902, -95.7129), "usa": (37.0902, -95.7129), "estados unidos": (37.0902, -95.7129),
+            "gb": (55.3781, -3.4360), "uk": (55.3781, -3.4360), "reino unido": (55.3781, -3.4360),
+            "ca": (56.1304, -106.3468), "canada": (56.1304, -106.3468),
+            "au": (-25.2744, 133.7751), "australia": (-25.2744, 133.7751),
+            "ma": (31.7917, -7.0926), "marruecos": (31.7917, -7.0926), "morocco": (31.7917, -7.0926),
+            "es": (40.4637, -3.7492), "españa": (40.4637, -3.7492),
+            "mx": (23.6345, -102.5528), "mexico": (23.6345, -102.5528)
+        }
+
+        def asignar_coordenadas(row):
+            if pd.isna(row["LAT"]) or pd.isna(row["LON"]):
+                pais = str(row["PAIS"]).lower().strip()
+                if pais in fallback_coords:
+                    lat = fallback_coords[pais][0] + np.random.uniform(-4, 4)
+                    lon = fallback_coords[pais][1] + np.random.uniform(-4, 4)
+                    return lat, lon
+                else:
+                    return None, None
+            return row["LAT"], row["LON"]
+
+        coords = df_mostrar.apply(asignar_coordenadas, axis=1)
+        df_mostrar["LAT"] = [c[0] for c in coords]
+        df_mostrar["LON"] = [c[1] for c in coords]
+        df_mostrar = df_mostrar.dropna(subset=["LAT", "LON"])
 
         if not df_mostrar.empty:
             fig = go.Figure()
 
             fig.add_trace(go.Scattergeo(
-                lon=df_mostrar["lon"],
-                lat=df_mostrar["lat"],
+                lon=df_mostrar["LON"],
+                lat=df_mostrar["LAT"],
                 mode="markers",
                 marker=dict(
-                    size=6,
-                    color="rgba(0,212,255,0.8)",
-                    line=dict(width=0.5, color="white")
+                    size=5,
+                    color="rgba(0,212,255,0.7)",
+                    line=dict(width=0.2, color="white")
                 ),
                 text=df_mostrar["CIUDAD"] + " | " + df_mostrar["PAIS"] + " (" + df_mostrar["FORMA"] + ")",
                 hoverinfo="text"
@@ -228,11 +216,9 @@ with col_mapa:
                 paper_bgcolor="#0a0a0a"
             )
 
-            # Actualizado a la nueva sintaxis de Streamlit
             st.plotly_chart(fig, width="stretch")
-            st.caption("Nota: El mapa muestra una muestra representativa geolocalizada para optimizar el rendimiento.")
         else:
-            st.warning("No se pudieron obtener las coordenadas geográficas de los puntos filtrados.")
+            st.warning("No hay suficientes datos geográficos en los CSV para mostrar el mapa.")
     else:
         st.warning("No hay datos disponibles con los filtros actuales.")
 
@@ -252,7 +238,7 @@ else:
     m3.metric("Países", 0)
 
 # ====================================================================
-# INTELIGENCIA AGATHA — NLP + PREDICCIÓN + ANOMALÍAS
+# INTELIGENCIA AGATHA 
 # ====================================================================
 
 st.markdown("---")
@@ -280,11 +266,10 @@ with st.expander("PROCESADOR FORENSE AGATHA", expanded=False):
                 return "Fenómeno no clasificado"
 
             if st.button("Ejecutar análisis AGATHA", type="primary"):
-                # Intentamos geolocalizar el punto específico para sacar la meteo
-                lat, lon = geocode_cache(fila["CIUDAD"], fila["PAIS"])
+                lat, lon = fila.get("LAT"), fila.get("LON")
                 
                 st.markdown("### Contexto ambiental")
-                if lat and lon:
+                if pd.notna(lat) and pd.notna(lon):
                     meteo = obtener_meteo(lat, lon)
                     if meteo:
                         c1, c2, c3 = st.columns(3)
@@ -292,7 +277,7 @@ with st.expander("PROCESADOR FORENSE AGATHA", expanded=False):
                         c2.metric("Nubosidad", f"{meteo['nubes']}%")
                         c3.metric("Condiciones", meteo["desc"])
                     else:
-                        st.info("Datos meteorológicos no disponibles en este momento.")
+                        st.info("Datos meteorológicos no disponibles.")
                 else:
                     st.info("Coordenadas no disponibles para consulta meteorológica.")
 
@@ -313,7 +298,6 @@ with st.expander("ANÁLISIS DE CORRELACIÓN", expanded=False):
             .sort_values(by="conteo", ascending=False)
             .head(10)
         )
-        # Actualizado a la nueva sintaxis de Streamlit
         st.dataframe(corr, width="stretch")
     else:
         st.info("Datos insuficientes para correlación.")
