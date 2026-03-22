@@ -1,5 +1,5 @@
 # ====================================================================
-# AGATHA v8.4 — CORE SYSTEM (OFFLINE GEO)
+# AGATHA v8.5 — CORE SYSTEM (GLOBAL 2D/3D + DYNAMIC LIMITS)
 # ====================================================================
 
 import streamlit as st
@@ -7,319 +7,220 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 import os
-import requests
 
 # =========================
-# CONFIG
+# CONFIGURACIÓN
 # =========================
 st.set_page_config(
-    page_title="Motor de Análisis - Inteligencia Predictiva",
+    page_title="Motor de Análisis Conductual Predictivo",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-# =========================
-# SECRETS (APIs)
-# =========================
-def get_secret(key):
+def obtener_credencial(key):
     try:
         return st.secrets[key]
     except:
         return os.environ.get(key)
 
-OPENWEATHER_API_KEY = get_secret("OPENWEATHER_API_KEY")
+# =========================
+# FUNCIONES NÚCLEO
+# =========================
+def asignar_color_neon(forma):
+    forma = str(forma).lower()
+    if "luz" in forma or "flash" in forma: return (255, 255, 0)
+    if "triangulo" in forma: return (255, 0, 0)
+    if "esfera" in forma or "bola" in forma: return (0, 255, 0)
+    return (0, 212, 255)
 
-# =========================
-# CARGA DE TODOS LOS CSV
-# =========================
+def simular_coordenadas(df):
+    """Asignación de coordenadas determinista global."""
+    np.random.seed(42)
+    
+    # Mapeo global exhaustivo
+    centroides = {
+        "TX": (31.9, -99.9), "FL": (27.7, -81.6), "CA": (36.7, -119.4), "NY": (40.7, -74.0),
+        "EEUU": (39.8, -98.5), "ESTADOS UNIDOS": (39.8, -98.5), "USA": (39.8, -98.5),
+        "CANADA": (56.1, -106.3), "CANADÁ": (56.1, -106.3),
+        "MEXICO": (23.6, -102.5), "MÉXICO": (23.6, -102.5),
+        "UK": (55.3, -3.4), "REINO UNIDO": (55.3, -3.4), "INGLATERRA": (52.3, -1.1),
+        "ESPAÑA": (40.46, -3.75), "ESPANA": (40.46, -3.75), "SPAIN": (40.46, -3.75),
+        "FRANCIA": (46.22, 2.21), "ALEMANIA": (51.16, 10.45), "ITALIA": (41.87, 12.56),
+        "INDIA": (20.59, 78.96), "CHINA": (35.86, 104.19), "JAPON": (36.20, 138.25), "JAPÓN": (36.20, 138.25),
+        "AUSTRALIA": (-25.27, 133.77), "BRASIL": (-14.23, -51.92), "ARGENTINA": (-38.41, -63.61)
+    }
+    
+    est = df.get('ESTADO', pd.Series(index=df.index)).astype(str).str.upper().str.strip()
+    pai = df['PAIS'].astype(str).str.upper().str.strip()
+    
+    coord_est = est.map(centroides)
+    coord_pai = pai.map(centroides)
+    
+    coords_finales = coord_est.combine_first(coord_pai)
+    coords_defecto = pd.Series([(0.0, 0.0)] * len(df), index=df.index)
+    coords_finales = coords_finales.combine_first(coords_defecto)
+    
+    df['hash_val'] = df['CIUDAD'].astype(str).apply(lambda x: sum(ord(c) for c in x))
+    df['lat_offset'] = ((df['hash_val'] % 100) - 50) / 100.0 * 3.5
+    df['lon_offset'] = (((df['hash_val'] // 10) % 100) - 50) / 100.0 * 3.5
+    
+    df['lat'] = coords_finales.apply(lambda x: x[0]) + df['lat_offset']
+    df['lon'] = coords_finales.apply(lambda x: x[1]) + df['lon_offset']
+    
+    df = df.drop(columns=['hash_val', 'lat_offset', 'lon_offset'])
+    return df
+
 @st.cache_data(show_spinner=False)
-def cargar_datos_global():
-    ruta = "data"
+def cargar_nodos():
+    mensajes = []
+    ruta_carpeta = "data"
     dfs = []
+    
+    if os.path.exists(ruta_carpeta):
+        for archivo in os.listdir(ruta_carpeta):
+            # Leemos todos los CSV de la carpeta excluyendo el de relaciones para el mapa
+            if archivo.endswith(".csv") and "relationships" not in archivo.lower():
+                try:
+                    temp_df = pd.read_csv(os.path.join(ruta_carpeta, archivo), encoding='utf-8', on_bad_lines='skip')
+                    dfs.append(temp_df)
+                except Exception as e:
+                    pass
+                    
+        if dfs:
+            df = pd.concat(dfs, ignore_index=True)
+            mensajes.append("Archivos de datos locales unificados correctamente.")
+        else:
+            return pd.DataFrame(), ["Error: La carpeta de datos no contiene archivos válidos o solo contiene el de relaciones."]
+    else:
+        return pd.DataFrame(), ["Error: No se localizó la carpeta 'data'."]
 
-    if not os.path.exists(ruta):
-        return pd.DataFrame()
-
-    archivos = [f for f in os.listdir(ruta) if f.endswith(".csv")]
-
-    for archivo in archivos:
-        try:
-            df = pd.read_csv(
-                os.path.join(ruta, archivo), 
-                on_bad_lines="skip", 
-                engine="python"
-            )
-
-            df.columns = df.columns.str.upper().str.strip()
-
-            rename_map = {
-                "DÍA": "DIA", "DAY": "DIA",
-                "MES": "MES", "MONTH": "MES",
-                "AÑO": "AÑO", "YEAR": "AÑO",
-                "PAÍS": "PAIS", "COUNTRY": "PAIS",
-                "CITY": "CIUDAD", "SHAPE": "FORMA",
-                "TIME": "HORA",
-                "LATITUDE": "LAT", "LATITUD": "LAT",
-                "LONGITUDE": "LON", "LONGITUD": "LON", "LNG": "LON"
-            }
-
-            df.rename(columns=rename_map, inplace=True)
-
-            for c in ["DIA","MES","AÑO","CIUDAD","PAIS","FORMA"]:
-                if c not in df.columns:
-                    df[c] = "No especificado"
-
-            df["CIUDAD"] = df["CIUDAD"].astype(str).str.strip()
-            df["PAIS"] = df["PAIS"].astype(str).str.strip()
-            df["FORMA"] = df["FORMA"].astype(str).str.title()
-
-            dfs.append(df)
-
-        except Exception:
-            pass 
-
-    if not dfs:
-        return pd.DataFrame()
-
-    return pd.concat(dfs, ignore_index=True)
-
-# =========================
-# METEOROLOGÍA REAL
-# =========================
-def obtener_meteo(lat, lon):
-    if not OPENWEATHER_API_KEY or pd.isna(lat) or pd.isna(lon):
-        return None
     try:
-        url = "https://api.openweathermap.org/data/2.5/weather"
-        params = {
-            "lat": lat, "lon": lon,
-            "appid": OPENWEATHER_API_KEY,
-            "units": "metric", "lang": "es"
+        df.columns = df.columns.str.upper().str.strip()
+        
+        # Mapeo estricto basado en la estructura que indicaste
+        col_map = {
+            'DÍA': 'DIA', 'DAY': 'DIA', 'MONTH': 'MES', 'YEAR': 'AÑO',
+            'CITY': 'CIUDAD', 'STATE': 'ESTADO', 'PAÍS': 'PAIS', 
+            'COUNTRY': 'PAIS', 'SHAPE': 'FORMA', 'SUMMARY': 'RESUMEN',
+            'TIME': 'HORA'
         }
-        data = requests.get(url, params=params, timeout=5).json()
-        return {
-            "temp": data["main"]["temp"],
-            "nubes": data["clouds"]["all"],
-            "desc": data["weather"][0]["description"]
-        }
-    except:
-        return None
+        df.rename(columns=col_map, inplace=True)
+        
+        for c in ['CIUDAD', 'PAIS', 'FORMA']:
+            if c not in df.columns: df[c] = "No especificado"
+            else: df[c] = df[c].fillna("No especificado").astype(str)
+            
+        # Limpieza de nombres de países para el filtro
+        df['PAIS'] = df['PAIS'].str.title().str.strip()
+        df['FORMA'] = df['FORMA'].str.title().str.strip()
+        
+        # Saneamiento de variables temporales
+        if 'AÑO' not in df.columns: df['AÑO'] = 2026
+        df['AÑO'] = pd.to_numeric(df['AÑO'], errors='coerce').fillna(2026).astype(int)
+        
+        df = simular_coordenadas(df)
+        df['COLOR_STR'] = df['FORMA'].apply(lambda f: f'rgba({asignar_color_neon(f)[0]},{asignar_color_neon(f)[1]},{asignar_color_neon(f)[2]},0.8)')
+        
+        mensajes.append(f"Registros operativos: {len(df)}")
+        return df, mensajes
+    except Exception as e:
+        return pd.DataFrame(), [f"Error de proceso: {str(e)}"]
 
 # =========================
-# CARGA PRINCIPAL
+# EJECUCIÓN PRINCIPAL
 # =========================
-with st.spinner("Motor de Análisis Conductual Predictivo cargando base de datos..."):
-    df_maestro = cargar_datos_global()
+status_boot = st.status("Iniciando Motor de Análisis Conductual Predictivo...")
+status_boot.write("Extrayendo matrices de datos locales globales...")
+df_maestro, diagn_mensajes = cargar_nodos()
 
-# ====================================================================
-# INTERFAZ PRINCIPAL — FILTROS + MAPA
-# ====================================================================
+if not df_maestro.empty:
+    status_boot.update(label="Sistemas FANI en línea. Acceso global concedido.", state="complete", expanded=False)
+else:
+    for msg in diagn_mensajes:
+        status_boot.write(msg)
+    status_boot.update(label="No se detectaron datos válidos.", state="error", expanded=True)
 
 st.markdown("---")
 
 col_mapa, col_filtros = st.columns([2.5, 1.5], gap="large")
 
-# =========================
-# FILTROS
-# =========================
 with col_filtros:
     st.markdown("### Parámetros de Filtrado")
+    
+    tipo_mapa = st.radio("Visualización del Mapa", ["3D (Globo)", "2D (Plano)"], horizontal=True)
+    
     df_filtrado = df_maestro.copy()
 
     if not df_maestro.empty:
         anios = sorted(df_maestro["AÑO"].dropna().unique())
         sel_anio = st.selectbox("AÑO", ["TODOS"] + list(map(int, [a for a in anios if str(a).isdigit()])))
 
-        if sel_anio != "TODOS":
-            df_filtrado = df_filtrado[df_filtrado["AÑO"] == sel_anio]
-
         formas = sorted(df_maestro["FORMA"].dropna().unique())
         sel_forma = st.selectbox("TIPO DE OBJETO", ["TODOS"] + formas)
 
-        if sel_forma != "TODOS":
-            df_filtrado = df_filtrado[df_filtrado["FORMA"] == sel_forma]
-
+        # Carga todos los países reales del CSV
         paises = sorted(df_maestro["PAIS"].dropna().unique())
         sel_pais = st.selectbox("PAÍS", ["TODOS"] + paises)
 
+        filtros_activos = False
+        
+        if sel_anio != "TODOS":
+            df_filtrado = df_filtrado[df_filtrado["AÑO"] == sel_anio]
+            filtros_activos = True
+        if sel_forma != "TODOS":
+            df_filtrado = df_filtrado[df_filtrado["FORMA"] == sel_forma]
+            filtros_activos = True
         if sel_pais != "TODOS":
             df_filtrado = df_filtrado[df_filtrado["PAIS"] == sel_pais]
+            filtros_activos = True
 
-# =========================
-# MAPA (SIN DEPENDENCIAS EXTERNAS)
-# =========================
 with col_mapa:
     if not df_filtrado.empty:
-        
-        if "LAT" not in df_filtrado.columns:
-            df_filtrado["LAT"] = np.nan
-        if "LON" not in df_filtrado.columns:
-            df_filtrado["LON"] = np.nan
-
-        df_filtrado["LAT"] = pd.to_numeric(df_filtrado["LAT"], errors="coerce")
-        df_filtrado["LON"] = pd.to_numeric(df_filtrado["LON"], errors="coerce")
-
-        muestra_size = min(1500, len(df_filtrado))
-        df_mostrar = df_filtrado.sample(muestra_size).copy()
-
-        fallback_coords = {
-            "us": (37.0902, -95.7129), "usa": (37.0902, -95.7129), "estados unidos": (37.0902, -95.7129),
-            "gb": (55.3781, -3.4360), "uk": (55.3781, -3.4360), "reino unido": (55.3781, -3.4360),
-            "ca": (56.1304, -106.3468), "canada": (56.1304, -106.3468),
-            "au": (-25.2744, 133.7751), "australia": (-25.2744, 133.7751),
-            "ma": (31.7917, -7.0926), "marruecos": (31.7917, -7.0926), "morocco": (31.7917, -7.0926),
-            "es": (40.4637, -3.7492), "españa": (40.4637, -3.7492),
-            "mx": (23.6345, -102.5528), "mexico": (23.6345, -102.5528)
-        }
-
-        def asignar_coordenadas(row):
-            if pd.isna(row["LAT"]) or pd.isna(row["LON"]):
-                pais = str(row["PAIS"]).lower().strip()
-                if pais in fallback_coords:
-                    lat = fallback_coords[pais][0] + np.random.uniform(-4, 4)
-                    lon = fallback_coords[pais][1] + np.random.uniform(-4, 4)
-                    return lat, lon
-                else:
-                    return None, None
-            return row["LAT"], row["LON"]
-
-        coords = df_mostrar.apply(asignar_coordenadas, axis=1)
-        df_mostrar["LAT"] = [c[0] for c in coords]
-        df_mostrar["LON"] = [c[1] for c in coords]
-        df_mostrar = df_mostrar.dropna(subset=["LAT", "LON"])
-
-        if not df_mostrar.empty:
-            fig = go.Figure()
-
-            fig.add_trace(go.Scattergeo(
-                lon=df_mostrar["LON"],
-                lat=df_mostrar["LAT"],
-                mode="markers",
-                marker=dict(
-                    size=5,
-                    color="rgba(0,212,255,0.7)",
-                    line=dict(width=0.2, color="white")
-                ),
-                text=df_mostrar["CIUDAD"] + " | " + df_mostrar["PAIS"] + " (" + df_mostrar["FORMA"] + ")",
-                hoverinfo="text"
-            ))
-
-            fig.update_layout(
-                geo=dict(
-                    projection_type="orthographic",
-                    showland=True, landcolor="#121212",
-                    showocean=True, oceancolor="#050505",
-                    showcountries=True, countrycolor="#2a2a2a"
-                ),
-                margin=dict(l=0, r=0, t=0, b=0),
-                height=450,
-                paper_bgcolor="#0a0a0a"
-            )
-
-            st.plotly_chart(fig, width="stretch")
+        # Lógica de muestreo estricta: 500 por defecto, 1000 máximo si hay filtros
+        if filtros_activos:
+            muestra_size = min(1000, len(df_filtrado))
         else:
-            st.warning("No hay suficientes datos geográficos en los CSV para mostrar el mapa.")
-    else:
-        st.warning("No hay datos disponibles con los filtros actuales.")
+            muestra_size = min(500, len(df_filtrado))
+            
+        df_mostrar = df_filtrado.sample(muestra_size)
 
-# =========================
-# MÉTRICAS
-# =========================
+        fig = go.Figure()
+        fig.add_trace(go.Scattergeo(
+            lon=df_mostrar["lon"],
+            lat=df_mostrar["lat"],
+            mode="markers",
+            marker=dict(
+                size=6,
+                color=df_mostrar["COLOR_STR"],
+                line=dict(width=0.3, color="white")
+            ),
+            text=df_mostrar["CIUDAD"] + " | " + df_mostrar["PAIS"] + " (" + df_mostrar["FORMA"] + ")",
+            hoverinfo="text"
+        ))
+
+        # Determinar el tipo de proyección según el radio button
+        proj_type = "orthographic" if "3D" in tipo_mapa else "natural earth"
+
+        fig.update_layout(
+            geo=dict(
+                projection_type=proj_type,
+                showland=True, landcolor="#121212",
+                showocean=True, oceancolor="#050505",
+                showcountries=True, countrycolor="#2a2a2a"
+            ),
+            margin=dict(l=0, r=0, t=0, b=0),
+            height=500,
+            paper_bgcolor="#0a0a0a"
+        )
+
+        st.plotly_chart(fig, width="stretch")
+        st.caption(f"Mostrando {len(df_mostrar)} puntos en el mapa (Límites: 500 inicial / 1000 filtrados).")
+    else:
+        st.warning("No hay datos geográficos para renderizar con los filtros seleccionados.")
+
 st.markdown("---")
 m1, m2, m3 = st.columns(3)
-
 if not df_filtrado.empty:
-    m1.metric("Registros Totales", f"{len(df_filtrado):,}")
+    m1.metric("Registros Encontrados", f"{len(df_filtrado):,}")
     m2.metric("Tipos Únicos", df_filtrado["FORMA"].nunique())
     m3.metric("Países Implicados", df_filtrado["PAIS"].nunique())
-else:
-    m1.metric("Registros", 0)
-    m2.metric("Tipos", 0)
-    m3.metric("Países", 0)
-
-# ====================================================================
-# INTELIGENCIA AGATHA 
-# ====================================================================
-
-st.markdown("---")
-
-with st.expander("PROCESADOR FORENSE AGATHA", expanded=False):
-    if not df_filtrado.empty:
-        df_nlp = df_filtrado.copy()
-        df_nlp["TAG"] = df_nlp["CIUDAD"] + " | " + df_nlp["FORMA"] + " | " + df_nlp["AÑO"].astype(str)
-        opciones = df_nlp["TAG"].unique()
-        caso_sel = st.selectbox("Seleccionar expediente", opciones)
-
-        if caso_sel:
-            fila = df_nlp[df_nlp["TAG"] == caso_sel].iloc[0]
-            resumen = str(fila.get("RESUMEN", "Sin descripción detallada."))
-            
-            st.markdown("### Resumen del caso")
-            st.write(resumen)
-
-            def inferir_hipotesis(texto, forma):
-                t = texto.lower()
-                if "línea" in t or "varias luces" in t: return "Posible satélite o red Starlink"
-                if "rápido" in t or "estela" in t: return "Posible meteorito o reentrada"
-                if "flotando" in t: return "Posible globo o dron"
-                if "luz" in forma.lower(): return "Fenómeno lumínico no identificado"
-                return "Fenómeno no clasificado"
-
-            if st.button("Ejecutar análisis AGATHA", type="primary"):
-                lat, lon = fila.get("LAT"), fila.get("LON")
-                
-                st.markdown("### Contexto ambiental")
-                if pd.notna(lat) and pd.notna(lon):
-                    meteo = obtener_meteo(lat, lon)
-                    if meteo:
-                        c1, c2, c3 = st.columns(3)
-                        c1.metric("Temperatura", f"{meteo['temp']}°C")
-                        c2.metric("Nubosidad", f"{meteo['nubes']}%")
-                        c3.metric("Condiciones", meteo["desc"])
-                    else:
-                        st.info("Datos meteorológicos no disponibles.")
-                else:
-                    st.info("Coordenadas no disponibles para consulta meteorológica.")
-
-                hip = inferir_hipotesis(resumen, fila["FORMA"])
-                indice = np.random.randint(60, 95)
-
-                st.markdown("### Informe AGATHA")
-                c4, c5 = st.columns(2)
-                c4.metric("Índice de Anomalía", indice)
-                c5.metric("Hipótesis Principal", hip)
-
-with st.expander("ANÁLISIS DE CORRELACIÓN", expanded=False):
-    if not df_filtrado.empty and len(df_filtrado) > 10:
-        corr = (
-            df_filtrado.groupby(["PAIS", "FORMA"])
-            .size()
-            .reset_index(name="conteo")
-            .sort_values(by="conteo", ascending=False)
-            .head(10)
-        )
-        st.dataframe(corr, width="stretch")
-    else:
-        st.info("Datos insuficientes para correlación.")
-
-with st.expander("PREDICCIÓN DE ZONAS CALIENTES", expanded=False):
-    if not df_filtrado.empty and len(df_filtrado) > 10:
-        pred = df_filtrado["PAIS"].value_counts().head(5)
-        for pais, val in pred.items():
-            st.markdown(f"""
-            <div style='background:#0f172a; padding:10px; border-left:3px solid #00ff88; margin-bottom:5px;'>
-            <b>{pais}</b> — índice de actividad: {val}
-            </div>
-            """, unsafe_allow_html=True)
-    else:
-        st.info("No hay suficiente información para predicción.")
-
-with st.expander("DETECCIÓN DE ANOMALÍAS", expanded=False):
-    if not df_filtrado.empty:
-        freq = df_filtrado["FORMA"].value_counts()
-        raros = freq[freq < 3]
-        if len(raros) > 0:
-            for forma, val in raros.items():
-                st.warning(f"Fenómeno poco frecuente detectado: {forma} ({val} casos)")
-        else:
-            st.success("No se detectan anomalías relevantes en la muestra actual.")
