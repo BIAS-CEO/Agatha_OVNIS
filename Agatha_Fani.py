@@ -2,7 +2,7 @@
 # ARCHIVO PRINCIPAL: Agatha_Fani.py
 # SISTEMA: AGATHA Intelligent Neural Network
 # MODULO: MODULO CONTACT (Fenomeno Anomalo No Identificado)
-# VERSION: Opcon Ready v9.5 (Fusión Imagen-Botón y Alineación Total)
+# VERSION: Opcon Ready v9.6 (Panel Tactico Superior + Grid Soldado)
 # OPERADOR: DIR-74
 # ====================================================================
 
@@ -79,10 +79,11 @@ h2, h3, h4 {
     padding: 12px !important; 
     border-radius: 0px !important; 
     box-shadow: none !important;
+    height: 100%;
 }
 [data-testid="stMetricLabel"] { 
     color: #64748b !important; 
-    font-size: 0.75rem !important; 
+    font-size: 0.70rem !important; 
     font-weight: 600 !important; 
     text-transform: uppercase; 
     letter-spacing: 0.5px;
@@ -94,9 +95,13 @@ h2, h3, h4 {
     font-weight: 400 !important;
 }
 
-/* FUSION IMAGEN-BOTON Y ALINEACION TOTAL */
+/* ELIMINAR HUECO ENTRE IMAGEN Y BOTON EN LAS COLUMNAS */
+div[data-testid="column"] > div > div[data-testid="stVerticalBlock"] {
+    gap: 0rem !important;
+}
+
 div[data-testid="stImage"] {
-    margin-bottom: -16px !important; /* Elimina la separacion nativa de Streamlit */
+    margin-bottom: 0px !important; 
     width: 100% !important;
 }
 div[data-testid="stImage"] img {
@@ -107,23 +112,23 @@ div[data-testid="stImage"] img {
 
 div[data-testid="stButton"] {
     width: 100% !important;
-    display: flex !important;
-    justify-content: center !important;
+    margin-top: 0px !important;
 }
 
 /* Forzar que los textos de los botones NUNCA se corten y el ancho sea exacto */
 div[data-testid="stButton"] button {
     width: 100% !important; 
     height: auto !important;
-    min-height: 50px !important;
+    min-height: 40px !important;
     margin: 0 !important;
-    padding: 5px !important;
+    padding: 8px 4px !important;
     border: 1px solid #333333 !important; 
-    border-top: none !important; /* Para que parezca una extension de la imagen */
+    border-top: none !important; 
     background-color: #1a1a1a !important; 
     border-radius: 0px !important; 
     box-shadow: none !important;
     transition: all 0.3s ease;
+    display: block !important;
 }
 
 div[data-testid="stButton"] button p {
@@ -146,13 +151,12 @@ div[data-testid="stButton"] button:hover {
     border-color: #00d4ff !important; 
     border-top: 1px solid #00d4ff !important;
     background-color: #00d4ff !important; 
-    box-shadow: 0 0 15px rgba(0, 212, 255, 0.5) !important;
 }
 div[data-testid="stButton"] button:hover p {
     color: #0a0a0a !important; 
 }
 
-/* Estilo para el boton de la portada (excepcion a la regla) */
+/* Boton de Portada */
 .boton-entrada div[data-testid="stButton"] button {
     border-top: 1px solid #00d4ff !important;
     border-color: #00d4ff !important;
@@ -161,6 +165,15 @@ div[data-testid="stButton"] button:hover p {
 .boton-entrada div[data-testid="stButton"] button p {
     font-size: 1.2rem !important;
     padding: 0.5rem !important;
+}
+
+/* Contenedores de radio buttons tacticos */
+div.row-widget.stRadio > div {
+    flex-direction: column;
+    gap: 0px;
+}
+div.row-widget.stRadio > div > label {
+    margin-bottom: 5px;
 }
 </style>
 """
@@ -277,9 +290,9 @@ def cargar_nodos():
                     pass
     if dfs:
         df = pd.concat(dfs, ignore_index=True)
-        mensajes.append("Archivos de datos locales unificados y decodificados correctamente.")
+        mensajes.append("Archivos de datos unificados.")
     else:
-        return pd.DataFrame(), ["Error: La carpeta de datos no contiene archivos validos."]
+        return pd.DataFrame(), ["Error: Datos no encontrados."]
 
     try:
         df.columns = df.columns.str.upper().str.strip()
@@ -333,7 +346,7 @@ if st.session_state["pantalla_actual"] == "portada":
             try:
                 st.image(ruta_dashboard, use_container_width=True)
             except Exception:
-                st.error("La imagen 'dashboard_maestro_global.png' esta corrupta y no se puede cargar.")
+                st.error("La imagen 'dashboard_maestro_global.png' esta corrupta.")
         else:
             st.warning("No se encontro la imagen en assets/dashboard_maestro_global.png")
             
@@ -377,7 +390,7 @@ elif st.session_state["pantalla_actual"] == "principal":
 
     # --- CATÁLOGO UAP ---
     with st.expander("CATALOGO UAP IDENTIFICACION VISUAL DE OBJETOS", expanded=False):
-        st.markdown("<div style='color:#00d4ff; font-size:0.85rem; margin-bottom:15px; line-height:1.4;'>Selecciona la forma en cualquier tipologia para abrir el analisis tactico de reconocimiento.</div>", unsafe_allow_html=True)
+        st.markdown("<div style='color:#00d4ff; font-size:0.85rem; margin-bottom:15px; line-height:1.4;'>Selecciona la forma para abrir el analisis tactico de reconocimiento.</div>", unsafe_allow_html=True)
         
         lista_archivos_formas = [
             "bola_de_fuego", "cambiante", "cigarro", "cilindro", "circulo", "cono",
@@ -387,7 +400,7 @@ elif st.session_state["pantalla_actual"] == "principal":
         ]
         
         for i in range(0, 24, 6):
-            cols = st.columns(6)
+            cols = st.columns(6, gap="small")
             for j in range(6):
                 idx = i + j
                 if idx < len(lista_archivos_formas):
@@ -401,13 +414,13 @@ elif st.session_state["pantalla_actual"] == "principal":
                             img_procesada = normalizar_miniatura(ruta_thumb)
                             if img_procesada:
                                 st.image(img_procesada, use_container_width=True)
-                                if st.button(f"{forma_nombre_ui.upper()}", key=f"btn_{forma_archivo}"):
+                                if st.button(f"{forma_nombre_ui.upper()}", key=f"btn_{forma_archivo}", use_container_width=True):
                                     abrir_visor_completo(forma_archivo)
                             else:
-                                st.markdown("<div style='width:100%; aspect-ratio:1/1; border:1px dashed #334155; display:flex; align-items:center; justify-content:center; background:#0f172a; margin-bottom:0px;'><span style='color:#64748b; font-size:0.6rem; text-align:center;'>Error de pixeles</span></div>", unsafe_allow_html=True)
+                                st.markdown("<div style='width:100%; aspect-ratio:1/1; border:1px dashed #334155; display:flex; align-items:center; justify-content:center; background:#0f172a;'><span style='color:#64748b; font-size:0.6rem;'>Error</span></div>", unsafe_allow_html=True)
                         else:
-                            st.markdown(f"<div style='width:100%; aspect-ratio:1/1; border:1px dashed #334155; display:flex; align-items:center; justify-content:center; background:#0f172a; margin-bottom:0px;'><span style='color:#64748b; font-size:0.6rem; text-align:center;'>Falta:<br>{forma_archivo}.png</span></div>", unsafe_allow_html=True)
-            st.markdown("<br>", unsafe_allow_html=True) # Espacio extra entre filas
+                            st.markdown(f"<div style='width:100%; aspect-ratio:1/1; border:1px dashed #334155; display:flex; align-items:center; justify-content:center; background:#0f172a;'><span style='color:#64748b; font-size:0.6rem;'>Falta:<br>{forma_archivo}.png</span></div>", unsafe_allow_html=True)
+            st.markdown("<div style='margin-bottom: 10px;'></div>", unsafe_allow_html=True) 
 
     # --- NOTIFICAR AVISTAMIENTO ---
     with st.expander("NOTIFICA TU AVISTAMIENTO (Red UAP Espana / Global)", expanded=False):
@@ -419,7 +432,7 @@ elif st.session_state["pantalla_actual"] == "principal":
             f_hora = c_f2.time_input("Hora aproximada")
             
             c_f3, c_f4 = st.columns(2)
-            f_forma = c_f3.selectbox("Forma del objeto", ["Luz / Flash", "Esfera / Orbe", "Triángulo / Delta", "Cigarro / Cilindro", "Cambiante", "Desconocido", "Otros"])
+            f_forma = c_f3.selectbox("Forma del objeto", ["Luz / Flash", "Esfera / Orbe", "Triangulo / Delta", "Cigarro / Cilindro", "Cambiante", "Desconocido", "Otros"])
             f_ciudad = c_f4.text_input("Ciudad y Pais")
             
             f_desc = st.text_area("Descripcion detallada del comportamiento")
@@ -432,15 +445,36 @@ elif st.session_state["pantalla_actual"] == "principal":
                         "FECHA": str(f_fecha), "HORA": str(f_hora), "FORMA": f_forma,
                         "UBICACION": f_ciudad, "DESCRIPCION": f_desc
                     })
-                    st.success("Avistamiento registrado correctamente. AGATHA analizara el patron de correlacion.")
+                    st.success("Avistamiento registrado. AGATHA analizara el patron.")
                 else:
-                    st.error("Por favor, completa al menos la ubicacion y la descripcion para procesar el reporte.")
+                    st.error("Por favor, completa al menos la ubicacion y la descripcion.")
 
-        if len(st.session_state["reportes_ciudadanos"]) > 0:
-            st.markdown(f"<p style='color: #94a3b8; font-size: 0.8rem; margin-top: 10px;'>Reportes en la sesion actual: {len(st.session_state['reportes_ciudadanos'])}</p>", unsafe_allow_html=True)
-
-    # --- VISUALIZACION PRINCIPAL: MAPA Y FILTROS ---
+    # --- PANEL TACTICO SUPERIOR (METRICAS Y CONTROLES MIGRADOS) ---
     st.markdown("---")
+    
+    col_met1, col_met2, col_met3, col_met4 = st.columns([1, 1, 1, 1.5])
+    
+    # Preparación de datos base para métricas globales
+    total_activos = len(df_maestro) if not df_maestro.empty else 0
+    tipo_predominante = df_maestro['FORMA'].mode().iloc[0] if not df_maestro.empty else "N/A"
+    zonas_interes = len(df_maestro['CIUDAD'].unique()) if not df_maestro.empty else 0
+
+    with col_met1:
+        st.metric("REGISTROS ACTIVOS (TOTALES)", f"{total_activos:,}")
+    with col_met2:
+        st.metric("TIPOLOGIA PREDOMINANTE", tipo_predominante.upper())
+    with col_met3:
+        st.metric("ZONAS DE INTERES (NODOS)", f"{zonas_interes:,}")
+    with col_met4:
+        st.markdown("<div style='background-color: #1a1a1a; padding: 12px; border: 1px solid #333; height: 100%;'>", unsafe_allow_html=True)
+        c_rad1, c_rad2 = st.columns(2)
+        modo_visor = c_rad1.radio("MODO TACTICO", ["Nodos Base", "Red de Trayectorias"])
+        tipo_proyeccion = c_rad2.radio("PROYECCION", ["Globo 3D", "Plano 2D"])
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # --- VISUALIZACION PRINCIPAL: FILTROS Y MAPA ---
     col_mapa, col_filtros = st.columns([2.5, 1.5], gap="large")
 
     with col_filtros:
@@ -488,11 +522,10 @@ elif st.session_state["pantalla_actual"] == "principal":
             df_filtrado = df_filtrado[df_filtrado['PAIS'] == sel_pais]
             filtros_activos = True
 
+        st.markdown("---")
+        st.markdown(f"<p style='color: #00d4ff; font-weight: 600;'>RESULTADOS DEL FILTRO: {len(df_filtrado)} registros</p>", unsafe_allow_html=True)
+
     with col_mapa:
-        c_m1, c_m2 = st.columns(2)
-        modo_visor = c_m1.radio("MODO TACTICO", ["Nodos Base", "Red de Trayectorias"], horizontal=True)
-        tipo_proyeccion = c_m2.radio("PROYECCION", ["Globo 3D", "Plano 2D"], horizontal=True)
-        
         if not df_filtrado.empty:
             grafico_placeholder = st.empty() 
             
@@ -564,16 +597,11 @@ elif st.session_state["pantalla_actual"] == "principal":
                             
                             st.info(f"Reporte Conductual: Se ha detectado un desplazamiento a traves de {paises_cruzados} fronteras nacionales. La correlacion temporal sugiere un barrido topografico o una ruta de observacion secuencial.")
 
-    # --- INDICADORES RAPIDOS TACTICOS ---
-    m1, m2, m3 = st.columns(3)
-    m1.metric("Registros UAP Activos", f"{len(df_filtrado):,}")
-    m2.metric("Tipologia Predominante", df_filtrado['FORMA'].mode().iloc[0] if not df_filtrado.empty else "N/A")
-    m3.metric("Zonas de Interes", f"{len(df_filtrado['CIUDAD'].unique()) if not df_filtrado.empty else 0:,}")
     st.markdown("---")
 
     # --- MODULOS OPERATIVOS (DESPLEGABLES) ---
 
-    with st.expander(f"REGISTROS FORENSES ({len(df_filtrado)} Activos)", expanded=True):
+    with st.expander(f"REGISTROS FORENSES ({len(df_filtrado)} Activos filtrados)", expanded=True):
         if not df_filtrado.empty:
             cols_excluir = ['COLOR_STR', 'lat', 'lon', 'DECADA', 'ORD.', 'NUM.', 'Source_File']
             cols_vis = list(dict.fromkeys([c for c in df_filtrado.columns if c not in cols_excluir]))
