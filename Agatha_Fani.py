@@ -2,7 +2,7 @@
 # ARCHIVO PRINCIPAL: Agatha_Fani.py
 # SISTEMA: AGATHA Intelligent Neural Network
 # MODULO: MODULO CONTACT (Fenomeno Anomalo No Identificado)
-# VERSION: Opcon Ready v7.1 (Reestructuración Catálogo UAP)
+# VERSION: Opcon Ready v8.0 (Dashboard Maestro + Grid UAP Dinámico)
 # OPERADOR: DIR-74
 # ====================================================================
 
@@ -103,7 +103,7 @@ h2, h3, h4 {
     text-transform: uppercase; 
     font-size: 0.75rem !important;
     letter-spacing: 0.5px;
-    padding: 0.6rem 1.2rem !important; 
+    padding: 0.4rem 0.8rem !important; 
     box-shadow: none !important;
     transition: all 0.3s ease;
     width: 100%;
@@ -117,6 +117,15 @@ h2, h3, h4 {
 </style>
 """
 st.markdown(CSS_MATE, unsafe_allow_html=True)
+
+# --- VENTANA MODAL (POP-UP) PARA EL CATÁLOGO ---
+@st.dialog("VISOR TÁCTICO UAP", width="large")
+def abrir_visor_completo(nombre_forma):
+    ruta_completa = os.path.join("assets", f"{nombre_forma}_completo.png")
+    if os.path.exists(ruta_completa):
+        st.image(ruta_completa, use_container_width=True)
+    else:
+        st.error(f"Falta el archivo de detalle: {ruta_completa}")
 
 # --- IDENTIDAD DEL OPERADOR ---
 OPERADOR_ID = "DIR-74"
@@ -328,25 +337,45 @@ with col_boton:
         st.cache_data.clear()
         st.rerun()
 
-# --- CATÁLOGO UAP (MOVIDO JUSTO DEBAJO DE LA CITA) ---
+# --- DASHBOARD MAESTRO ---
+ruta_dashboard = os.path.join("assets", "dashboard_maestro_global.png")
+if os.path.exists(ruta_dashboard):
+    st.image(ruta_dashboard, use_container_width=True)
+
+# --- CATÁLOGO UAP (GRID 6x4 INTERACTIVO) ---
 with st.expander("CATÁLOGO UAP IDENTIFICACIÓN VISUAL DE OBJETOS", expanded=False):
-    st.markdown("<div style='color:#00d4ff; font-size:0.85rem; margin-bottom:10px; line-height:1.4;'>🔍 Pista: Haz clic en las flechas de la esquina superior derecha de la imagen para ampliar a pantalla completa. Existen hasta 24 tipologías registradas.</div>", unsafe_allow_html=True)
+    st.markdown("<div style='color:#00d4ff; font-size:0.85rem; margin-bottom:15px; line-height:1.4;'>🔍 Selecciona 'AMPLIAR FICHA' en cualquier tipología para abrir el análisis táctico de reconocimiento.</div>", unsafe_allow_html=True)
     
-    if not os.path.exists("assets"):
-        os.makedirs("assets")
+    # Las 24 formas ordenadas
+    lista_formas = [
+        "bola de fuego", "cambiante", "cigarro", "cilindro", "circulo", "cono",
+        "cruz", "cubo", "desconocido", "diamante", "disco", "esfera",
+        "estrella", "flash", "formacion", "galones", "huevo", "lagrima",
+        "luz", "orbe", "otros", "oval", "rectangulo", "triangulo"
+    ]
     
-    ruta_img_catalogo = os.path.join("assets", "catalogo_morfologico_completo.png")
-    
-    if os.path.exists(ruta_img_catalogo):
-        st.image(ruta_img_catalogo, caption="Manual de Identificación de Tipos UAP")
-    else:
-        st.markdown(f"""
-        <div style='width:100%; height:150px; border:1px dashed #a855f7; display:flex; align-items:center; justify-content:center; background:#0f172a; margin-bottom:15px;'>
-            <span style='color:#e2e8f0; font-size:0.75rem; font-family:monospace; text-align:center;'>
-                [ACTIVO VISUAL REQUERIDO]<br>Asegurese de guardar la imagen como: catalogo_morfologico_completo.png en la carpeta /assets
-            </span>
-        </div>
-        """, unsafe_allow_html=True)
+    # Generar la cuadrícula de 4 filas x 6 columnas
+    for i in range(0, 24, 6):
+        cols = st.columns(6)
+        for j in range(6):
+            idx = i + j
+            if idx < len(lista_formas):
+                forma_actual = lista_formas[idx]
+                with cols[j]:
+                    ruta_thumb = os.path.join("assets", f"{forma_actual}.png")
+                    
+                    if os.path.exists(ruta_thumb):
+                        st.image(ruta_thumb, use_container_width=True)
+                        # Botón que invoca el @st.dialog
+                        if st.button("AMPLIAR FICHA", key=f"btn_{forma_actual}"):
+                            abrir_visor_completo(forma_actual)
+                    else:
+                        # Placeholder oscuro si falta alguna imagen base
+                        st.markdown(f"""
+                        <div style='width:100%; aspect-ratio:1/1; border:1px dashed #334155; display:flex; align-items:center; justify-content:center; background:#0f172a; margin-bottom:10px;'>
+                            <span style='color:#64748b; font-size:0.6rem; text-align:center;'>Falta:<br>{forma_actual}.png</span>
+                        </div>
+                        """, unsafe_allow_html=True)
 
 # --- NOTIFICAR AVISTAMIENTO (NUEVO MÓDULO) ---
 with st.expander("🛸 NOTIFICA TU AVISTAMIENTO (Red UAP España / Global)", expanded=False):
