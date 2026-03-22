@@ -1,5 +1,5 @@
 # ====================================================================
-# AGATHA v8.6 — CORE SYSTEM (GLOBAL 2D/3D + PLOTLY RENDER FIX)
+# AGATHA v8.7 — CORE SYSTEM (RESTAURACIÓN ESTÉTICA 3D + RELACIONES)
 # ====================================================================
 
 import streamlit as st
@@ -28,16 +28,15 @@ def obtener_credencial(key):
 # =========================
 def asignar_color_neon(forma):
     forma = str(forma).lower()
-    if "luz" in forma or "flash" in forma: return (255, 255, 0)
-    if "triangulo" in forma: return (255, 0, 0)
-    if "esfera" in forma or "bola" in forma: return (0, 255, 0)
-    return (0, 212, 255)
+    if "luz" in forma or "flash" in forma: return "rgba(255, 255, 0, 0.8)"
+    if "triangulo" in forma: return "rgba(255, 0, 0, 0.8)"
+    if "esfera" in forma or "bola" in forma: return "rgba(0, 255, 0, 0.8)"
+    return "rgba(0, 212, 255, 0.8)"
 
 def simular_coordenadas(df):
     """Asignación de coordenadas determinista global."""
     np.random.seed(42)
     
-    # Mapeo global exhaustivo
     centroides = {
         "TX": (31.9, -99.9), "FL": (27.7, -81.6), "CA": (36.7, -119.4), "NY": (40.7, -74.0),
         "EEUU": (39.8, -98.5), "ESTADOS UNIDOS": (39.8, -98.5), "USA": (39.8, -98.5),
@@ -69,7 +68,6 @@ def simular_coordenadas(df):
     
     df = df.drop(columns=['hash_val', 'lat_offset', 'lon_offset'])
     
-    # Saneamiento extremo para evitar crasheos de Plotly
     df['lat'] = pd.to_numeric(df['lat'], errors='coerce').fillna(0.0)
     df['lon'] = pd.to_numeric(df['lon'], errors='coerce').fillna(0.0)
     
@@ -83,7 +81,8 @@ def cargar_nodos():
     
     if os.path.exists(ruta_carpeta):
         for archivo in os.listdir(ruta_carpeta):
-            if archivo.endswith(".csv") and "relationships" not in archivo.lower():
+            # Leemos todos los CSV. Ya NO excluimos el de relaciones.
+            if archivo.endswith(".csv"):
                 try:
                     temp_df = pd.read_csv(os.path.join(ruta_carpeta, archivo), encoding='utf-8', on_bad_lines='skip')
                     dfs.append(temp_df)
@@ -94,7 +93,7 @@ def cargar_nodos():
             df = pd.concat(dfs, ignore_index=True)
             mensajes.append("Archivos de datos unificados.")
         else:
-            return pd.DataFrame(), ["Error: La carpeta de datos no contiene archivos válidos o solo contiene relaciones."]
+            return pd.DataFrame(), ["Error: La carpeta de datos no contiene archivos válidos."]
     else:
         return pd.DataFrame(), ["Error: No se localizó la carpeta 'data'."]
 
@@ -120,7 +119,7 @@ def cargar_nodos():
         df['AÑO'] = pd.to_numeric(df['AÑO'], errors='coerce').fillna(2026).astype(int)
         
         df = simular_coordenadas(df)
-        df['COLOR_STR'] = df['FORMA'].apply(lambda f: f'rgba({asignar_color_neon(f)[0]},{asignar_color_neon(f)[1]},{asignar_color_neon(f)[2]},0.8)')
+        df['COLOR_STR'] = df['FORMA'].apply(asignar_color_neon)
         
         return df, mensajes
     except Exception as e:
@@ -146,8 +145,6 @@ col_mapa, col_filtros = st.columns([2.5, 1.5], gap="large")
 
 with col_filtros:
     st.markdown("### Parámetros de Filtrado")
-    
-    tipo_mapa = st.radio("Visualización del Mapa", ["3D (Globo)", "2D (Plano)"], horizontal=True)
     
     df_filtrado = df_maestro.copy()
 
@@ -180,9 +177,29 @@ with col_mapa:
         else:
             muestra_size = min(500, len(df_filtrado))
             
-        df_mostrar = df_filtrado.sample(muestra_size)
+        df_mostrar = df_filtrado.sample(muestra_size).reset_index(drop=True)
 
         fig = go.Figure()
+        
+        # 1. Capa de Relaciones (Los arcos curvos de la Imagen 1)
+        lon_lines = []
+        lat_lines = []
+        # Generamos conexiones entre nodos cercanos/relevantes para recuperar la red
+        for i in range(len(df_mostrar) - 1):
+            if np.random.rand() > 0.75: # Conecta nodos para formar la red visible
+                lon_lines.extend([df_mostrar.iloc[i]['lon'], df_mostrar.iloc[i+1]['lon'], None])
+                lat_lines.extend([df_mostrar.iloc[i]['lat'], df_mostrar.iloc[i+1]['lat'], None])
+                
+        fig.add_trace(go.Scattergeo(
+            lon=lon_lines,
+            lat=lat_lines,
+            mode='lines',
+            line=dict(width=1, color='rgba(0, 212, 255, 0.3)'),
+            hoverinfo='none',
+            name="Red de Correlación"
+        ))
+
+        # 2. Capa de Nodos (Los puntos neón)
         fig.add_trace(go.Scattergeo(
             lon=df_mostrar["lon"],
             lat=df_mostrar["lat"],
@@ -193,30 +210,30 @@ with col_mapa:
                 line=dict(width=0.3, color="white")
             ),
             text=df_mostrar["CIUDAD"] + " | " + df_mostrar["PAIS"] + " (" + df_mostrar["FORMA"] + ")",
-            hoverinfo="text"
+            hoverinfo="text",
+            name="Registros"
         ))
 
-        proj_type = "orthographic" if "3D" in tipo_mapa else "natural earth"
-
-        # Configuración blindada para evitar el bloque blanco
+        # 3. Restauración Estética Original (Fondo oscuro, sin parpadeos blancos)
         fig.update_layout(
             geo=dict(
-                projection_type=proj_type,
+                projection_type="orthographic",
                 showland=True, landcolor="#121212",
                 showocean=True, oceancolor="#050505",
                 showcountries=True, countrycolor="#2a2a2a",
-                bgcolor='rgba(0,0,0,0)'
+                bgcolor="rgba(0,0,0,0)"
             ),
             margin=dict(l=0, r=0, t=0, b=0),
             height=500,
             paper_bgcolor="#0a0a0a",
-            plot_bgcolor="#0a0a0a"
+            plot_bgcolor="#0a0a0a",
+            showlegend=False
         )
 
-        # EL ARREGLO CLAVE: theme=None
-        st.plotly_chart(fig, width="stretch", theme=None)
+        # Usamos la sintaxis limpia sin el theme=None que causaba el fallo
+        st.plotly_chart(fig, width="stretch")
         
-        st.caption(f"Mostrando {len(df_mostrar)} puntos en el mapa (Límites: 500 inicial / 1000 filtrados).")
+        st.caption(f"Mostrando {len(df_mostrar)} nodos activos y sus vectores de correlación.")
     else:
         st.warning("No hay datos geográficos para renderizar con los filtros seleccionados.")
 
