@@ -2,7 +2,7 @@
 # ARCHIVO PRINCIPAL: Agatha_Fani.py
 # SISTEMA: AGATHA Intelligent Neural Network
 # MODULO: MODULO CONTACT (Fenomeno Anomalo No Identificado)
-# VERSION: Opcon Ready v9.1 (Ajustes de UI sin iconos)
+# VERSION: Opcon Ready v9.2 (Alineación Estricta Grid + PIL Normalizer)
 # OPERADOR: DIR-74
 # ====================================================================
 
@@ -15,6 +15,7 @@ import json
 import requests
 from datetime import datetime
 import time
+from PIL import Image
 
 # --- CONFIGURACION DE PAGINA ---
 st.set_page_config(
@@ -93,6 +94,12 @@ h2, h3, h4 {
     font-weight: 400 !important;
 }
 
+/* Alineación y estandarización de botones en el catálogo */
+.stButton {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+}
 .stButton > button { 
     border: 1px solid #333333 !important; 
     background-color: #1a1a1a !important; 
@@ -101,24 +108,33 @@ h2, h3, h4 {
     font-family: 'Montserrat', sans-serif !important; 
     font-weight: 600 !important; 
     text-transform: uppercase; 
-    font-size: 0.85rem !important;
-    letter-spacing: 1px;
-    padding: 0.8rem 1.5rem !important; 
-    box-shadow: 0 0 10px rgba(0, 212, 255, 0.2) !important;
+    font-size: 0.70rem !important;
+    letter-spacing: 0.5px;
+    padding: 0.2rem 0.5rem !important; 
+    box-shadow: none !important;
     transition: all 0.3s ease;
-    width: 100%;
+    margin: 0 auto !important;
+    width: 90% !important; 
+    height: 48px !important; /* Altura estricta para evitar desalineación por texto doble */
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+    line-height: 1.1 !important;
 }
 .stButton > button:hover { 
     border-color: #00d4ff !important; 
     color: #0a0a0a !important; 
     background-color: #00d4ff !important; 
-    box-shadow: 0 0 20px rgba(0, 212, 255, 0.6) !important;
+    box-shadow: 0 0 15px rgba(0, 212, 255, 0.5) !important;
 }
 
-/* Estilo específico para el botón de entrada gigante */
+/* Estilo específico para el botón de entrada gigante (protegido de los cambios anteriores) */
 .boton-entrada > div > div > button {
     font-size: 1.2rem !important;
     padding: 1.2rem !important;
+    width: 100% !important;
+    height: auto !important;
     border-color: #00d4ff !important;
     box-shadow: 0 0 20px rgba(0, 212, 255, 0.4) !important;
 }
@@ -134,6 +150,19 @@ if "reportes_ciudadanos" not in st.session_state:
     st.session_state["reportes_ciudadanos"] = []
 
 # --- FUNCIONES NÚCLEO GLOBALES ---
+
+# Normalizador matemático de miniaturas (Fuerza cuadrado 300x300 sin deformar)
+def normalizar_miniatura(img_path, size=(300, 300)):
+    try:
+        img = Image.open(img_path).convert("RGBA")
+        img.thumbnail(size, Image.Resampling.LANCZOS)
+        background = Image.new('RGBA', size, (10, 10, 10, 0)) # Fondo transparente
+        offset = (int((size[0] - img.width) / 2), int((size[1] - img.height) / 2))
+        background.paste(img, offset)
+        return background
+    except Exception:
+        return None
+
 @st.dialog("VISOR TÁCTICO UAP", width="large")
 def abrir_visor_completo(nombre_forma_archivo):
     ruta_completa = os.path.join("assets", f"{nombre_forma_archivo}_completo.png")
@@ -273,7 +302,6 @@ def cargar_nodos():
 if st.session_state["pantalla_actual"] == "portada":
     st.markdown("<br><br>", unsafe_allow_html=True)
     
-    # Cargar imagen central
     ruta_dashboard = os.path.join("assets", "dashboard_maestro_global.png")
     col_img1, col_img2, col_img3 = st.columns([1, 6, 1])
     with col_img2:
@@ -287,7 +315,6 @@ if st.session_state["pantalla_actual"] == "portada":
             
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # Botón de acceso gigante
     col_btn1, col_btn2, col_btn3 = st.columns([2, 3, 2])
     with col_btn2:
         st.markdown("<div class='boton-entrada'>", unsafe_allow_html=True)
@@ -301,12 +328,10 @@ if st.session_state["pantalla_actual"] == "portada":
 # ====================================================================
 elif st.session_state["pantalla_actual"] == "principal":
     
-    # --- SECUENCIA DE CARGA AL ENTRAR ---
     with st.status("Estableciendo conexión segura con AGATHA...", expanded=False) as status_boot:
         df_maestro, diagn_mensajes = cargar_nodos()
         status_boot.update(label="Sistema UAP 'Unidentified Anomalous Phenomenon' en línea.", state="complete", expanded=False)
 
-    # --- IDENTIDAD DEL OPERADOR ---
     OPERADOR_ID = "DIR-74"
     ROL_ACCESO = "NIVEL 4 - INTELIGENCIA ESTRATEGICA"
     MARCA_TIEMPO = datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')
@@ -318,7 +343,6 @@ elif st.session_state["pantalla_actual"] == "principal":
         </div>
     """, unsafe_allow_html=True)
 
-    # --- CABECERA TÁCTICA ---
     col_titulo, col_boton = st.columns([4, 1])
     with col_titulo:
         st.markdown("<h1>AGATHA Intelligent Neural Network</h1>", unsafe_allow_html=True)
@@ -330,9 +354,9 @@ elif st.session_state["pantalla_actual"] == "principal":
             st.session_state["pantalla_actual"] = "portada"
             st.rerun()
 
-    # --- CATÁLOGO UAP (GRID 6x4 INTERACTIVO CON FIX DE NOMBRES) ---
+    # --- CATÁLOGO UAP (GRID 6x4 ALINEADO ESTRICTAMENTE) ---
     with st.expander("CATÁLOGO UAP IDENTIFICACIÓN VISUAL DE OBJETOS", expanded=False):
-        st.markdown("<div style='color:#00d4ff; font-size:0.85rem; margin-bottom:15px; line-height:1.4;'>Selecciona 'AMPLIAR FICHA' en cualquier tipología para abrir el análisis táctico de reconocimiento.</div>", unsafe_allow_html=True)
+        st.markdown("<div style='color:#00d4ff; font-size:0.85rem; margin-bottom:15px; line-height:1.4;'>Selecciona la forma en cualquier tipología para abrir el análisis táctico de reconocimiento.</div>", unsafe_allow_html=True)
         
         lista_archivos_formas = [
             "bola_de_fuego", "cambiante", "cigarro", "cilindro", "circulo", "cono",
@@ -353,12 +377,13 @@ elif st.session_state["pantalla_actual"] == "principal":
                         ruta_thumb = os.path.join("assets", f"{forma_archivo}.png")
                         
                         if os.path.exists(ruta_thumb):
-                            try:
-                                st.image(ruta_thumb, use_container_width=True)
-                                if st.button(f"FICHA: {forma_nombre_ui.upper()}", key=f"btn_{forma_archivo}"):
+                            img_procesada = normalizar_miniatura(ruta_thumb)
+                            if img_procesada:
+                                st.image(img_procesada, use_container_width=True)
+                                if st.button(f"{forma_nombre_ui.upper()}", key=f"btn_{forma_archivo}"):
                                     abrir_visor_completo(forma_archivo)
-                            except Exception:
-                                st.markdown(f"<div style='width:100%; aspect-ratio:1/1; border:1px dashed #334155; display:flex; align-items:center; justify-content:center; background:#0f172a; margin-bottom:10px;'><span style='color:#64748b; font-size:0.6rem; text-align:center;'>Error formato:<br>{forma_archivo}.png</span></div>", unsafe_allow_html=True)
+                            else:
+                                st.markdown(f"<div style='width:100%; aspect-ratio:1/1; border:1px dashed #334155; display:flex; align-items:center; justify-content:center; background:#0f172a; margin-bottom:10px;'><span style='color:#64748b; font-size:0.6rem; text-align:center;'>Error de píxeles</span></div>", unsafe_allow_html=True)
                         else:
                             st.markdown(f"<div style='width:100%; aspect-ratio:1/1; border:1px dashed #334155; display:flex; align-items:center; justify-content:center; background:#0f172a; margin-bottom:10px;'><span style='color:#64748b; font-size:0.6rem; text-align:center;'>Falta:<br>{forma_archivo}.png</span></div>", unsafe_allow_html=True)
 
