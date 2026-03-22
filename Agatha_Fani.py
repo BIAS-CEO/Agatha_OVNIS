@@ -1,5 +1,5 @@
 # ====================================================================
-# AGATHA v8.5 — CORE SYSTEM (GLOBAL 2D/3D + DYNAMIC LIMITS)
+# AGATHA v8.6 — CORE SYSTEM (GLOBAL 2D/3D + PLOTLY RENDER FIX)
 # ====================================================================
 
 import streamlit as st
@@ -60,7 +60,7 @@ def simular_coordenadas(df):
     coords_defecto = pd.Series([(0.0, 0.0)] * len(df), index=df.index)
     coords_finales = coords_finales.combine_first(coords_defecto)
     
-    df['hash_val'] = df['CIUDAD'].astype(str).apply(lambda x: sum(ord(c) for c in x))
+    df['hash_val'] = df['CIUDAD'].astype(str).apply(lambda x: sum(ord(c) for c in x) if pd.notna(x) else 0)
     df['lat_offset'] = ((df['hash_val'] % 100) - 50) / 100.0 * 3.5
     df['lon_offset'] = (((df['hash_val'] // 10) % 100) - 50) / 100.0 * 3.5
     
@@ -68,6 +68,11 @@ def simular_coordenadas(df):
     df['lon'] = coords_finales.apply(lambda x: x[1]) + df['lon_offset']
     
     df = df.drop(columns=['hash_val', 'lat_offset', 'lon_offset'])
+    
+    # Saneamiento extremo para evitar crasheos de Plotly
+    df['lat'] = pd.to_numeric(df['lat'], errors='coerce').fillna(0.0)
+    df['lon'] = pd.to_numeric(df['lon'], errors='coerce').fillna(0.0)
+    
     return df
 
 @st.cache_data(show_spinner=False)
@@ -78,26 +83,24 @@ def cargar_nodos():
     
     if os.path.exists(ruta_carpeta):
         for archivo in os.listdir(ruta_carpeta):
-            # Leemos todos los CSV de la carpeta excluyendo el de relaciones para el mapa
             if archivo.endswith(".csv") and "relationships" not in archivo.lower():
                 try:
                     temp_df = pd.read_csv(os.path.join(ruta_carpeta, archivo), encoding='utf-8', on_bad_lines='skip')
                     dfs.append(temp_df)
-                except Exception as e:
+                except Exception:
                     pass
                     
         if dfs:
             df = pd.concat(dfs, ignore_index=True)
-            mensajes.append("Archivos de datos locales unificados correctamente.")
+            mensajes.append("Archivos de datos unificados.")
         else:
-            return pd.DataFrame(), ["Error: La carpeta de datos no contiene archivos válidos o solo contiene el de relaciones."]
+            return pd.DataFrame(), ["Error: La carpeta de datos no contiene archivos válidos o solo contiene relaciones."]
     else:
         return pd.DataFrame(), ["Error: No se localizó la carpeta 'data'."]
 
     try:
         df.columns = df.columns.str.upper().str.strip()
         
-        # Mapeo estricto basado en la estructura que indicaste
         col_map = {
             'DÍA': 'DIA', 'DAY': 'DIA', 'MONTH': 'MES', 'YEAR': 'AÑO',
             'CITY': 'CIUDAD', 'STATE': 'ESTADO', 'PAÍS': 'PAIS', 
@@ -110,18 +113,15 @@ def cargar_nodos():
             if c not in df.columns: df[c] = "No especificado"
             else: df[c] = df[c].fillna("No especificado").astype(str)
             
-        # Limpieza de nombres de países para el filtro
         df['PAIS'] = df['PAIS'].str.title().str.strip()
         df['FORMA'] = df['FORMA'].str.title().str.strip()
         
-        # Saneamiento de variables temporales
         if 'AÑO' not in df.columns: df['AÑO'] = 2026
         df['AÑO'] = pd.to_numeric(df['AÑO'], errors='coerce').fillna(2026).astype(int)
         
         df = simular_coordenadas(df)
         df['COLOR_STR'] = df['FORMA'].apply(lambda f: f'rgba({asignar_color_neon(f)[0]},{asignar_color_neon(f)[1]},{asignar_color_neon(f)[2]},0.8)')
         
-        mensajes.append(f"Registros operativos: {len(df)}")
         return df, mensajes
     except Exception as e:
         return pd.DataFrame(), [f"Error de proceso: {str(e)}"]
@@ -130,11 +130,11 @@ def cargar_nodos():
 # EJECUCIÓN PRINCIPAL
 # =========================
 status_boot = st.status("Iniciando Motor de Análisis Conductual Predictivo...")
-status_boot.write("Extrayendo matrices de datos locales globales...")
+status_boot.write("Extrayendo matrices de datos globales...")
 df_maestro, diagn_mensajes = cargar_nodos()
 
 if not df_maestro.empty:
-    status_boot.update(label="Sistemas FANI en línea. Acceso global concedido.", state="complete", expanded=False)
+    status_boot.update(label="Sistemas FANI en línea.", state="complete", expanded=False)
 else:
     for msg in diagn_mensajes:
         status_boot.write(msg)
@@ -158,7 +158,6 @@ with col_filtros:
         formas = sorted(df_maestro["FORMA"].dropna().unique())
         sel_forma = st.selectbox("TIPO DE OBJETO", ["TODOS"] + formas)
 
-        # Carga todos los países reales del CSV
         paises = sorted(df_maestro["PAIS"].dropna().unique())
         sel_pais = st.selectbox("PAÍS", ["TODOS"] + paises)
 
@@ -176,7 +175,6 @@ with col_filtros:
 
 with col_mapa:
     if not df_filtrado.empty:
-        # Lógica de muestreo estricta: 500 por defecto, 1000 máximo si hay filtros
         if filtros_activos:
             muestra_size = min(1000, len(df_filtrado))
         else:
@@ -198,22 +196,26 @@ with col_mapa:
             hoverinfo="text"
         ))
 
-        # Determinar el tipo de proyección según el radio button
         proj_type = "orthographic" if "3D" in tipo_mapa else "natural earth"
 
+        # Configuración blindada para evitar el bloque blanco
         fig.update_layout(
             geo=dict(
                 projection_type=proj_type,
                 showland=True, landcolor="#121212",
                 showocean=True, oceancolor="#050505",
-                showcountries=True, countrycolor="#2a2a2a"
+                showcountries=True, countrycolor="#2a2a2a",
+                bgcolor='rgba(0,0,0,0)'
             ),
             margin=dict(l=0, r=0, t=0, b=0),
             height=500,
-            paper_bgcolor="#0a0a0a"
+            paper_bgcolor="#0a0a0a",
+            plot_bgcolor="#0a0a0a"
         )
 
-        st.plotly_chart(fig, width="stretch")
+        # EL ARREGLO CLAVE: theme=None
+        st.plotly_chart(fig, width="stretch", theme=None)
+        
         st.caption(f"Mostrando {len(df_mostrar)} puntos en el mapa (Límites: 500 inicial / 1000 filtrados).")
     else:
         st.warning("No hay datos geográficos para renderizar con los filtros seleccionados.")
