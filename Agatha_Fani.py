@@ -561,11 +561,19 @@ elif st.session_state["pantalla_actual"] == "principal":
             horas_disponibles = sorted([h for h in df_maestro['HORA'].unique() if h != 'No especificada']) if not df_maestro.empty else []
             seleccion_hora = c_f4.selectbox("HORA", ["TODAS"] + [str(h) for h in horas_disponibles])
 
+            # --- INICIO DEL BLOQUE A SUSTITUIR ---
             formas_disponibles = sorted(df_maestro['FORMA'].unique()) if not df_maestro.empty else []
             seleccion_forma = st.selectbox("TIPO DE OBJETO", ["TODOS"] + [str(f) for f in formas_disponibles])
             
-            paises_disponibles = sorted(df_maestro['PAIS'].unique()) if not df_maestro.empty else []
+            paises_soportados = [
+                "ALEMANIA", "ARGENTINA", "AUSTRALIA", "BRASIL", "CANADA", "CANADÁ",
+                "CHINA", "ESPAÑA", "ESPANA", "SPAIN", "ESTADOS UNIDOS", "EEUU", "USA",
+                "FRANCIA", "INDIA", "ITALIA", "JAPON", "JAPÓN", "MEXICO", "MÉXICO", 
+                "REINO UNIDO", "UK", "INGLATERRA"
+            ]
+            paises_disponibles = sorted([p for p in df_maestro['PAIS'].unique() if p in paises_soportados]) if not df_maestro.empty else []
             seleccion_pais = st.selectbox("PAIS", ["TODOS"] + [str(p) for p in paises_disponibles])
+            # --- FIN DEL BLOQUE A SUSTITUIR ---
 
             if seleccion_año != "TODOS": 
                 datos_filtrados = datos_filtrados[datos_filtrados['AÑO'] == seleccion_año]
