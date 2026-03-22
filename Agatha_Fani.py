@@ -265,147 +265,6 @@ def simular_coordenadas(df):
         "EEUU": (39.8, -98.5), "CANADA": (56.1, -106.3), "MEXICO": (23.6, -102.5),
         "ESPAÑA": (40.46, -3.75), "FRANCIA": (46.22, 2.21), "ALEMANIA": (51.16, 10.45)
     }
-    pai = df['PAIS'].astype(str).str.upper().str.strip()
-    coords_pai = pai.map(centroides)
-    def coords_seguras(row_hash): return (((row_hash % 130) - 60), ((row_hash % 240) - 120))
-    df['hash_val'] = df['CIUDAD'].astype(str).apply(lambda x: sum(ord(c) for c in x) if pd.notna(x) else 0)
-    coordenadas_respaldo = df['hash_val'].apply(coords_seguras)
-    coords_finales = coords_pai.combine_first(pd.Series([(c[0], c[1]) for c in coordenadas_respaldo], index=df.index))
-    df['lat'] = coords_finales.apply(lambda x: x[0]) + (((df['hash_val'] % 100) - 50) / 100.0 * 1.5)
-    df['lon'] = coords_finales.apply(lambda x: x[1]) + ((((df['hash_val'] // 10) % 100) - 50) / 100.0 * 1.5)
-    df = df.drop(columns=['hash_val'])
-    df['lat'] = pd.to_numeric(df['lat'], errors='coerce').fillna(0.0)
-    df['lon'] = pd.to_numeric(df['lon'], errors='coerce').fillna(0.0)
-    return df
-    
-@st.cache_data(show_spinner=False)
-def cargar_nodos():
-    ruta_carpeta = "data"
-    dfs = []
-    if os.path.exists(ruta_carpeta):
-        for archivo in os.listdir(ruta_carpeta):
-            if archivo.endswith(".csv") and "avistamientos_testimonios" not in archivo.lower() and "relationships" not in archivo.lower():
-                try:
-                    temp_df = pd.read_csv(os.path.join(ruta_carpeta, archivo), sep=None, engine='python', encoding='utf-8-sig', on_bad_lines='skip')
-                    dfs.append(temp_df)
-                except Exception: pass
-    if dfs: df = pd.concat(dfs, ignore_index=True)
-    else: return pd.DataFrame(), ["[ERROR] Datos no encontrados."]
-
-    try:
-        df.columns = df.columns.str.upper().str.strip()
-        col_map = {'YEAR': 'AÑO', 'CITY': 'CIUDAD', 'COUNTRY': 'PAIS', 'PAÍS': 'PAIS', 'SHAPE': 'FORMA', 'TIME': 'HORA'}
-        df.rename(columns=col_map, inplace=True)
-        df = df.loc[:, ~df.columns.duplicated()]
-        for c in ['CIUDAD', 'PAIS', 'FORMA']: df[c] = df[c].fillna("No especificado").astype(str).str.title().str.strip()
-        df['AÑO'] = pd.to_numeric(df.get('AÑO', 2026), errors='coerce').fillna(2026).astype(int)
-        df['DIA'] = pd.to_numeric(df.get('DIA', 0), errors='coerce').fillna(0).astype(int).astype(str).replace('0', 'No especificado')
-        df['MES'] = pd.to_numeric(df.get('MES', 0), errors='coerce').fillna(0).astype(int).astype(str).replace('0', 'No especificado')
-        
-        def formatear_hora(h):
-            val = str(h).strip()
-            if val.lower() in ['nan', 'nat', 'none', 'null', '', 'no especificada']: return "No especificada"
-            if ':' in val:
-                partes = val.split(':')
-                if len(partes) >= 2: return f"{partes[0].zfill(2)}:{partes[1].zfill(2)}"
-            return "No especificada"
-
-        df['HORA'] = df.get('HORA', pd.Series(["No especificada"]*len(df))).apply(formatear_hora)
-        df = simular_coordenadas(df)
-        df['COLOR_STR'] = df['FORMA'].apply(asignar_color_neon)
-        return df, ["[INFO] Sincronización de nodos completa."]
-    except Exception as e: return pd.DataFrame(), [f"[ERROR] Proceso interrumpido: {str(e)}"]
-
-@st.cache_data(show_spinner=False)
-def cargar_archivo_relaciones():
-    rutas_posibles = ["agatha_ufo_relationships.csv", os.path.join("data", "agatha_ufo_relationships.csv")]
-    for r in rutas_posibles:
-        if os.path.exists(r):
-            try: return pd.read_csv(r, sep=None, engine='python', encoding='utf-8-sig', on_bad_lines='skip')
-            except Exception: pass
-    return pd.DataFrame()
-}
-
-div.row-widget.stRadio > div > div label p { 
-    color: #e2e8f0; 
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 0.75rem;
-}
-div.row-widget.stRadio > div > div:has(input[checked]) label p { 
-    color: #00d4ff; 
-    font-weight: 700;
-}
-/* Ocultar los circulos nativos */
-div.row-widget.stRadio div[data-testid="stMarkdownContainer"] { margin-left: 0; }
-div.row-widget.stRadio input { display: none; }
-
-/* --- TABLA FORENSE --- */
-div[data-testid="stDataFrame"] { background-color: #000000; }
-div[data-testid="stDataFrame"] table { color: #cbd5e1; background-color: #000000; }
-div[data-testid="stDataFrame"] th {
-    text-transform: uppercase;
-    color: #00d4ff;
-    font-family: 'Montserrat', sans-serif;
-    font-size: 0.75rem;
-    background-color: #0d1117 !important;
-}
-div[data-testid="stDataFrame"] td { font-family: 'Share Tech Mono', monospace; }
-div[data-testid="stDataFrame"] tr:hover td { background-color: rgba(0, 212, 255, 0.1) !important; }
-</style>
-"""
-st.markdown(CSS_TACTICO, unsafe_allow_html=True)
-
-# --- INICIALIZACION DE ESTADOS ---
-if "pantalla_actual" not in st.session_state: st.session_state["pantalla_actual"] = "portada"
-if "simulaciones_activas" not in st.session_state: st.session_state["simulaciones_activas"] = []
-if "reportes_ciudadanos" not in st.session_state: st.session_state["reportes_ciudadanos"] = []
-
-# --- FUNCIONES NUCLEO GLOBAL ---
-
-def normalizar_miniatura(ruta_imagen, tamaño=(300, 300)):
-    try:
-        img = Image.open(ruta_imagen).convert("RGBA")
-        img.thumbnail(tamaño, Image.Resampling.LANCZOS)
-        fondo = Image.new('RGBA', tamaño, (10, 10, 10, 0)) 
-        desplazamiento = (int((tamaño[0] - img.width) / 2), int((tamaño[1] - img.height) / 2))
-        fondo.paste(img, desplazamiento)
-        return fondo
-    except Exception: return None
-
-@st.dialog("VISOR TACTICO UAP", width="large")
-def abrir_visor_completo(nombre_forma_archivo):
-    ruta_completa = os.path.join("assets", f"{nombre_forma_archivo}_completo.png")
-    if os.path.exists(ruta_completa):
-        st.image(ruta_completa, use_container_width=True)
-    else: st.error(f"[ERROR ARCHIVO] Falta el archivo de detalle: {ruta_completa}")
-
-def obtener_credencial(nombre_var):
-    try:
-        if hasattr(st, "secrets") and nombre_var in st.secrets: return st.secrets[nombre_var]
-    except Exception: pass
-    valor = os.environ.get(nombre_var)
-    if valor: return valor
-    return None
-
-DEEPSEEK_API_KEY = obtener_credencial("DEEPSEEK_API_KEY")
-
-def asignar_color_neon(forma):
-    f = str(forma).lower()
-    if any(x in f for x in ["triangulo", "triangular", "delta", "tri"]): return 'rgba(0, 255, 128, 0.9)'
-    elif any(x in f for x in ["esfera", "orb", "circular", "redondo", "disco", "disk"]): return 'rgba(255, 0, 128, 0.9)'
-    elif any(x in f for x in ["cigarro", "cilindro", "tubo", "cigar"]): return 'rgba(255, 128, 0, 0.9)'
-    elif any(x in f for x in ["luz", "cambiante", "pulsante", "flash", "light"]): return 'rgba(255, 255, 0, 0.9)'
-    elif any(x in f for x in ["diamante", "rombo", "cuadrado", "diamond"]): return 'rgba(128, 0, 255, 0.9)'
-    elif any(x in f for x in ["rectangulo", "plataforma", "rectangle"]): return 'rgba(0, 128, 255, 0.9)'
-    else: return 'rgba(0, 212, 255, 0.9)'
-
-def simular_coordenadas(df):
-    np.random.seed(42)
-    centroides = {
-        "TX": (31.9, -99.9), "FL": (27.7, -81.6), "CA": (36.7, -119.4), "NY": (40.7, -74.0),
-        "EEUU": (39.8, -98.5), "CANADA": (56.1, -106.3), "MEXICO": (23.6, -102.5),
-        "ESPAÑA": (40.46, -3.75), "FRANCIA": (46.22, 2.21), "ALEMANIA": (51.16, 10.45)
-    }
     
     pai = df['PAIS'].astype(str).str.upper().str.strip()
     coords_pai = pai.map(centroides)
@@ -566,7 +425,7 @@ elif st.session_state["pantalla_actual"] == "principal":
         tipo_camara = col_c2.radio("PROYECCION", ["Globo 3D", "Plano 2D"], horizontal=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
-
+    
     # --- VISUALIZACION PRINCIPAL (MAPA TACTICO REDISEÑADO) ---
     columna_mapa, columna_filtros = st.columns([3, 1], gap="medium")
 
@@ -702,7 +561,7 @@ elif st.session_state["pantalla_actual"] == "principal":
             )
             
             espacio_grafico.plotly_chart(mapa_visual, width='stretch', use_container_width=True)
-
+            
     # --- INDICADORES INFERIORES TACTICOS (FILTRADOS) ---
     columna_filtro1, columna_filtro2, columna_filtro3 = st.columns(3)
     total_filtrados = len(datos_filtrados)
