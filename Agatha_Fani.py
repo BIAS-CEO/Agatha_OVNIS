@@ -2,7 +2,7 @@
 # ARCHIVO PRINCIPAL: Agatha_Fani.py
 # SISTEMA: AGATHA Intelligent Neural Network
 # MODULO: MODULO CONTACT (Fenomeno Anomalo No Identificado)
-# VERSION: Opcon Ready v10.5 (Motor de Relaciones Dinamico 100% ES)
+# VERSION: Opcon Ready v10.6 (IA Predictiva y Motor de Simulacion)
 # OPERADOR: DIR-74
 # ====================================================================
 
@@ -155,17 +155,30 @@ div[data-testid="stButton"] button:hover p {
     color: #0a0a0a !important; 
 }
 
-/* Boton de Pantalla de Arranque */
-.boton-entrada div[data-testid="stButton"] button {
+/* Boton de Pantalla de Arranque y Simulacion */
+.boton-entrada div[data-testid="stButton"] button, .boton-simular div[data-testid="stButton"] button {
     border-top: 1px solid #00d4ff !important;
     border-color: #00d4ff !important;
     box-shadow: 0 0 20px rgba(0, 212, 255, 0.4) !important;
 }
-.boton-entrada div[data-testid="stButton"] button p {
+.boton-entrada div[data-testid="stButton"] button p, .boton-simular div[data-testid="stButton"] button p {
     font-size: 1.2rem !important;
     padding: 0.5rem !important;
 }
+.boton-simular div[data-testid="stButton"] button p {
+    font-size: 0.9rem !important;
+    color: #00ff88 !important;
+}
+.boton-simular div[data-testid="stButton"] button {
+    border-color: #00ff88 !important;
+    border-top: 1px solid #00ff88 !important;
+    box-shadow: 0 0 20px rgba(0, 255, 136, 0.3) !important;
+}
+.boton-simular div[data-testid="stButton"] button:hover {
+    background-color: #00ff88 !important;
+}
 
+/* Contenedores de radio buttons tacticos */
 div.row-widget.stRadio > div {
     flex-direction: column;
     gap: 0px;
@@ -183,6 +196,9 @@ if "pantalla_actual" not in st.session_state:
 
 if "reportes_ciudadanos" not in st.session_state:
     st.session_state["reportes_ciudadanos"] = []
+    
+if "simulaciones_activas" not in st.session_state:
+    st.session_state["simulaciones_activas"] = []
 
 # --- FUNCIONES NUCLEO GLOBALES ---
 
@@ -481,21 +497,25 @@ elif st.session_state["pantalla_actual"] == "principal":
     with columna_controles:
         st.markdown("<div style='background-color: #1a1a1a; padding: 12px; border: 1px solid #333; height: 100%;'>", unsafe_allow_html=True)
         col_radio1, col_radio2 = st.columns(2)
-        modo_operacion = col_radio1.radio("MODO TACTICO", ["Nodos Base", "Red de Trayectorias"])
+        modo_operacion = col_radio1.radio("MODO TACTICO", ["Nodos Base", "Red de Trayectorias", "IA Predictiva"])
         tipo_camara = col_radio2.radio("PROYECCION", ["Globo 3D", "Plano 2D"])
         st.markdown("</div>", unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # --- VISUALIZACION PRINCIPAL Y MOTOR DE RELACIONES ---
+    # --- VISUALIZACION PRINCIPAL Y MOTORES ---
     columna_mapa, columna_filtros = st.columns([2.5, 1.5], gap="large")
 
     datos_filtrados = df_maestro.copy()
     filtros_aplicados = False
     
-    # Motor de Relaciones para enlazar nodos en el mapa
     nodos_origen_lon, nodos_origen_lat = [], []
     nodos_destino_lon, nodos_destino_lat = [], []
+    
+    datos_mapa_limpio = df_maestro[
+        (df_maestro['PAIS'].str.upper() != 'NO ESPECIFICADO') & 
+        (df_maestro['CIUDAD'].str.upper() != 'NO ESPECIFICADO')
+    ]
 
     with columna_filtros:
         if modo_operacion == "Nodos Base":
@@ -539,19 +559,22 @@ elif st.session_state["pantalla_actual"] == "principal":
             if seleccion_pais != "TODOS": 
                 datos_filtrados = datos_filtrados[datos_filtrados['PAIS'] == seleccion_pais]
                 filtros_aplicados = True
+                
+            datos_mapa_limpio = datos_filtrados[
+                (datos_filtrados['PAIS'].str.upper() != 'NO ESPECIFICADO') & 
+                (datos_filtrados['CIUDAD'].str.upper() != 'NO ESPECIFICADO')
+            ]
 
             st.markdown("---")
             st.markdown(f"<p style='color: #00d4ff; font-weight: 600;'>RESULTADOS DEL FILTRO: {len(datos_filtrados)} registros</p>", unsafe_allow_html=True)
             
-        else:
-            # MODO RED DE TRAYECTORIAS - MOTOR DE RELACIONES
+        elif modo_operacion == "Red de Trayectorias":
             st.markdown("#### Analisis de Correlaciones UAP")
-            st.markdown("<p style='color:#94a3b8; font-size:0.85rem;'>Este modulo analiza vectores de relacion tactica entre fenomenos aislados utilizando el archivo base de conexiones.</p>", unsafe_allow_html=True)
+            st.markdown("<p style='color:#94a3b8; font-size:0.85rem;'>Este modulo analiza vectores de relacion tactica entre fenomenos aislados utilizando la matriz base de conexiones.</p>", unsafe_allow_html=True)
             
             df_relaciones = cargar_archivo_relaciones()
             
             if not df_relaciones.empty and 'Relationship_Type' in df_relaciones.columns:
-                # Diccionario de traduccion para mantener la interfaz en Español
                 traduccion_relaciones = {
                     "Shared Strategic Context (Military/Aviation)": "Contexto Estrategico Compartido (Militar/Aviacion)",
                     "Similar Physical Anomalies": "Anomalias Fisicas Similares"
@@ -567,18 +590,20 @@ elif st.session_state["pantalla_actual"] == "principal":
                 else:
                     df_relaciones_filtrado = df_relaciones
                     
-                # Extraer las ciudades involucradas para filtrar los datos maestros
                 ciudades_origen = df_relaciones_filtrado['Source_City'].dropna().astype(str).str.title().str.strip()
                 ciudades_destino = df_relaciones_filtrado['Target_City'].dropna().astype(str).str.title().str.strip()
                 todas_ciudades_implicadas = pd.concat([ciudades_origen, ciudades_destino]).unique()
                 
-                # Filtrar base de datos forense para mostrar solo las zonas afectadas
                 df_maestro_limpio = df_maestro.copy()
                 df_maestro_limpio['CIUDAD_LIMPIA'] = df_maestro_limpio['CIUDAD'].astype(str).str.title().str.strip()
                 datos_filtrados = df_maestro_limpio[df_maestro_limpio['CIUDAD_LIMPIA'].isin(todas_ciudades_implicadas)].copy()
                 filtros_aplicados = True
                 
-                # Extraer coordenadas exactas para trazar las lineas
+                datos_mapa_limpio = datos_filtrados[
+                    (datos_filtrados['PAIS'].str.upper() != 'NO ESPECIFICADO') & 
+                    (datos_filtrados['CIUDAD'].str.upper() != 'NO ESPECIFICADO')
+                ]
+                
                 for _, fila_rel in df_relaciones_filtrado.iterrows():
                     ciudad_origen = str(fila_rel.get('Source_City', '')).title().strip()
                     ciudad_destino = str(fila_rel.get('Target_City', '')).title().strip()
@@ -595,7 +620,29 @@ elif st.session_state["pantalla_actual"] == "principal":
                 st.markdown("---")
                 st.markdown(f"<p style='color: #00d4ff; font-weight: 600;'>NODOS CONECTADOS: {len(datos_filtrados)} registros</p>", unsafe_allow_html=True)
             else:
-                st.warning("[AVISO] No se encontraron archivos de relacion de parametros o columnas validas ('Relationship_Type').")
+                st.warning("[AVISO] No se encontraron archivos de relacion de parametros o columnas validas.")
+                
+        elif modo_operacion == "IA Predictiva":
+            st.markdown("#### Analisis Predictivo Estocastico")
+            st.markdown("<p style='color:#ff0033; font-size:0.85rem; font-weight:bold;'>[ALERTA] Calculando densidad de eventos y zonas de alta probabilidad para las proximas 72 horas.</p>", unsafe_allow_html=True)
+            st.markdown("<p style='color:#94a3b8; font-size:0.85rem;'>AGATHA utiliza el historico de nodos para trazar mapas de calor probabilistico.</p>", unsafe_allow_html=True)
+            st.markdown("---")
+            st.markdown(f"<p style='color: #ff0033; font-weight: 600;'>ZONAS CALIENTES IDENTIFICADAS EN EL MAPA</p>", unsafe_allow_html=True)
+
+        # BOTON DE SIMULACION EN TODOS LOS MODOS
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown("<div class='boton-simular'>", unsafe_allow_html=True)
+        if st.button("SIMULAR APARICION TACTICA", use_container_width=True):
+            lat_simulada = np.random.uniform(25, 55)
+            lon_simulada = np.random.uniform(-125, 30)
+            st.session_state["simulaciones_activas"].append({
+                'lat': lat_simulada, 
+                'lon': lon_simulada, 
+                'texto': f"[SIMULACRO] CONTACTO DETECTADO | {datetime.now().strftime('%H:%M:%S')} UTC"
+            })
+        st.markdown("</div>", unsafe_allow_html=True)
+        if len(st.session_state["simulaciones_activas"]) > 0:
+            st.markdown(f"<p style='color:#00ff88; font-size:0.75rem; text-align:center; margin-top:5px;'>Simulacros activos en pantalla: {len(st.session_state['simulaciones_activas'])}</p>", unsafe_allow_html=True)
 
     with columna_mapa:
         if not datos_filtrados.empty:
@@ -604,11 +651,6 @@ elif st.session_state["pantalla_actual"] == "principal":
             with st.spinner("Calibrando proyecciones tacticas..."):
                 mapa_visual = go.Figure()
                 
-                datos_mapa_limpio = datos_filtrados[
-                    (datos_filtrados['PAIS'].str.upper() != 'NO ESPECIFICADO') & 
-                    (datos_filtrados['CIUDAD'].str.upper() != 'NO ESPECIFICADO')
-                ]
-
                 if modo_operacion == "Nodos Base":
                     datos_renderizados = datos_mapa_limpio.head(1000) if filtros_aplicados else datos_mapa_limpio.sample(min(500, len(datos_mapa_limpio)))
                     
@@ -617,8 +659,8 @@ elif st.session_state["pantalla_actual"] == "principal":
                         marker=dict(size=6, color=datos_renderizados['COLOR_STR'], line=dict(width=0.5, color='rgba(255,255,255,0.3)'), opacity=0.9),
                         text=datos_renderizados['CIUDAD'] + " | " + datos_renderizados['DIA'].astype(str) + "/" + datos_renderizados['MES'].astype(str) + " " + datos_renderizados['HORA'] + " (" + datos_renderizados['FORMA'] + ")", hoverinfo='text'
                     ))
-                else:
-                    # Trazar vectores de relacion
+                    
+                elif modo_operacion == "Red de Trayectorias":
                     if len(nodos_origen_lon) > 0:
                         for i in range(len(nodos_origen_lon)):
                             mapa_visual.add_trace(go.Scattergeo(
@@ -635,6 +677,41 @@ elif st.session_state["pantalla_actual"] == "principal":
                         marker=dict(size=7, color=datos_mapa_limpio['COLOR_STR'], line=dict(width=1, color='rgba(255,255,255,0.9)'), opacity=1.0),
                         text=datos_mapa_limpio['CIUDAD'] + " | " + datos_mapa_limpio['DIA'].astype(str) + "/" + datos_mapa_limpio['MES'].astype(str) + " " + datos_mapa_limpio['HORA'] + " (" + datos_mapa_limpio['FORMA'] + ")",
                         hoverinfo='text'
+                    ))
+                    
+                elif modo_operacion == "IA Predictiva":
+                    # Calcular hotspots agrupando por coordenadas
+                    zonas_probabilidad = datos_mapa_limpio.groupby(['CIUDAD', 'PAIS', 'lat', 'lon']).size().reset_index(name='conteo')
+                    zonas_probabilidad = zonas_probabilidad.sort_values(by='conteo', ascending=False).head(10)
+                    
+                    # Puntos historicos atenuados
+                    mapa_visual.add_trace(go.Scattergeo(
+                        lon=datos_mapa_limpio['lon'], lat=datos_mapa_limpio['lat'], mode='markers',
+                        marker=dict(size=3, color='rgba(100,100,100,0.3)'), hoverinfo='none'
+                    ))
+                    
+                    # Zonas de Alta Probabilidad (Rojas y grandes)
+                    mapa_visual.add_trace(go.Scattergeo(
+                        lon=zonas_probabilidad['lon'], lat=zonas_probabilidad['lat'], mode='markers',
+                        marker=dict(size=zonas_probabilidad['conteo']*2 + 10, color='rgba(255, 0, 50, 0.4)', line=dict(width=2, color='rgba(255,0,0,0.8)')),
+                        text="[PROBABILIDAD ALTA] " + zonas_probabilidad['CIUDAD'] + " | Historico: " + zonas_probabilidad['conteo'].astype(str), hoverinfo='text'
+                    ))
+
+                # Inyeccion de Simulaciones Activas en el Mapa (Aparecen en cualquier modo tactico)
+                if len(st.session_state["simulaciones_activas"]) > 0:
+                    lon_sims = [s['lon'] for s in st.session_state["simulaciones_activas"]]
+                    lat_sims = [s['lat'] for s in st.session_state["simulaciones_activas"]]
+                    txt_sims = [s['texto'] for s in st.session_state["simulaciones_activas"]]
+                    
+                    mapa_visual.add_trace(go.Scattergeo(
+                        lon=lon_sims, lat=lat_sims, mode='markers',
+                        marker=dict(size=14, color='rgba(0, 255, 136, 1)', symbol='cross', line=dict(width=2, color='rgba(255,255,255,1)')),
+                        text=txt_sims, hoverinfo='text'
+                    ))
+                    mapa_visual.add_trace(go.Scattergeo(
+                        lon=lon_sims, lat=lat_sims, mode='markers',
+                        marker=dict(size=35, color='rgba(0, 255, 136, 0.3)', line=dict(width=1, color='rgba(0, 255, 136, 0.8)')),
+                        hoverinfo='none'
                     ))
 
                 tipo_proyeccion_final = 'orthographic' if tipo_camara == "Globo 3D" else 'equirectangular'
@@ -676,7 +753,7 @@ elif st.session_state["pantalla_actual"] == "principal":
             columnas_existentes = [c for c in columnas_requeridas if c in datos_filtrados.columns]
             
             if not filtros_aplicados:
-                st.info("[SISTEMA] Sistema en reposo. Mostrando previsualizacion de los 100 registros mas recientes. Active los filtros tacticos para una busqueda especifica.")
+                st.info("[SISTEMA] Sistema en reposo. Mostrando previsualizacion de los 100 registros mas recientes.")
                 datos_a_mostrar = datos_filtrados.sort_values(by=['AÑO','MES','DIA','HORA'], ascending=[False, False, False, False]).head(100)
             else:
                 if len(datos_filtrados) > 1000:
@@ -728,7 +805,7 @@ elif st.session_state["pantalla_actual"] == "principal":
             
             if expediente_elegido:
                 fila_elegida = datos_procesamiento_nlp[datos_procesamiento_nlp['ETIQUETA'] == expediente_elegido].iloc[0]
-                texto_descripcion = str(fila_elegida.get('Descripción del Fenómeno', 'Sin descripción detallada.'))
+                texto_descripcion = str(fila_elegida.get('Descripción del Fenómeno', 'Sin descripcion detallada.'))
                 texto_conclusion = str(fila_elegida.get('Conclusión del Investigador', ''))
                 
                 texto_final_analisis = f"DESCRIPCION DEL TESTIGO: {texto_descripcion}"
