@@ -2,7 +2,7 @@
 # ARCHIVO PRINCIPAL: Agatha_Fani.py
 # SISTEMA: AGATHA Intelligent Neural Network
 # MODULO: MODULO CONTACT (Fenomeno Anomalo No Identificado)
-# VERSION: Opcon Ready v7.0 (CONTACT UI + UAP + Formulario Notificación)
+# VERSION: Opcon Ready v7.1 (Reestructuración Catálogo UAP)
 # OPERADOR: DIR-74
 # ====================================================================
 
@@ -67,7 +67,7 @@ h2, h3, h4 {
     color: #a855f7;
     font-size: 1.1rem;
     letter-spacing: 0.5px;
-    margin-bottom: 2rem;
+    margin-bottom: 1.5rem;
     text-shadow: 0 0 10px rgba(168, 85, 247, 0.3);
 }
 
@@ -148,7 +148,6 @@ with st.status("Inicializando AGATHA Intelligent Neural Network...", expanded=Tr
         if valor: return valor
         return None
 
-    # Las claves se extraen, pero en la UI solo hablaremos de AGATHA
     DEEPSEEK_API_KEY = obtener_credencial("DEEPSEEK_API_KEY")
 
     def asignar_color_neon(forma):
@@ -162,7 +161,6 @@ with st.status("Inicializando AGATHA Intelligent Neural Network...", expanded=Tr
         else: return 'rgba(0, 212, 255, 0.9)'
 
     def simular_coordenadas(df):
-        """Asignación de coordenadas determinista y ultra-robusta."""
         np.random.seed(42)
         centroides = {
             "TX": (31.9, -99.9), "FL": (27.7, -81.6), "CA": (36.7, -119.4), "NY": (40.7, -74.0),
@@ -329,6 +327,26 @@ with col_boton:
     if st.button("RECARGAR RED NEURONAL", type="primary"):
         st.cache_data.clear()
         st.rerun()
+
+# --- CATÁLOGO UAP (MOVIDO JUSTO DEBAJO DE LA CITA) ---
+with st.expander("CATÁLOGO UAP IDENTIFICACIÓN VISUAL DE OBJETOS", expanded=False):
+    st.markdown("<div style='color:#00d4ff; font-size:0.85rem; margin-bottom:10px; line-height:1.4;'>🔍 Pista: Haz clic en las flechas de la esquina superior derecha de la imagen para ampliar a pantalla completa. Existen hasta 24 tipologías registradas.</div>", unsafe_allow_html=True)
+    
+    if not os.path.exists("assets"):
+        os.makedirs("assets")
+    
+    ruta_img_catalogo = os.path.join("assets", "catalogo_morfologico_completo.png")
+    
+    if os.path.exists(ruta_img_catalogo):
+        st.image(ruta_img_catalogo, caption="Manual de Identificación de Tipos UAP")
+    else:
+        st.markdown(f"""
+        <div style='width:100%; height:150px; border:1px dashed #a855f7; display:flex; align-items:center; justify-content:center; background:#0f172a; margin-bottom:15px;'>
+            <span style='color:#e2e8f0; font-size:0.75rem; font-family:monospace; text-align:center;'>
+                [ACTIVO VISUAL REQUERIDO]<br>Asegurese de guardar la imagen como: catalogo_morfologico_completo.png en la carpeta /assets
+            </span>
+        </div>
+        """, unsafe_allow_html=True)
 
 # --- NOTIFICAR AVISTAMIENTO (NUEVO MÓDULO) ---
 with st.expander("🛸 NOTIFICA TU AVISTAMIENTO (Red UAP España / Global)", expanded=False):
@@ -505,25 +523,6 @@ m3.metric("Zonas de Interés", f"{len(df_filtrado['CIUDAD'].unique()) if not df_
 st.markdown("---")
 
 # --- MODULOS OPERATIVOS (DESPLEGABLES) ---
-
-with st.expander("CATÁLOGO UAP IDENTIFICACIÓN VISUAL DE OBJETOS", expanded=False):
-    st.markdown("<div style='color:#00d4ff; font-size:0.85rem; margin-bottom:10px; line-height:1.4;'>🔍 Pista: Haz clic en las flechas de la esquina superior derecha de la imagen para ampliar a pantalla completa. Existen hasta 24 tipologías registradas.</div>", unsafe_allow_html=True)
-    
-    if not os.path.exists("assets"):
-        os.makedirs("assets")
-    
-    ruta_img_catalogo = os.path.join("assets", "catalogo_morfologico_completo.png")
-    
-    if os.path.exists(ruta_img_catalogo):
-        st.image(ruta_img_catalogo, caption="Manual de Identificación de Tipos FANI / UAP")
-    else:
-        st.markdown(f"""
-        <div style='width:100%; height:150px; border:1px dashed #a855f7; display:flex; align-items:center; justify-content:center; background:#0f172a; margin-bottom:15px;'>
-            <span style='color:#e2e8f0; font-size:0.75rem; font-family:monospace; text-align:center;'>
-                [ACTIVO VISUAL REQUERIDO]<br>Asegurese de guardar la imagen como: catalogo_morfologico_completo.png en la carpeta /assets
-            </span>
-        </div>
-        """, unsafe_allow_html=True)
 
 with st.expander(f"REGISTROS FORENSES ({len(df_filtrado)} Activos)", expanded=True):
     if not df_filtrado.empty:
