@@ -2,7 +2,7 @@
 # ARCHIVO PRINCIPAL: Agatha_Fani.py
 # SISTEMA: AGATHA Intelligent Neural Network
 # MODULO: MODULO CONTACT (Fenomeno Anomalo No Identificado)
-# VERSION: Opcon Ready v9.4 (Alineación Perfecta y Textos Completos)
+# VERSION: Opcon Ready v9.5 (Fusión Imagen-Botón y Alineación Total)
 # OPERADOR: DIR-74
 # ====================================================================
 
@@ -94,17 +94,36 @@ h2, h3, h4 {
     font-weight: 400 !important;
 }
 
-/* Forzar que los textos de los botones NUNCA se corten */
+/* FUSION IMAGEN-BOTON Y ALINEACION TOTAL */
+div[data-testid="stImage"] {
+    margin-bottom: -16px !important; /* Elimina la separacion nativa de Streamlit */
+    width: 100% !important;
+}
+div[data-testid="stImage"] img {
+    width: 100% !important;
+    border-bottom-left-radius: 0px !important;
+    border-bottom-right-radius: 0px !important;
+}
+
+div[data-testid="stButton"] {
+    width: 100% !important;
+    display: flex !important;
+    justify-content: center !important;
+}
+
+/* Forzar que los textos de los botones NUNCA se corten y el ancho sea exacto */
 div[data-testid="stButton"] button {
+    width: 100% !important; 
     height: auto !important;
     min-height: 50px !important;
+    margin: 0 !important;
     padding: 5px !important;
     border: 1px solid #333333 !important; 
+    border-top: none !important; /* Para que parezca una extension de la imagen */
     background-color: #1a1a1a !important; 
     border-radius: 0px !important; 
     box-shadow: none !important;
     transition: all 0.3s ease;
-    width: 100% !important; 
 }
 
 div[data-testid="stButton"] button p {
@@ -125,6 +144,7 @@ div[data-testid="stButton"] button p {
 
 div[data-testid="stButton"] button:hover { 
     border-color: #00d4ff !important; 
+    border-top: 1px solid #00d4ff !important;
     background-color: #00d4ff !important; 
     box-shadow: 0 0 15px rgba(0, 212, 255, 0.5) !important;
 }
@@ -132,14 +152,15 @@ div[data-testid="stButton"] button:hover p {
     color: #0a0a0a !important; 
 }
 
-/* Estilo para el botón de la portada */
+/* Estilo para el boton de la portada (excepcion a la regla) */
+.boton-entrada div[data-testid="stButton"] button {
+    border-top: 1px solid #00d4ff !important;
+    border-color: #00d4ff !important;
+    box-shadow: 0 0 20px rgba(0, 212, 255, 0.4) !important;
+}
 .boton-entrada div[data-testid="stButton"] button p {
     font-size: 1.2rem !important;
     padding: 0.5rem !important;
-}
-.boton-entrada div[data-testid="stButton"] button {
-    border-color: #00d4ff !important;
-    box-shadow: 0 0 20px rgba(0, 212, 255, 0.4) !important;
 }
 </style>
 """
@@ -165,7 +186,7 @@ def normalizar_miniatura(img_path, size=(300, 300)):
     except Exception:
         return None
 
-@st.dialog("VISOR TÁCTICO UAP", width="large")
+@st.dialog("VISOR TACTICO UAP", width="large")
 def abrir_visor_completo(nombre_forma_archivo):
     ruta_completa = os.path.join("assets", f"{nombre_forma_archivo}_completo.png")
     if os.path.exists(ruta_completa):
@@ -383,9 +404,10 @@ elif st.session_state["pantalla_actual"] == "principal":
                                 if st.button(f"{forma_nombre_ui.upper()}", key=f"btn_{forma_archivo}"):
                                     abrir_visor_completo(forma_archivo)
                             else:
-                                st.markdown("<div style='width:100%; aspect-ratio:1/1; border:1px dashed #334155; display:flex; align-items:center; justify-content:center; background:#0f172a; margin-bottom:10px;'><span style='color:#64748b; font-size:0.6rem; text-align:center;'>Error de pixeles</span></div>", unsafe_allow_html=True)
+                                st.markdown("<div style='width:100%; aspect-ratio:1/1; border:1px dashed #334155; display:flex; align-items:center; justify-content:center; background:#0f172a; margin-bottom:0px;'><span style='color:#64748b; font-size:0.6rem; text-align:center;'>Error de pixeles</span></div>", unsafe_allow_html=True)
                         else:
-                            st.markdown(f"<div style='width:100%; aspect-ratio:1/1; border:1px dashed #334155; display:flex; align-items:center; justify-content:center; background:#0f172a; margin-bottom:10px;'><span style='color:#64748b; font-size:0.6rem; text-align:center;'>Falta:<br>{forma_archivo}.png</span></div>", unsafe_allow_html=True)
+                            st.markdown(f"<div style='width:100%; aspect-ratio:1/1; border:1px dashed #334155; display:flex; align-items:center; justify-content:center; background:#0f172a; margin-bottom:0px;'><span style='color:#64748b; font-size:0.6rem; text-align:center;'>Falta:<br>{forma_archivo}.png</span></div>", unsafe_allow_html=True)
+            st.markdown("<br>", unsafe_allow_html=True) # Espacio extra entre filas
 
     # --- NOTIFICAR AVISTAMIENTO ---
     with st.expander("NOTIFICA TU AVISTAMIENTO (Red UAP Espana / Global)", expanded=False):
