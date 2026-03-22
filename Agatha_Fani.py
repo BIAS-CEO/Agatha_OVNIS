@@ -2,7 +2,7 @@
 # ARCHIVO PRINCIPAL: Agatha_Fani.py
 # SISTEMA: AGATHA Intelligent Neural Network
 # MODULO: MODULO CONTACT (Fenomeno Anomalo No Identificado)
-# VERSION: Opcon Ready v10.2 (Map Cleansing & NLP Dashboard)
+# VERSION: Opcon Ready v10.3 (NLP Testimonios Externos)
 # OPERADOR: DIR-74
 # ====================================================================
 
@@ -281,7 +281,8 @@ def cargar_nodos():
     
     if os.path.exists(ruta_carpeta):
         for archivo in os.listdir(ruta_carpeta):
-            if archivo.endswith(".csv"):
+            # Excluimos el archivo de testimonios del mapa principal
+            if archivo.endswith(".csv") and "avistamientos_testimonios" not in archivo.lower():
                 try:
                     temp_df = pd.read_csv(os.path.join(ruta_carpeta, archivo), sep=None, engine='python', encoding='utf-8-sig', on_bad_lines='skip')
                     dfs.append(temp_df)
@@ -649,22 +650,45 @@ elif st.session_state["pantalla_actual"] == "principal":
             except Exception:
                 st.dataframe(df_mostrar, width='stretch', hide_index=True, height=400)
 
-    # --- PROCESADOR NLP FORENSE DE AGATHA ---
+    # --- PROCESADOR NLP FORENSE DE AGATHA (CON DATOS EXTERNOS) ---
     with st.expander("PROCESADOR NLP FORENSE", expanded=False):
-        if not df_filtrado.empty and 'RESUMEN' in df_filtrado.columns:
-            df_nlp = df_filtrado.copy()
-            df_nlp['TAG'] = df_nlp['CIUDAD'] + " | " + df_nlp['FORMA'] + " | " + df_nlp['AÑO'].astype(str)
+        
+        # Intentar cargar el archivo especifico de testimonios
+        ruta_testimonios_1 = os.path.join("data", "avistamientos_testimonios.csv")
+        ruta_testimonios_2 = "avistamientos_testimonios.csv"
+        df_nlp_data = pd.DataFrame()
+        
+        if os.path.exists(ruta_testimonios_1):
+            df_nlp_data = pd.read_csv(ruta_testimonios_1, sep=None, engine='python', encoding='utf-8-sig', on_bad_lines='skip')
+        elif os.path.exists(ruta_testimonios_2):
+            df_nlp_data = pd.read_csv(ruta_testimonios_2, sep=None, engine='python', encoding='utf-8-sig', on_bad_lines='skip')
             
-            opciones_tag = df_nlp['TAG'].unique()
-            if len(opciones_tag) > 500:
-                st.caption("Mostrando los 500 expedientes mas recientes para analisis NLP.")
-                opciones_tag = opciones_tag[:500]
-                
-            caso_sel = st.selectbox("Seleccionar Expediente Forense UAP", opciones_tag, key="select_nlp")
+        if not df_nlp_data.empty:
+            df_nlp_data.columns = df_nlp_data.columns.str.strip()
+            
+            # Formatear la etiqueta de seleccion
+            def crear_tag(row):
+                id_caso = str(row.get('ID de Caso', 'N/A'))
+                ubicacion = str(row.get('Ubicación', 'N/A'))
+                fecha = str(row.get('Fecha/Hora', 'N/A'))
+                return f"{id_caso} | {ubicacion} | {fecha}"
+            
+            df_nlp_data['TAG'] = df_nlp_data.apply(crear_tag, axis=1)
+            opciones_tag = df_nlp_data['TAG'].unique()
+            
+            st.caption(f"Cargados {len(df_nlp_data)} expedientes testificales detallados.")
+            caso_sel = st.selectbox("Seleccionar Expediente Testifical UAP", opciones_tag, key="select_nlp")
             
             if caso_sel:
-                resumen = str(df_nlp[df_nlp['TAG'] == caso_sel].iloc[0].get('RESUMEN', 'Sin resumen disponible.'))
-                st.markdown(f"<div style='background:#1a1a1a; padding:15px; border-left:3px solid #a855f7; color:#e2e8f0;'>{resumen}</div><br>", unsafe_allow_html=True)
+                fila_sel = df_nlp_data[df_nlp_data['TAG'] == caso_sel].iloc[0]
+                descripcion = str(fila_sel.get('Descripción del Fenómeno', 'Sin descripción detallada.'))
+                conclusion = str(fila_sel.get('Conclusión del Investigador', ''))
+                
+                texto_a_analizar = f"DESCRIPCION DEL TESTIGO: {descripcion}"
+                if conclusion and conclusion.lower() != 'nan':
+                    texto_a_analizar += f"\n\nCONCLUSION PREVIA: {conclusion}"
+                
+                st.markdown(f"<div style='background:#1a1a1a; padding:15px; border-left:3px solid #a855f7; color:#e2e8f0; white-space: pre-wrap;'>{texto_a_analizar}</div><br>", unsafe_allow_html=True)
                 
                 if st.button("Ejecutar Analisis de Inteligencia AGATHA", type="primary"):
                     if DEEPSEEK_API_KEY:
@@ -675,7 +699,7 @@ elif st.session_state["pantalla_actual"] == "principal":
                                     "model": "deepseek-chat",
                                     "messages": [
                                         {"role": "system", "content": "Analiza el texto de este avistamiento UAP y responde estrictamente con un JSON con esta estructura exacta: {\"comportamiento\": \"...\", \"credibilidad\": \"ALTA/MEDIA/BAJA\", \"indice_anomalia\": \"0-100\", \"explicacion_probable\": \"ej. Satelites, Starlink, Globo, Cohete, Fenomeno Meteorologico, o Desconocido\"}"},
-                                        {"role": "user", "content": resumen}
+                                        {"role": "user", "content": texto_a_analizar}
                                     ],
                                     "response_format": {"type": "json_object"}
                                 }
@@ -703,3 +727,5 @@ elif st.session_state["pantalla_actual"] == "principal":
                                 st.error(f"ERROR: Fallo interno en los circuitos de AGATHA: {str(e)}")
                     else:
                         st.warning("ERROR: Falta credencial de procesamiento neuronal en la configuracion del sistema.")
+        else:
+            st.warning("AVISO: No se encontro el archivo 'avistamientos_testimonios.csv'. Por favor, suba el archivo al directorio raiz o a la carpeta 'data' para activar el analisis forense.")
